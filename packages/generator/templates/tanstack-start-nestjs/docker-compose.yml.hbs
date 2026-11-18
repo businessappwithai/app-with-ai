@@ -1,0 +1,515 @@
+# {{project.name}}
+#
+#   docker compose up --build
+#
+# Everything the application needs runs here, database included — no external
+# service has to exist first. Point DATABASE_URL somewhere else and the bundled
+# database is simply unused.
+#
+#   app        the whole application in one container (Dockerfile at the root)
+#   backend    } the same application split in two, which is what you want
+#   frontend   } when the two halves scale differently
+#
+# The split pair is the default. `docker compose --profile single up app` runs
+# the one-container build instead.
+#
+# Either way the browser talks to one address — {{project.frontendPort}}. The web front end
+# serves /api itself and forwards it to the API (see frontend/src/routes/api/$.ts),
+# so there is no second origin, no CORS negotiation, and the session cookie is an
+# ordinary same-origin cookie that works over plain HTTP. The API's own port is
+# published as well, but only for curl and health checks; nothing in the browser
+# uses it.
+#
+# Configuration comes from a `.env` beside this file — `cp .env.example .env`.
+# Every value has a working default here, so an absent `.env` still brings the
+# application up; the file is where the AI endpoint and the real secrets go.
+#
+# Reaching the application by any name other than localhost means naming it, so
+# that the sign-in request's Origin is one the API recognises:
+#
+#   CORS_ORIGIN=http://app.internal:{{project.frontendPort}} docker compose up
+#
+# Left unset on a non-localhost host, sign-in answers "Invalid origin".
+
+# The image names use `project.id`, not `project.name`. A Docker reference may
+# not contain a space or a capital, and a project called "Acme CRM" produced
+# `image: Acme CRM:latest` — which compose rejects before it builds anything.
+services:
+  postgres:
+    # pgvector rather than stock Postgres: the model-context assistant stores
+    # embeddings, and `CREATE EXTENSION vector` fails on an image without it.
+    image: pgvector/pgvector:pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: {{project.name | replace '-' '_'}}
+      POSTGRES_USER: ${DB_USER:-app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-app}
+    volumes:
+      # Postgres 18 wants one mount at /var/lib/postgresql and puts its data in a
+
+      # subdirectory; mounting the old /data path directly makes the image refuse
+
+      # to start.
+
+      - postgres_data:/var/lib/postgresql
+      # Creates `enterprise_config` — the reporting platform's own database —
+      # on the first start of a fresh volume. Read-only, and it runs before
+      # anything connects. See reporting/pg-init/01-reporting-database.sh.
+      - ./reporting/pg-init:/docker-entrypoint-initdb.d:ro
+    # Electric follows the write-ahead log, which it can only do when the log
+    # carries row data. Without this the electric service starts and then fails
+    # on its first shape request.
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+    healthcheck:
+      # `-d`, and it is not decoration. Without a database name `pg_isready`
+      # connects as `$DB_USER` to a database of the same name — `app` — which
+      # does not exist here. It still reports the server up, because a server
+      # that refuses a connection is a server that answered, so the check
+      # passes and nothing looks wrong. What it leaves behind is a line in the
+      # postgres log every ten seconds, for the life of the container:
+      #
+      #   FATAL:  database "app" does not exist
+      #
+      # Which is the first thing anyone reads when something else goes wrong,
+      # and it sends them after a database the application never wanted.
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-app} -d {{project.name | replace '-' '_'}}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Streams the Application Dictionary to browsers so each client reads it
+  # locally instead of fetching it per screen.
+  #
+  # Deliberately not published to the host: Electric applies no authorization of
+  # its own, so anything that can reach it can read any table it is pointed at.
+  # The only way in is the backend's /v1/shape proxy, which requires a session
+  # and narrows every shape to that session's roles.
+  electric:
+    image: electricsql/electric:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-app}:${DB_PASSWORD:-app}@postgres:5432/{{project.name | replace '-' '_'}}
+      ELECTRIC_INSECURE: "true"
+    expose:
+      - "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # The single-image build. Not started by default — name it, or use the profile.
+  app:
+    profiles: ["single"]
+    image: {{project.id}}:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Empty: the client calls /api on whatever origin it was served from.
+        # See the note at the top of this file.
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_APP_URL: ${VITE_APP_URL:-http://localhost:{{project.frontendPort}}}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-{{project.frontendPort}}}:{{project.frontendPort}}"
+      - "${BACKEND_PORT:-{{project.backendPort}}}:{{project.backendPort}}"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-postgres://${DB_USER:-app}:${DB_PASSWORD:-app}@postgres:5432/{{project.name | replace '-' '_'}}}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-in-production}
+      # The administrator's password (8+ characters). Unset: the seed's default.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:{{project.frontendPort}}}
+      ELECTRIC_URL: http://electric:3000
+      # How long each in-process cache serves an entry, in ms; 0 turns one off.
+      # backend/.env.example says what each one holds.
+      CACHE_TTL_DEFAULT_MS: ${CACHE_TTL_DEFAULT_MS:-6000}
+      CACHE_TTL_CAPABILITIES_MS: ${CACHE_TTL_CAPABILITIES_MS:-6000}
+      CACHE_TTL_ACCESS_POLICY_MS: ${CACHE_TTL_ACCESS_POLICY_MS:-6000}
+      CACHE_TTL_ENTITY_METADATA_MS: ${CACHE_TTL_ENTITY_METADATA_MS:-6000}
+      CACHE_TTL_IDENTIFIER_FIELDS_MS: ${CACHE_TTL_IDENTIFIER_FIELDS_MS:-6000}
+      CACHE_TTL_DICTIONARY_FIELDS_MS: ${CACHE_TTL_DICTIONARY_FIELDS_MS:-6000}
+      CACHE_TTL_LIFECYCLE_MS: ${CACHE_TTL_LIFECYCLE_MS:-6000}
+      # The AI assistant — retrieval over this application's own model.
+      #
+      # One endpoint serves it: OpenAI-compatible `POST /v1/embeddings`. Point
+      # AI_BASE_URL at a local model, at OpenAI, or at any gateway that speaks
+      # it; `.env.example` spells out all three. Unset, the defaults below
+      # assume a local server on the host, the assistant fails to reach it, logs
+      # one warning, and every other screen is unaffected.
+      AI_BASE_URL: ${AI_BASE_URL:-http://host.docker.internal:8000/v1}
+      AI_API_KEY: ${AI_API_KEY:-local}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-bge-small-en-v1.5}
+      # The pgvector column width, fixed when the index is created. Changing it
+      # after the first start means re-creating the index and re-ingesting.
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-384}
+      ENABLE_MODEL_CONTEXT: ${ENABLE_MODEL_CONTEXT:-true}
+      # Read from the environment but not called yet: the Claude API has no
+      # embeddings endpoint, so it cannot serve the assistant on its own. Set
+      # alongside an embeddings provider, it is here for the chat surface.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      electric:
+        condition: service_started
+
+  backend:
+    image: {{project.id}}-backend:${IMAGE_TAG:-latest}
+    build:
+      # The whole project, not ./backend. Both service Dockerfiles install the
+      # workspace — they COPY `backend/package.json` *and* `frontend/package.json`
+      # so the lockfile resolution matches what the app was generated against —
+      # and a context of ./backend puts those paths out of reach. The build got
+      # as far as `COPY backend/package.json` and failed with "not found",
+      # which reads like a missing file rather than the wrong root.
+      context: .
+      dockerfile: ./backend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-{{project.backendPort}}}:{{project.backendPort}}"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${DB_USER:-app}:${DB_PASSWORD:-app}@postgres:5432/{{project.name | replace '-' '_'}}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-in-production}
+      # The administrator's password (8+ characters). Unset: the seed's default.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # The origins the browser may sign in from. The second is the front end's
+      # address *on the compose network*, which is where the `e2e-ui` service's
+      # browser is. A deployment names its own (comma separated) and keeps that
+      # entry if it runs the end-to-end suite in compose.
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:{{project.frontendPort}},http://frontend:{{project.frontendPort}}}
+      # The rate limiter's ceiling per window. The end-to-end suite (`e2e`
+      # below) makes thousands of requests from one address; it backs off on a
+      # 429 either way, but a ceiling it never reaches keeps a run short.
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100000}
+      PORT: {{project.backendPort}}
+      # Tracing: off until a collector is named. With `--profile observability`, set this to
+      # http://otel-collector:4318 and open Jaeger on http://localhost:16686.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-{{project.id}}-backend}
+      # No immudb service is composed here; left unset the backend tries to
+      # connect on start and logs a gRPC login error. Audit rows go to PostgreSQL.
+      IMMUDB_ENABLED: ${IMMUDB_ENABLED:-false}
+      ELECTRIC_URL: http://electric:3000
+      # How long each in-process cache serves an entry, in ms; 0 turns one off.
+      # backend/.env.example says what each one holds.
+      CACHE_TTL_DEFAULT_MS: ${CACHE_TTL_DEFAULT_MS:-6000}
+      CACHE_TTL_CAPABILITIES_MS: ${CACHE_TTL_CAPABILITIES_MS:-6000}
+      CACHE_TTL_ACCESS_POLICY_MS: ${CACHE_TTL_ACCESS_POLICY_MS:-6000}
+      CACHE_TTL_ENTITY_METADATA_MS: ${CACHE_TTL_ENTITY_METADATA_MS:-6000}
+      CACHE_TTL_IDENTIFIER_FIELDS_MS: ${CACHE_TTL_IDENTIFIER_FIELDS_MS:-6000}
+      CACHE_TTL_DICTIONARY_FIELDS_MS: ${CACHE_TTL_DICTIONARY_FIELDS_MS:-6000}
+      CACHE_TTL_LIFECYCLE_MS: ${CACHE_TTL_LIFECYCLE_MS:-6000}
+      # The AI assistant — retrieval over this application's own model.
+      #
+      # One endpoint serves it: OpenAI-compatible `POST /v1/embeddings`. Point
+      # AI_BASE_URL at a local model, at OpenAI, or at any gateway that speaks
+      # it; `.env.example` spells out all three. Unset, the defaults below
+      # assume a local server on the host, the assistant fails to reach it, logs
+      # one warning, and every other screen is unaffected.
+      AI_BASE_URL: ${AI_BASE_URL:-http://host.docker.internal:8000/v1}
+      AI_API_KEY: ${AI_API_KEY:-local}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-bge-small-en-v1.5}
+      # The pgvector column width, fixed when the index is created. Changing it
+      # after the first start means re-creating the index and re-ingesting.
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-384}
+      ENABLE_MODEL_CONTEXT: ${ENABLE_MODEL_CONTEXT:-true}
+      # Read from the environment but not called yet: the Claude API has no
+      # embeddings endpoint, so it cannot serve the assistant on its own. Set
+      # alongside an embeddings provider, it is here for the chat surface.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    extra_hosts:
+      # So `host.docker.internal` resolves on Linux too, where it is not
+      # provided automatically — that is the address a container uses to reach
+      # a model server running on the machine hosting it.
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      electric:
+        condition: service_started
+    healthcheck:
+      # `127.0.0.1`, not `localhost`. Inside the container `localhost` resolves
+      # to both `127.0.0.1` and `::1`, busybox wget tries the IPv6 address
+      # first, and the API listens on IPv4 only — so this check answered
+      # "connection refused" against a perfectly healthy server. The backend
+      # then never became healthy, and the front end, which waits on it, never
+      # started at all: `docker compose up` sat at "container is unhealthy"
+      # while the API answered 200 to anyone who asked from the host.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:{{project.backendPort}}/api/me/health || exit 1"]
+      # Tight enough that a start is not spent waiting for the first probe.
+      # `start_period` keeps the migrations and seeds from counting as failures.
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  frontend:
+    image: {{project.id}}-frontend:${IMAGE_TAG:-latest}
+    build:
+      # The whole project — see the note on the backend service.
+      context: .
+      dockerfile: ./frontend/Dockerfile
+      args:
+        # Empty: the client calls /api on whatever origin it was served from.
+        # See the note at the top of this file.
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_APP_URL: ${VITE_APP_URL:-http://localhost:{{project.frontendPort}}}
+        # Dictionary shape requests go straight to the API's port, a separate
+        # connection pool from the page's. Through this origin the long-polling
+        # shapes occupy all six HTTP/1.1 slots and starve every other request.
+        # Needs CORS_ORIGIN to name the page's origin (its default does). Behind
+        # a reverse proxy or on another host, set VITE_ELECTRIC_PROXY_URL to the
+        # API's public address, or to '/api/v1/shape' to stay on one origin.
+        VITE_ELECTRIC_PROXY_URL: ${VITE_ELECTRIC_PROXY_URL:-http://localhost:{{project.backendPort}}/api/v1/shape}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-{{project.frontendPort}}}:{{project.frontendPort}}"
+    environment:
+      NODE_ENV: production
+      PORT: {{project.frontendPort}}
+      # Where this server forwards /api/*. Container-to-container, so it names
+      # the service rather than a published port.
+      BACKEND_URL: http://backend:{{project.backendPort}}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # The reporting application.
+  #
+  # A second application, on a second port, with a sign-in of its own. The
+  # Enterprise Reporting platform — connect a database, ask questions of it in
+  # natural language, publish the answers as reports, charts and dashboards —
+  # pointed at *this* application's database and seeded with the reporting layer
+  # derived from the same model this application was generated from.
+  #
+  # Two logins, and they are not merged. A role here decides which of this
+  # application's tables a user's queries may read; a role in the application
+  # decides what they may do to a record. The names line up, deliberately, so
+  # that `sales_manager` on one side is recognisable on the other — but they are
+  # separate accounts in separate databases and neither password works on the
+  # other side. `reporting/README.md` has the addresses.
+  #
+  # Not started by default is *not* the arrangement: it comes up with
+  # `docker compose up`. Leave it out with
+  # `docker compose up postgres backend frontend`.
+  # ─────────────────────────────────────────────────────────────────────────
+  report:
+    image: {{project.id}}-report:${IMAGE_TAG:-latest}
+    build:
+      # `./reporting`, which holds a Dockerfile that fetches the platform at
+      # REPORT_REF and builds it. The platform is a separate product and is not
+      # vendored into this project — see the notes in that file.
+      context: ./reporting
+      dockerfile: Dockerfile
+      args:
+        REPORT_REF: ${REPORT_REF:-main}
+    restart: unless-stopped
+    ports:
+      - "${REPORT_PORT:-3100}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Its own database, never this application's. A regeneration drops and
+      # recreates the application's tables; the reports have to survive that.
+      DATABASE_URL: postgres://${DB_USER:-app}:${DB_PASSWORD:-app}@postgres:5432/enterprise_config
+      GRAPH_DATABASE_URL: postgres://${DB_USER:-app}:${DB_PASSWORD:-app}@postgres:5432/ers_knowledge
+      # Both are required, and both have to be stable across restarts.
+      #
+      # ENCRYPTION_KEY in particular: it is what the platform encrypts stored
+      # data-source passwords with, so regenerating it leaves every connection
+      # undecryptable and the failure looks like a broken data source rather
+      # than a rotated key. Set them in `.env` before the first start.
+      AUTH_SECRET: ${REPORT_AUTH_SECRET:-change-me-in-production-at-least-32-chars}
+      ENCRYPTION_KEY: ${REPORT_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # The origins the platform trusts for a sign-in that already carries a
+      # cookie. Unset it trusts only localhost:4050, so a second sign-in from the
+      # published port, or from the end-to-end container, was refused as "Invalid origin".
+      CORS_ORIGIN: ${REPORT_CORS_ORIGIN:-http://localhost:${REPORT_PORT:-3100},http://report:3000}
+      BETTER_AUTH_URL: ${REPORT_BASE_URL:-http://localhost:${REPORT_PORT:-3100}}
+    # `restart: unless-stopped` above is the whole dependency story, and there
+    # is deliberately no `depends_on` for the database: the platform bootstraps
+    # its own schema on the first request, so it may start first and be
+    # restarted until PostgreSQL answers.
+
+  # The one-shot seeder.
+  #
+  # Runs after the application has migrated, then exits. It registers this
+  # application's database as a data source with its password encrypted the way
+  # the platform expects, introspects and caches its schema, and writes the
+  # pack's saved queries, reports, charts, dashboards and reporting roles.
+  #
+  # Idempotent by name, which is why it runs on every `docker compose up`
+  # rather than only the first: a second run updates in place.
+  #
+  # It is the platform's own script (`scripts/seed-reporting-pack.ts`), run in
+  # the platform's own image — not a copy of it living in this project. A
+  # seeder with its own encryption or its own schema-cache shape would drift
+  # from the reader, and the failure is a data source that exists and cannot be
+  # opened.
+  report-seeder:
+    image: {{project.id}}-report:${IMAGE_TAG:-latest}
+    build:
+      context: ./reporting
+      dockerfile: Dockerfile
+      args:
+        REPORT_REF: ${REPORT_REF:-main}
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${DB_USER:-app}:${DB_PASSWORD:-app}@postgres:5432/enterprise_config
+      # The database it is registering *as a data source* — this application's.
+      APP_DATABASE_URL: postgres://${DB_USER:-app}:${DB_PASSWORD:-app}@postgres:5432/{{project.name | replace '-' '_'}}
+      REPORTING_PACK: /pack/reporting-pack.json
+      ENCRYPTION_KEY: ${REPORT_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      AUTH_SECRET: ${REPORT_AUTH_SECRET:-change-me-in-production-at-least-32-chars}
+      # The reporting administrator's password — the one reporting/README.md
+      # lists. The platform will not take an ADMIN_PASSWORD under eight
+      # characters and otherwise generates a random one, so without this the
+      # administrator was the one documented account that could not sign in.
+      # The seeder sets it on first start only; a password changed later in the
+      # platform survives every restart. Set REPORT_ADMIN_PASSWORD in `.env`
+      # before this is reachable by anyone else.
+      SEED_ADMIN_PASSWORD: ${REPORT_ADMIN_PASSWORD:-admin}
+    volumes:
+      # The pack, read-only. It is the one reporting artefact this project
+      # contains, and it is derived entirely from the model.
+      - ./reporting/reporting-pack.json:/pack/reporting-pack.json:ro
+    # Wait for the backend to be healthy — not just for PostgreSQL — because
+    # the backend runs migrations on start (`run-app.sh`), and the seeder must
+    # find the `bus_` tables already there when it introspects the schema.
+    # A healthy backend means migrations completed; an empty database on first
+    # connect means something went wrong in `run-app.sh`, not that the seeder
+    # started too early. `getDb()` bootstraps the platform's own schema, so
+    # the seeder still needs no running `report` service.
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["bun", "scripts/seed-reporting-pack.ts"]
+
+  # <e2e>
+  # ─────────────────────────────────────────────────────────────────────────
+  # The end-to-end suite, on demand.
+  #
+  #   docker compose run --rm e2e          the API suites against both applications
+  #   docker compose run --rm e2e test     the same, spelled out
+  #   docker compose run --rm e2e test:crud | test:rules | test:workflows
+  #
+  # It is the `tests/` project generated beside this application, derived from the
+  # same model: CRUD for every entity, the business rules, the workflows, the
+  # editor's API, every state machine and who may press its buttons, and the
+  # reporting platform held to the pack the seeder loaded — signed in as each
+  # reporting role. It starts nothing: it waits for both applications to be up
+  # and the seeder to have finished, then talks to them over the compose network.
+  #
+  # The `test` profile keeps it out of `docker compose up`. Naming the service
+  # with `run` starts it (and what it depends on) without the profile flag.
+  # Results are written to ./test-results.
+  # ─────────────────────────────────────────────────────────────────────────
+  e2e:
+    profiles: ["test"]
+    image: {{project.id}}-e2e:${IMAGE_TAG:-latest}
+    build:
+      context: ./tests
+      dockerfile: Dockerfile
+    restart: "no"
+    environment:
+      E2E_BASE_URL: http://backend:{{project.backendPort}}
+      E2E_ORIGIN: ${E2E_ORIGIN:-http://frontend:{{project.frontendPort}}}
+      E2E_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@admin.com}
+      # Unset here and in the backend, the seed uses admin123.
+      E2E_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      E2E_REPORT_URL: http://report:3000
+      # In compose the platform is a dependency: an unreachable one is a failure, not a skip.
+      E2E_REPORTING: required
+      E2E_REPORT_ADMIN_PASSWORD: ${REPORT_ADMIN_PASSWORD:-admin}
+      E2E_REPORT_PACK: /app/reporting/reporting-pack.json
+      E2E_RECORDS_PER_ENTITY: ${E2E_RECORDS_PER_ENTITY:-10}
+    volumes:
+      - ./reporting/reporting-pack.json:/app/reporting/reporting-pack.json:ro
+      - ./test-results:/app/test-results
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+      report:
+        condition: service_healthy
+      report-seeder:
+        condition: service_completed_successfully
+
+  # The same suite's browser layer: Chromium drives the front end, the rules &
+  # workflows editor, a record's action buttons and the reporting platform's
+  # dashboards. A separate service because the Playwright image is large and the
+  # API suites should not pay for it.
+  #
+  #   docker compose run --rm e2e-ui
+  e2e-ui:
+    profiles: ["test"]
+    image: {{project.id}}-e2e-ui:${IMAGE_TAG:-latest}
+    build:
+      context: ./tests
+      dockerfile: Dockerfile.ui
+    restart: "no"
+    ipc: host
+    environment:
+      E2E_BASE_URL: http://backend:{{project.backendPort}}
+      E2E_APP_URL: http://frontend:{{project.frontendPort}}
+      E2E_ORIGIN: ${E2E_ORIGIN:-http://frontend:{{project.frontendPort}}}
+      E2E_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@admin.com}
+      E2E_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      E2E_REPORT_URL: http://report:3000
+      # In compose the platform is a dependency: an unreachable one is a failure, not a skip.
+      E2E_REPORTING: required
+      E2E_REPORT_ADMIN_PASSWORD: ${REPORT_ADMIN_PASSWORD:-admin}
+      E2E_REPORT_PACK: /app/reporting/reporting-pack.json
+    volumes:
+      - ./reporting/reporting-pack.json:/app/reporting/reporting-pack.json:ro
+      - ./test-results:/app/test-results
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+      report:
+        condition: service_healthy
+      report-seeder:
+        condition: service_completed_successfully
+  # </e2e>
+
+  # ── Tracing (optional) ──────────────────────────────────────────────────────
+  # docker compose --profile observability up -d
+  # Nothing here starts without the profile, and the backend exports nothing until
+  # OTEL_EXPORTER_OTLP_ENDPOINT is set.
+  otel-collector:
+    image: otel/opentelemetry-collector:0.116.1
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.65.0
+    profiles: ["observability"]
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,49 @@
+/**
+ * Auth Module - BetterAuth Integration
+ *
+ * Auth routes are handled by better-auth's native HTTP handler
+ * mounted directly on the Fastify instance (see main.ts).
+ *
+ * This module provides guards for protecting other routes:
+ * - SessionAuthGuard: validates session cookies against better-auth
+ * - RolesGuard: checks user roles for authorization
+ * - EntityAccessGuard: enforces the model's %%rbac directives on entity routes
+ * - DictionaryWriteGuard: dictionary reads open, dictionary writes admin-only
+ * - CapabilityService: what a user's roles grant, one query and cached — global,
+ *   because every controller's guards read it
+ *
+ * Generated: {{now}}
+ */
+
+import { Global, Module } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { SessionAuthGuard } from './guards/session-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { EntityAccessGuard } from './guards/entity-access.guard';
+import { DictionaryWriteGuard } from './guards/dictionary-write.guard';
+import { AuthController } from './auth.controller';
+import { CapabilityService } from './capability.service';
+import { DatabaseModule } from '../../database/database.module';
+
+@Global()
+@Module({
+  imports: [DatabaseModule],
+  controllers: [AuthController],
+  providers: [
+    Reflector,
+    SessionAuthGuard,
+    RolesGuard,
+    EntityAccessGuard,
+    DictionaryWriteGuard,
+    CapabilityService,
+  ],
+  exports: [
+    SessionAuthGuard,
+    RolesGuard,
+    EntityAccessGuard,
+    DictionaryWriteGuard,
+    CapabilityService,
+    DatabaseModule,
+  ],
+})
+export class AuthModule {}

@@ -1,0 +1,128 @@
+{
+  "Department": {
+    "placement": "Standalone. A list of departments away from any owner is the school's own structure screen; nothing owns a department.",
+    "crossEntity": "None. A department is written on its own; its head is a reference to Staff, not a write into it.",
+    "openQuestions": "Whether a department may have a second, acting head during a long absence. Modelled as one `staff_id` — a second head would be a link entity, and no research line asked for one."
+  },
+  "Room": {
+    "placement": "Standalone reference data. Rooms are listed, filtered and reported on in their own right.",
+    "crossEntity": "None. A room's capacity seeds a section's capacity at timetabling, and that copy is deliberate: a room re-measured next year must not change a section already recruited to.",
+    "openQuestions": "Whether room bookings outside teaching (parents' evenings, examinations) belong here. Out of scope per research §8."
+  },
+  "AcademicTerm": {
+    "placement": "Standalone. Almost every screen in the application is filtered by term, so it is a first-class list.",
+    "crossEntity": "Closing a term is expected to close its sections and finalise its invoices. Neither is automated: both are decisions with money attached, and the closing checklist is the finance officer's `finance-drafts-past-census` report rather than a saga nobody watched run.",
+    "openQuestions": "The academic year is a label here (`academic_year`), not a table — research §9.10. If year-level reporting ever needs its own record (year-group promotion, year-book), that is a roster change, not a field change."
+  },
+  "Staff": {
+    "placement": "Standalone, and the model's person entity: every `_by_id` column in the document resolves here because no `User` entity is declared.",
+    "crossEntity": "A member of staff going `on_leave` or `left` leaves their sections pointing at them; the `principal-teaching-cover-gap` report is what surfaces it. Deliberately not automated — reassigning a group mid-term is a timetabling decision, not a side effect of an HR field.",
+    "openQuestions": "Whether a person may be both staff and guardian (a teacher whose child attends). Two records today, linked by nothing. Merging them would need a party model and was ruled out at Gate B."
+  },
+  "Course": {
+    "placement": "Standalone. The curriculum list is a screen the whole school uses.",
+    "crossEntity": "None. Retiring a course does not touch its sections: past teaching and past results must survive it.",
+    "openQuestions": "Whether entry requirements for advanced courses should be modelled (a prerequisite link between courses) or left to the registrar. Left out at Gate B as scope."
+  },
+  "Guardian": {
+    "placement": "Standalone. Two students sharing a guardian share this record — which is the whole reason a guardian is not a set of columns on the student.",
+    "crossEntity": "The primary-contact flag on `StudentGuardian` decides who an invoice reaches. Nothing writes it automatically; `finance-issued-without-payment` reads it.",
+    "openQuestions": "Whether a guardian who is also the billing party for a second family's child needs separating from the correspondence address. One address today."
+  },
+  "Student": {
+    "placement": "Standalone, and the central artefact of the model.",
+    "crossEntity": "Suspension is written **onto** the student by the `SuspensionEscalation` saga when a conduct record records a suspension sanction — trigger `DisciplineIncident` → target `Student` → transition `enrolled|on_leave → suspended`. Withdrawal deliberately does *not* cascade: the term's invoice stands, which is the school's policy and the reason `Enrollment.withdrawn_on` is evidence rather than a trigger. `has_support_plan` is written by the `SupportPlan` hooks, never keyed by hand.",
+    "openQuestions": "Whether year-group rollover should be a workflow (advance every enrolled student by one year each August) or an administrative task. Left manual: a rollover that runs on the wrong date is expensive to unpick."
+  },
+  "StudentGuardian": {
+    "placement": "Child of `Student` (§3.3.1: Q1 no — a list of links away from the child is not a screen; Q2 and Q3 yes). It appears as a tab on the student record, which is where the office looks for it.",
+    "crossEntity": "None written automatically. The rule that exactly one guardian per student carries `is_primary_contact` is not enforceable by a rule that can only read the record being written — a second primary contact is a two-row fact — so it is a report, and named as such rather than promised as a refusal.",
+    "openQuestions": "Whether `may_collect` needs an expiry (a court order with an end date). Boolean today."
+  },
+  "AdmissionApplication": {
+    "placement": "Standalone. The admissions queue is the admissions officer's entire working screen.",
+    "crossEntity": "Acceptance creates a student and raises that student's first invoice — trigger `AdmissionApplication` → targets `Student` and `FeeInvoice` → create — through the `AdmissionToEnrolment` saga, gated by the `enrolOnAcceptance` action so it fires on acceptance and on nothing else.",
+    "openQuestions": "Whether an offer should expire automatically after its deadline. Not modelled: an expiry that runs unattended has told a family no, and the school wants a person to do that. `admissions-offers-unanswered` is the report that makes it a decision."
+  },
+  "ClassSection": {
+    "placement": "Standalone. The timetable is a list of sections and it is opened daily.",
+    "crossEntity": "Cancelling a section withdraws every enrolment on it — trigger `ClassSection` → target `Enrollment` → transition `pending|enrolled → withdrawn` — through `SectionCancellation`. The enrolment counter is maintained by the `Enrollment` hooks rather than by this entity, and `registrar-counter-disagrees` is the report that notices when a hook fails silently.",
+    "openQuestions": "One day and one period per section keeps the timetable readable; a subject needing two slots a week is modelled as two sections of the same course. Confirmed as a deliberate simplification, and the one most likely to need revisiting in a real school."
+  },
+  "ClassSession": {
+    "placement": "Standalone — argued at Gate B and recorded there. *Today's sessions across every section* is the register screen, which is the most-opened list in the application; a session is identified by its own date and time, not by its position in a section.",
+    "crossEntity": "Closing a register updates each enrolment's attendance rate — that is written by the `AttendanceRecord` hooks, one mark at a time, rather than by the session.",
+    "openQuestions": "Whether a cancelled session should generate excused marks for the group, so the statutory return has a row per student. Not modelled: `register_taken` staying false on a cancelled session is the honest record, and `teacher-registers-not-taken` excludes cancelled sessions for exactly that reason."
+  },
+  "Enrollment": {
+    "placement": "Standalone. The registrar's working list is enrolments across sections, not a tab on one section.",
+    "crossEntity": "Creating an enrolment increments the section's counter (`incrementSectionEnrolment`); changing its status maintains it (`maintainSectionEnrolment`). Capacity is checked in the `checkSectionCapacity` handler and **not** as a rule — §10.4's second route: the condition names a fact about the section, which a `when:` cannot read, so a rule written that way would have been seeded, drawn by the viewers, and inert.",
+    "openQuestions": "Whether a clash (two enrolments in the same day and period) should be refused as well as reported. Same limitation as capacity: it is a two-row fact. A handler could refuse it; today it is `registrar-timetable-clashes`."
+  },
+  "AttendanceRecord": {
+    "placement": "Child of `ClassSession` — the register is a tab on the session, and a mark away from its session means nothing.",
+    "crossEntity": "Each mark updates the enrolment's `attendance_rate` (`updateEnrolmentAttendanceRate` on create, `correctEnrolmentAttendanceRate` on a correction), which is the number the pastoral team sorts by and the statutory floor is measured against.",
+    "lifecycle": "None, deliberately. `present`, `late`, `absent` and `excused` are classifications rather than stages: a mark is corrected, not advanced, and drawing a machine over them would refuse a correction with a 403. `is_authorised` is kept separate from the mark for the same reason — an absence can be re-authorised later without rewriting the register.",
+    "openQuestions": "Whether a correction should keep the original mark for audit. Today it is an update; the statutory obligation is satisfied by the `updated_at` and audit trail the generated application writes."
+  },
+  "Assessment": {
+    "placement": "Standalone. A teacher's \"what have I got to mark\" spans every section they teach.",
+    "crossEntity": "Publishing an assessment is expected to create one result row per enrolled student. Not modelled as a saga: a `CreateEntity` step writes one row, and the fan-out over a group belongs in the application. Stated here rather than left as an assumption.",
+    "openQuestions": "Whether weights should be refused when they would take a section past 100. Two-row fact again, so `hod-weights-not-adding-up` is the report."
+  },
+  "AssessmentResult": {
+    "placement": "Child of `Assessment`.",
+    "crossEntity": "None outward. Inward: `copyAssessmentMaximum` stamps `max_score` from the paper at creation — the §10.4 first route, a column that earns its place, and the reason `refuseScoreAboveMaximum` can be a rule at all.",
+    "openQuestions": "Whether a re-grade should be a second record rather than an edit. An edit today, with `marked_by_id` carrying the moderator."
+  },
+  "FeeInvoice": {
+    "placement": "Standalone. The finance office works a list of invoices.",
+    "crossEntity": "Its totals are written by the `FeeInvoiceLine`, `Payment` and `Refund` hooks, never keyed; its status is moved by the two payment sagas and the two refund sagas, and a paid invoice is no longer terminal — a paid refund can reopen it. `mark_overdue` is a scheduled move rather than a rule — a rule cannot read the clock — and it is called out here so nobody expects the transition to fire itself.",
+    "openQuestions": "Instalment plans. A plan is a schedule of expected payments, which this model does not carry; today a plan is an understanding between the office and a family, and `finance-debt-ageing` is what shows whether it is being kept."
+  },
+  "FeeInvoiceLine": {
+    "placement": "Child of `FeeInvoice`. The noun is the tell.",
+    "crossEntity": "Every write recalculates the invoice's total — `addLineToInvoiceTotal`, `recalculateInvoiceTotal` and `removeLineFromInvoiceTotal`, one per event, because a handler name is a function name in the generated per-entity module and the compiler keeps only the first binding of a name that serves two events. `priceLine` computes `line_total` from quantity and unit amount at creation, so a rounding decision is made once and shown identically on every statement afterwards.",
+    "openQuestions": "Tax. The school's fees are not taxed in the modelled jurisdiction, so no tax column exists — a school where they are would need one per line rather than one per invoice."
+  },
+  "Payment": {
+    "placement": "Standalone. The daily takings list is payments across invoices.",
+    "crossEntity": "`resolveInvoiceBalance` stamps `balance_before` before the write, `applyPaymentToInvoice` applies the money after it, and the rule then moves the invoice through `InvoiceSettlement` or `PartPaymentPosting`. That order is the §10.4 pattern stated exactly: a handler resolves, the rule decides and acts.",
+    "openQuestions": "Instalment plans. A negative payment is still refused by `refuseNonPositivePayment`; money going back is a `Refund` against the payment, which never edits or deletes it. When a refund is paid its hooks and sagas move the invoice back (see `Refund`), and `finance-refunds-awaiting-decision` is the queue a person works from."
+  },
+  "DisciplineIncident": {
+    "placement": "Standalone. The pastoral team works a list of incidents.",
+    "crossEntity": "A suspension sanction suspends the student — trigger `DisciplineIncident` → target `Student` → transition `enrolled|on_leave → suspended` — through `SuspensionEscalation`. Nothing lifts the suspension automatically: `reinstate` is a person's decision, and `counsellor-current-suspensions` is the list it is made from.",
+    "openQuestions": "Read access is `counsellor` and `principal` only, so a teacher cannot record an incident — they report it to the pastoral team, who record it with the teacher named in `reported_by_id`. The alternative (teachers create and read every incident) was rejected against research §7's safeguarding line. Row-level scoping — a teacher seeing only incidents they reported — is an application concern that `%%rbac` cannot express, and it is the change to make if the school wants teachers to record directly. Welfare and child-protection concerns are not recorded here: `SafeguardingConcern` is a separate entity, on purpose, because a student may be at risk rather than at fault — and, unlike here, a teacher may create one."
+  },
+  "ConsentRecord": {
+    "placement": "Standalone. The renewal queue — every consent that lapses in the next thirty days, across all students — is a list someone opens in its own right (`registrar-consents-expiring`), and a consent has its own identity: this guardian's decision about this student's participation, on a date.",
+    "crossEntity": "None. Withdrawing a consent records when authority ended and does not stop anything by itself; no hook or saga reads `ConsentRecord`, so whoever acts on a trip, a photograph or a data share checks the record.",
+    "openQuestions": "`expire` is a transition nobody triggers: like an invoice going overdue it is the clock's, so `registrar-consents-expiring` is the list a person acts from rather than a rule that fires. A guardian can read and withdraw consents through the `guardian` role, but `%%rbac` cannot scope that role to their own child — the same limitation `02-cross-cutting.md` records for every guardian-readable entity."
+  },
+  "SupportPlan": {
+    "placement": "Standalone. The counsellor's caseload — active plans ordered by review date (`counsellor-support-reviews-due`) — is a list opened away from any one student, and a plan has an accountable owner (`owner_id`, a `Staff` reference).",
+    "crossEntity": "Keeps `Student.has_support_plan` true while the student has a plan that is `active` or `under_review`: `syncStudentSupportFlagOnCreate`, `…OnUpdate` and `…OnDelete` recompute the flag from the student's plans after each write, so a draft or closed plan does not set it and closing the last live plan clears it.",
+    "openQuestions": "Teachers read the plan (`adjustments`) without being able to create or change it, which is the intent of the entity's help text: the adjustments they need, without broad access to sensitive evidence. A student with two plans keeps the flag until the last live one closes."
+  },
+  "SafeguardingConcern": {
+    "placement": "Standalone, and deliberately not a kind of `DisciplineIncident`: the student may be at risk rather than at fault, so the record, its readers and its lifecycle differ. The principal works a list of concerns awaiting triage (`principal-untriaged-safeguarding`).",
+    "crossEntity": "Tells the reporter what happened to it, without letting them read it: `acknowledgeConcernToReporter` (afterCreate) and `reportOutcomeToReporter` (afterUpdate, when the status changes) write a `ConcernFeedback` row for `reported_by_id` carrying only the case reference, a neutral outcome and a short message. A concern moving to `referred` still has an `external_reference` for the outside agency's number, but nothing notifies that agency. Closing it requires `closed_on` and a `closure_reason` — the two rules that stop a concern disappearing.",
+    "openQuestions": "Read access is `principal` and `counsellor` only, yet `teacher` may **create**: reporting must be easy and reading must be narrow. The reporting teacher learns the outcome through `ConcernFeedback`. `%%rbac` cannot scope rows, so every `teacher` can read every feedback row; that is why a feedback row carries a case reference and never the student, the account or the risk."
+  },
+  "CommunicationLog": {
+    "placement": "Standalone. Failed messages across all families (`registrar-failed-communications`) are a list in their own right. Both `student_id` and `guardian_id` are optional, because a notice can concern a student without addressing one guardian, or the reverse.",
+    "crossEntity": "None. The entity is the record of a message, not the sender of one: nothing in the model writes a row. `notifyGuardiansOfStatusChange` on `Student` is the only notifier the model declares, and its handler is where a row would naturally be created, but the model does not say that it is.",
+    "openQuestions": "By design it stores the subject and the outcome, not the message content. Whether a guardian-facing portal may show a guardian their own log depends on row-level scoping that `%%rbac` cannot express; the `guardian` role can read this entity as a role, not as a filter."
+  },
+  "Refund": {
+    "placement": "Standalone. The finance control queue — requests awaiting a decision, with age and amount (`finance-refunds-awaiting-decision`) — spans every payment, and a refund's identity is its own request, not the payment's.",
+    "crossEntity": "Paying a refund puts the money back on the invoice. `resolveRefundInvoiceEffect` (beforeUpdate) copies `fee_invoice_id` from the payment and works out `invoice_status_after`; the `refundControl` rule then starts `RefundReopensInvoice` (→ `part_paid`) or `RefundReissuesInvoice` (→ `issued`) when `status == \"paid\"`; and `applyRefundToInvoice` (afterUpdate) takes the amount off `FeeInvoice.amount_paid`, puts it back on `balance_due` and stamps `applied_to_invoice_at`. That stamp is what makes it once only: the runtime does not de-duplicate a saga, so the rule also requires `applied_to_invoice_at == null`. The invoice machine draws `paid → part_paid`, `paid → issued` and `part_paid → issued` for it. An overdue, draft or cancelled invoice is left as it is (`invoice_status_after` stays blank).",
+    "openQuestions": "Whether a refund above some amount needs a second approver is not modelled. The approver may not be the requester: `refuseSelfApprovedRefund` refuses any update where `approved_by_id` equals `requested_by_id`, so it holds for the master role too. A refund that takes an overdue invoice's paid amount to zero leaves it `overdue` rather than `issued`, which is deliberate: the chase continues."
+  },
+  "ConcernFeedback": {
+    "placement": "Standalone. A reporter opens a list of what became of the concerns they raised, away from any one student or concern; it is not a child of `SafeguardingConcern`, because a child inherits its parent's readers and the whole point is a different, wider set.",
+    "crossEntity": "Written by the `SafeguardingConcern` hooks (`acknowledgeConcernToReporter`, `reportOutcomeToReporter`), never keyed by the reporter. It copies `reported_by_id` and the case `reference` from the concern and holds no student, no account and no risk level.",
+    "openQuestions": "`%%rbac` cannot scope rows, so a `teacher` can read every feedback row, not only their own; a row exposes a case reference, an outcome category and a neutral message and nothing that identifies a child. If row scoping arrives, filter on `reported_by_id`. Whether a reporter should be told at every status change or only at the end is a school policy this model fixes at every change."
+  }
+}

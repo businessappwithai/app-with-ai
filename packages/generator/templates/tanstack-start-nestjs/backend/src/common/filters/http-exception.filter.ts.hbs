@@ -1,0 +1,67 @@
+/**
+ * HTTP Exception Filter
+ *
+ * Generated: {{now}}
+ *
+ * The one place an exception becomes a response. It does not log: the Fastify
+ * `onResponse` hook in common/logging writes the single `http.request.*` line
+ * for every request, including the ones a guard rejected before any handler
+ * ran. This filter's job is to say *what* failed and hand that to the hook.
+ *
+ * What it decides lives in `../errors/classify.ts`, which has no Fastify in it
+ * and is tested with plain objects.
+ */
+
+import { ExceptionFilter, Catch, ArgumentsHost } from '@nestjs/common';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+
+import { classify } from '../errors/classify';
+
+export interface ErrorResponse {
+  statusCode: number;
+  message: string | string[];
+  error: string;
+  timestamp: string;
+  path: string;
+  /** The request id. Quote it to find this request in the logs. */
+  ref?: string;
+  /** Same value as `ref`, kept for clients written before `ref` existed. */
+  requestId?: string;
+  /** Always carries `code` and `category`; may carry more, never a cause. */
+  details: Record<string, unknown>;
+  errors?: string[] | Record<string, string[]>;
+}
+
+@Catch()
+export class HttpExceptionFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<FastifyReply>();
+    const request = ctx.getRequest<FastifyRequest>();
+
+    const classified = classify(exception, request.method);
+
+    // Handed to the `onResponse` hook, which is the one place that sees every
+    // response. The exception goes with it so a 5xx line carries its stack;
+    // the classification is what chooses the event, the level and the
+    // `errorCategory` / `errorCode` fields.
+    (request as any).__logError = exception;
+    (request as any).__logClassified = { category: classified.category, code: classified.code };
+
+    const ref = (request as any).__logRequestId ?? request.id;
+
+    const errorResponse: ErrorResponse = {
+      statusCode: classified.status,
+      message: classified.message,
+      error: classified.error,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      ref,
+      requestId: ref,
+      details: classified.details,
+      ...(classified.errors && { errors: classified.errors }),
+    };
+
+    response.status(classified.status).send(errorResponse);
+  }
+}

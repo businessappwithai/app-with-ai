@@ -1,0 +1,142 @@
+/**
+ * Session Auth Guard - BetterAuth Integration
+ *
+ * Protects routes by validating session tokens from BetterAuth.
+ * Replaces JWT-based authentication with session-based auth.
+ *
+ * This guard extracts the session token from cookies or Authorization header
+ * and validates it against BetterAuth's session store.
+ */
+
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, UnauthorizedException, ServiceUnavailableException, Inject, Optional } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { getAuth } from '../../../lib/better-auth';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { DatabaseService } from '../../../database/database.service';
+import { setRequestContext } from '../../../common/logging/logger.service';
+import { CapabilityService } from '../capability.service';
+import { getLogger } from '../../../common/logging/logger.service';
+import { CHAT_ONLY_CODE, chatOnlyRefuses } from '../../../common/chat-bridge';
+
+@Injectable()
+export class SessionAuthGuard implements CanActivate {
+
+  constructor(
+    @Inject(Reflector) private reflector: Reflector,
+    @Optional() private readonly db?: DatabaseService,
+    @Optional() private readonly capabilities?: CapabilityService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) return true;
+
+    const request = context.switchToHttp().getRequest();
+
+    try {
+      const auth = getAuth();
+      const session = await auth.api.getSession({ headers: request.headers });
+
+      if (!session) {
+        throw new UnauthorizedException('Invalid or expired session. Please sign in again.');
+      }
+
+      // Attach base user from Better Auth
+      request.user = { ...session.user };
+
+      // Every line logged for the rest of this request now says who caused it,
+      // without the rules engine or the entity service having to be handed a
+      // user they have no other use for.
+      setRequestContext({
+        userId: (session.user as any)?.sys_user_id ?? (session.user as any)?.id ?? null,
+        // The identity the audit trail is keyed on — see RequestContext.actor.
+        actor: {
+          id: (session.user as any)?.id ?? null,
+          name: (session.user as any)?.name ?? null,
+          email: (session.user as any)?.email ?? null,
+          sessionId: (session as any)?.session?.id ?? null,
+        },
+      });
+      request.session = session;
+
+      // Everything the user's roles grant, in one query through
+      // sys_user_capability and cached per user (CapabilityService). The guards
+      // after this one — entity access, the moves — only look it up.
+      const sysUserId = session.user.sysUserId as string | undefined;
+      // A deactivated or deleted account is refused here, on every request —
+      // not when its session cookie next goes back to the database.
+      if (sysUserId && this.capabilities && !(await this.capabilities.isActive(sysUserId))) {
+        throw new UnauthorizedException('This account has been deactivated.');
+      }
+      if (this.capabilities) {
+        try {
+          const capabilities = await this.capabilities.forUser({
+            sysUserId,
+            id: (session.user as any)?.id ?? null,
+            roles: (session.user as any)?.roles,
+            role: (session.user as any)?.role,
+          });
+          request.capabilities = capabilities;
+          request.user.sysRoles = capabilities.roles;
+          request.user.isMaster = capabilities.isMaster;
+        } catch (error) {
+          // Not knowing what a user may do is not the same as their holding
+          // nothing: the access guard refuses on a missing answer.
+          getLogger('auth').event('auth.session.unavailable', { step: "reading the caller's access", err: error });
+        }
+      } else if (sysUserId && this.db) {
+        try {
+          const roles = await this.db.kysely
+            .selectFrom('sys_user_roles as ur')
+            .innerJoin('sys_role as r', 'r.sys_role_id', 'ur.sys_role_id')
+            .select(['r.name as role_name', 'r.is_master_role'])
+            .where('ur.sys_user_id', '=', sysUserId)
+            .where('ur.is_active', '=', true)
+            .execute();
+          request.user.sysRoles = roles.map((r: any) => r.role_name);
+          request.user.isMaster = roles.some((r: any) => r.is_master_role);
+        } catch {
+          // non-fatal — proceed without enrichment
+        }
+      }
+
+      // Chat-only mode: when the administrator has made the chat assistant the
+      // only way in, a request that did not come through it is refused for
+      // everybody but administrators. See common/chat-bridge.ts.
+      //
+      // `!== false`, not `=== true`: when the lookup above failed, nobody knows
+      // whether this is an administrator, and the one person who can turn the
+      // switch off must not be locked out by a fault. The mode fails open, as
+      // it does when the switch itself cannot be read.
+      if (
+        this.db &&
+        (await chatOnlyRefuses({
+          kysely: this.db.kysely,
+          headers: request.headers,
+          email: (session.user as any)?.email,
+          isMaster: request.user.isMaster !== false,
+        }))
+      ) {
+        throw new ForbiddenException({
+          message: 'This application is used through the assistant. Open the assistant to continue.',
+          error: 'Forbidden',
+          details: { code: CHAT_ONLY_CODE },
+        });
+      }
+
+      return true;
+    } catch (error) {
+      if (error instanceof UnauthorizedException || error instanceof ForbiddenException) throw error;
+      // Not being able to *check* a session says nothing about whether it is valid. A 401 here
+      // — a database that was busy, a connection that dropped — tells the front end to sign the
+      // person out, and every screen they had open bounces to the sign-in page for a fault that
+      // was never theirs. Say the service could not answer, and let the request be retried.
+      getLogger('auth').event('auth.session.unavailable', { step: 'checking the session', err: error });
+      throw new ServiceUnavailableException('Could not check your session. Try again.');
+    }
+  }
+}

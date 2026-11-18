@@ -1,0 +1,184 @@
+import { createRootRoute, Outlet, Link, useLocation } from '@tanstack/react-router'
+import { AppLayout } from '@/components/layout/app-layout'
+import { Meta, Scripts } from '@tanstack/start'
+import { useEffect } from 'react'
+import { errorCode, errorRef, describeError } from '../lib/api-error'
+import { getClientLogger, reportClientError } from '../lib/logger'
+import { Providers } from '../providers'
+import { THEME_BOOT_SCRIPT } from '../components/theme/theme-provider'
+import globalsCssUrl from '../styles/globals.css?url'
+
+/**
+ * Hoisted, and not written inline, for a Handlebars reason rather than a React
+ * one: this file is a `.hbs` template, and the inline form of
+ * `dangerouslySetInnerHTML` opens with a doubled brace — which Handlebars reads
+ * as a mustache expression and substitutes away before the generated
+ * application ever sees any JSX. Note that this comment cannot contain the
+ * doubled brace either, for exactly the same reason.
+ */
+const themeBootHtml = { __html: THEME_BOOT_SCRIPT }
+
+/**
+ * The same pre-paint script the layout uses. The error and not-found documents
+ * are whole `<html>` trees of their own, so without it a reader on a dark
+ * theme meets a white page exactly when something has already gone wrong.
+ */
+function ThemeBootScript() {
+  // a constant string
+  // from theme-provider.tsx, and the only way to run before first paint
+  return <script dangerouslySetInnerHTML={themeBootHtml} />
+}
+
+function RootErrorComponent({ error }: { error: Error }) {
+  // Told to the server once, with the request id of the call that failed when
+  // there was one: the same id is on that request's line in the server log.
+  const ref = errorRef(error)
+  useEffect(() => {
+    getClientLogger('root').error('The page failed to render', { code: errorCode(error), ref })
+    reportClientError({
+      level: 'error',
+      source: 'boundary',
+      message: error?.message || 'The page failed to render',
+      stack: error?.stack,
+      code: errorCode(error),
+      ref,
+    })
+  }, [error, ref])
+
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <title>Error - {{project.name}}</title>
+        <ThemeBootScript />
+        <Meta />
+      </head>
+      <body className="font-sans antialiased">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+          <div className="swiss-card p-8 max-w-md w-full text-center space-y-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/20 mx-auto">
+              <span className="text-2xl font-bold text-destructive">!</span>
+            </div>
+            <h2 className="font-display text-xl font-semibold text-foreground">
+              Something went wrong
+            </h2>
+            <p className="text-sm text-muted-foreground">{describeError(error, 'An unexpected error occurred')}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-sm text-primary hover:underline font-medium"
+            >
+              Reload page
+            </button>
+          </div>
+        </div>
+        <Scripts />
+      </body>
+    </html>
+  )
+}
+
+function RootNotFoundComponent() {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <title>Not Found - {{project.name}}</title>
+        <ThemeBootScript />
+        <Meta />
+      </head>
+      <body className="font-sans antialiased">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+          <div className="swiss-card p-8 max-w-md w-full text-center space-y-4">
+            <p className="font-display text-6xl font-bold text-muted-foreground/30">404</p>
+            <h2 className="font-display text-xl font-semibold text-foreground">Page not found</h2>
+            <p className="text-sm text-muted-foreground">
+              The page you are looking for does not exist.
+            </p>
+            <Link to="/dashboard" className="text-sm text-primary hover:underline font-medium">
+              Go to Dashboard
+            </Link>
+          </div>
+        </div>
+        <Scripts />
+      </body>
+    </html>
+  )
+}
+
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+    ],
+    links: [
+      { rel: 'stylesheet', href: globalsCssUrl },
+      { rel: 'icon', href: '/favicon.ico' },
+      // Webfonts are served from public/fonts, not a font CDN: a third-party
+      // stylesheet in the critical path means the app renders wrong wherever
+      // that host is unreachable — corporate proxy, air-gapped site, CI.
+      { rel: 'stylesheet', href: '/fonts/fonts.css' },
+    ],
+  }),
+  errorComponent: RootErrorComponent,
+  notFoundComponent: RootNotFoundComponent,
+  component: RootLayout,
+})
+
+/**
+ * The application shell, or nothing, depending on where you are.
+ *
+ * `AppLayout` carries the sidebar, the header and the sign-in redirect, and it
+ * must not wrap the sign-in screen itself: that page has no session by
+ * definition, so the redirect inside the layout would bounce it back to
+ * itself. Keying on the path rather than moving every route under a pathless
+ * `_authed` layout keeps the route tree — and therefore every generated route
+ * file — untouched.
+ *
+ * `/auth/*` is the whole of the unauthenticated surface. `/` is not listed
+ * because it redirects to `/dashboard` in `beforeLoad` and never renders.
+ */
+function AppChrome() {
+  const { pathname } = useLocation();
+
+  if (pathname.startsWith('/auth/')) {
+    return (
+      <main className="min-h-screen bg-background">
+        <Outlet />
+      </main>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <Outlet />
+    </AppLayout>
+  );
+}
+
+function RootLayout() {
+  return (
+    // `suppressHydrationWarning` because the boot script below has already put
+    // `class="dark"` and `style="color-scheme:dark"` on this element by the
+    // time React hydrates, and the server had no way to know it would. The
+    // alternative is not a clean tree — it is applying the theme one paint
+    // late, which is a white flash on every load of a dark application.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <title>{{project.name}}</title>
+        <meta name="description" content="{{project.description}}" />
+        {/* Before the stylesheet paints anything, and before any module has
+            loaded. This is the only reason the theme does not flash. */}
+        <ThemeBootScript />
+        <Meta />
+      </head>
+      <body className="font-sans antialiased">
+        <Providers>
+          <AppChrome />
+        </Providers>
+        {/* No Toaster here: `ClientToaster` in the providers is the one. A
+            second one drew every toast twice and made React warn when a toast
+            closed, because sonner's dismiss reaches every mounted Toaster. */}
+        <Scripts />
+      </body>
+    </html>
+  )
+}

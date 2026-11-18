@@ -1,0 +1,363 @@
+/**
+ * Entity Access Guard — enforces the model's `%%rbac` directives.
+ *
+ * Runs after SessionAuthGuard, which is what puts the caller's capabilities on
+ * the request — every grant of every role they hold, read in one query through
+ * `sys_user_capability` and cached (CapabilityService). For each call naming an
+ * entity it asks one question: does some grant close this (table, operation)
+ * pair, and if so does the caller hold it? It also holds two things that are
+ * the model's shape rather than anyone's access: a record's state moves only by
+ * its action buttons, and a Final record is locked.
+ *
+ * ## It is not only /bus
+ *
+ * Any route carrying the entity in its path is covered, because a read
+ * restriction that a sibling route ignores is not a restriction. Denying
+ * `Customer.read` on /bus while /workflows/entity/Customer/:id still returns
+ * that customer's history — old and new values of every field it touched — is
+ * the restriction being bypassed by changing the URL. The parameter is spelled
+ * `entity` on the bus routes and `entityName` on the workflow routes, so both
+ * are read.
+ *
+ * ## Open unless closed
+ *
+ * A pair with no rows is unrestricted. This is what makes `%%rbac` additive:
+ * an application generated from a model that declares none behaves exactly as
+ * it did before this guard existed. Denying by default would lock every user
+ * out of every existing model on the next regeneration.
+ *
+ * ## Role names are matched case-insensitively
+ *
+ * The seeded roles are title-cased (`Manager`, `Administrator`) and a model
+ * author writes `%%rbac role:manager`. Matching exactly would make that
+ * directive unsatisfiable — a restriction that locks out precisely the people
+ * it was written to admit, which is worse than no restriction at all, and
+ * invisible until someone is refused. Role names are names, not identifiers;
+ * nothing distinguishes `manager` from `Manager`. The grants keep the author's
+ * spelling so the admin UI shows what was written; the comparison is on
+ * `role_key`, which the database folds (case, and `_`/`-`/space as one
+ * separator) on both sides of the join.
+ *
+ * ## The table name must match the service's
+ *
+ * The rules are stored against physical table names (`bus_order`), and the URL
+ * carries whatever the client wrote — `order`, `orders`, `bus_order`. If this
+ * guard normalised differently from `BusService.getTableName`, a request for
+ * the plural would resolve to a table with no rules here and to the real table
+ * there, and the restriction would be bypassed by pluralising a URL. The
+ * normalisation below is therefore a deliberate copy of that method, and the
+ * two must be changed together.
+ *
+ * Generated: {{now}}
+ * Project: {{project.name}}
+ */
+
+import {
+  CanActivate,
+  ConflictException,
+  ExecutionContext,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { DatabaseService } from '../../../database/database.service';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { getLogger } from '../../../common/logging/logger.service';
+import { STATE_FIELD_REFUSAL_CODE, stateFieldOf } from '../../../common/state-fields';
+import { isLocked, lifecycleOf } from '../../../common/lifecycle';
+import { CapabilityService, type Capabilities } from '../capability.service';
+
+/** `details.code` of the 409 a write to a Final record receives. */
+export const RECORD_FINAL_CODE = 'RECORD_FINAL';
+
+type Operation = 'create' | 'read' | 'update' | 'delete';
+
+/** HTTP verb → the operation a `%%rbac` directive names. */
+const METHOD_OPERATION: Record<string, Operation> = {
+  GET: 'read',
+  HEAD: 'read',
+  POST: 'create',
+  PUT: 'update',
+  PATCH: 'update',
+  DELETE: 'delete',
+};
+
+@Injectable()
+export class EntityAccessGuard implements CanActivate {
+
+  constructor(
+    @Inject(Reflector) private readonly reflector: Reflector,
+    @Optional() private readonly db?: DatabaseService,
+    @Optional() private readonly capabilities?: CapabilityService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
+    /*
+     * No database wired means the rules cannot be read — which is not the same
+     * as there being none, and used to be treated as if it were.
+     *
+     * "Open unless closed" is the deliberate design for a table with *no rows*:
+     * it is what makes `%%rbac` additive, and an application generated from a
+     * model that declares none behaves as it did before this guard existed.
+     * That reasoning is about an answered question with an empty answer. It
+     * does not extend to an unanswered one.
+     *
+     * So a missing database is refused rather than waved through. It is a
+     * misconfiguration at startup, not a per-request condition to degrade
+     * around, and the previous behaviour meant one unwired dependency silently
+     * disabled every entity restriction in the application.
+     */
+    if (!this.db) {
+      getLogger('auth').event('auth.guard.unavailable', {
+        step: 'module wiring',
+        reason: 'EntityAccessGuard has no DatabaseService, so %%rbac rules cannot be read; refusing',
+      });
+      throw new ForbiddenException(
+        'Access rules are unavailable. This is a server misconfiguration, not a permission you lack.',
+      );
+    }
+
+    const request = context.switchToHttp().getRequest();
+    const entity: string | undefined = request.params?.entity ?? request.params?.entityName;
+    if (!entity) return true;
+
+    const operation = this.operationOf(request);
+    if (!operation) return true;
+
+    const tableName = this.getTableName(entity);
+
+    // What the caller's roles grant: put on the request by SessionAuthGuard from
+    // one query through sys_user_capability, cached per user. Read here, never
+    // queried — the decision is set membership.
+    let capabilities: Capabilities | undefined = request.capabilities;
+    try {
+      if (!capabilities && this.capabilities) {
+        capabilities = await this.capabilities.forUser(request.user ?? {});
+      }
+    } catch (error: any) {
+      capabilities = undefined;
+      getLogger('auth').event('auth.guard.unavailable', {
+        step: "reading the caller's access",
+        reason: error?.message ?? String(error),
+      });
+    }
+    if (!capabilities || !this.capabilities) {
+      // An access decision that cannot be made is a refusal.
+      throw new ForbiddenException(
+        'Access rules could not be read, so the request was refused. Please retry.',
+      );
+    }
+
+    // A master role is the administrator escape hatch the dictionary already
+    // recognises (CapabilityService.decide). It is an escape hatch from *access*
+    // rules, not from the model's own shape: the state field and the Final lock
+    // below hold for everyone.
+    const decision = await this.capabilities.decide(capabilities, 'op', tableName, operation);
+    if (!decision.allowed) {
+      getLogger('auth').event('auth.access.denied', {
+        resource: tableName,
+        operation,
+        requiredRoles: decision.roles,
+      });
+      throw new ForbiddenException(
+        `Access denied. "${operation}" on "${tableName}" requires one of: ` +
+          `${decision.roles.join(', ')}. Your roles: ${capabilities.roles.join(', ') || 'none'}.`,
+      );
+    }
+
+    // A state field is system-managed: whoever is calling, a person never
+    // writes it. Checked after the operation rule, because a caller refused the
+    // write outright never gets this far.
+    if (operation === 'create' || operation === 'update') {
+      await this.checkStateFieldWrite(request, tableName, operation);
+    }
+
+    // The end of a flow is Final: such a record is neither edited nor deleted.
+    // Reopen (POST …/transition) is the way back, so only a record write is
+    // held here. A record with no flow is never locked — saving it is how it changes.
+    const method = String(request.method).toUpperCase();
+    if (['PUT', 'PATCH', 'DELETE'].includes(method)) {
+      await this.checkFinalLock(request, tableName);
+    }
+
+    return true;
+  }
+
+  /**
+   * POST is a create, except on a record's own routes. Re-running the save
+   * pipeline (`…/:id/promote`) changes a record, so it needs update. Pressing a
+   * move (`…/:id/transition`) needs the record to be visible here, and the
+   * move's own grant in TransitionService: a role granted `close_won` may press
+   * it without being allowed to edit the record, and a move no grant names falls
+   * back to update permission there.
+   */
+  private operationOf(request: any): Operation | undefined {
+    const method = String(request.method).toUpperCase();
+    const url = String(request.url ?? '');
+    if (method === 'POST' && request.params?.id) {
+      if (/\/transition(\?|$)/.test(url)) return 'read';
+      if (/\/promote(\?|$)/.test(url)) return 'update';
+    }
+    return METHOD_OPERATION[method];
+  }
+
+  /** 409 RECORD_FINAL on a write to a record at the end of its flow. */
+  private async checkFinalLock(request: any, tableName: string): Promise<void> {
+    if (!String(request.url ?? '').includes('/bus/') || !request.params?.id) return;
+    const lifecycle = lifecycleOf(tableName);
+    if (!lifecycle) return;
+    let current: Record<string, any> | undefined;
+    try {
+      current = await this.db!.kysely
+        .selectFrom(tableName as any)
+        .select([lifecycle.column] as any)
+        .where('id' as any, '=', request.params.id)
+        .executeTakeFirst();
+    } catch (error: any) {
+      getLogger('auth').event('auth.guard.unavailable', {
+        step: 'reading the lifecycle',
+        reason: error?.message ?? String(error),
+      });
+      return;
+    }
+    if (!current || !isLocked(lifecycle, current[lifecycle.column])) return;
+    throw new ConflictException({
+      message:
+        'This record is Final and cannot be changed. Reopen it to make changes — ' +
+        'an administrator, or a role allowed to reopen it, can.',
+      error: 'Conflict',
+      details: {
+        code: RECORD_FINAL_CODE,
+        entity: tableName,
+        id: request.params.id,
+        state: current[lifecycle.column],
+      },
+    });
+  }
+
+  /**
+   * Keep a person's request from changing a record's state.
+   *
+   * A state field — the column an entity's `kind: state` machine drives — is
+   * changed only by background workflows: a saga's UpdateEntity step, a rule
+   * that starts one, a hook, the application's own code. None of those passes
+   * through this guard, so anything that arrives here is a person's request,
+   * and the master role is no exception: the rule is about who writes a state,
+   * not about who is allowed to.
+   *
+   *   create   the value is dropped; the bus service starts the record in its
+   *            machine's initial state
+   *   update   a value equal to the stored one is dropped, so a form or a
+   *            client that sends the whole record back still saves; any other
+   *            value is refused with 403 and `STATE_FIELD_SYSTEM_MANAGED`
+   *
+   * A person moves a record by pressing one of its moves — POST
+   * `/bus/:entity/:id/transition`, which checks the edge, the role and the
+   * record's rules (TransitionService) — never by writing the column.
+   */
+  private async checkStateFieldWrite(
+    request: any,
+    tableName: string,
+    operation: 'create' | 'update',
+  ): Promise<void> {
+    // Only /bus writes carry a record body; the workflow routes name an entity
+    // too, and their bodies are not records.
+    if (!String(request.url ?? '').includes('/bus/')) return;
+    const body = request.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return;
+
+    const state = stateFieldOf(tableName);
+    if (!state || !(state.field in body)) return;
+
+    if (operation === 'create' || !request.params?.id) {
+      delete body[state.field];
+      return;
+    }
+
+    let current: Record<string, any> | undefined;
+    try {
+      current = await this.db!.kysely
+        .selectFrom(tableName as any)
+        .select([state.field] as any)
+        .where('id' as any, '=', request.params.id)
+        .executeTakeFirst();
+    } catch (error: any) {
+      getLogger('auth').event('auth.guard.unavailable', {
+        step: 'reading the state',
+        reason: error?.message ?? String(error),
+      });
+      current = undefined;
+    }
+
+    const stored = current ? String(current[state.field] ?? '') : undefined;
+    const sent = String(body[state.field] ?? '');
+    if (stored !== undefined && stored === sent) {
+      delete body[state.field];
+      return;
+    }
+
+    getLogger('workflow').event('workflow.transition.refused', {
+      entity: tableName,
+      recordId: request.params.id,
+      statusField: state.field,
+      from: stored ?? null,
+      to: sent,
+      reason: 'system-managed',
+    });
+    throw new ForbiddenException({
+      message:
+        `"${state.field}" on "${tableName}" is changed only by the record's moves, ` +
+        `never through a form. Use one of the record's action buttons (POST …/transition).`,
+      error: 'Forbidden',
+      details: {
+        code: STATE_FIELD_REFUSAL_CODE,
+        entity: tableName,
+        field: state.field,
+        current: stored ?? null,
+      },
+    });
+  }
+
+  /** Deliberate copy of BusService.getTableName — see the note at the top. */
+  /**
+   * The tables the model declares. A bare name that is already one of them is
+   * not a plural: `dangerous_goods` is a table, and singularizing it to
+   * `dangerous_good` pointed the list, the form and the access check at a table
+   * that does not exist.
+   */
+  private static readonly MODEL_TABLES = new Set<string>([
+{{#each entities}}
+    '{{tableName}}',
+{{/each}}
+  ]);
+
+  private getTableName(entity: string): string {
+    const normalized = entity.toLowerCase().replace(/-/g, '_');
+    if (normalized.startsWith('bus_')) return normalized;
+    if (EntityAccessGuard.MODEL_TABLES.has(`bus_${normalized}`)) return `bus_${normalized}`;
+    return `bus_${this.singularize(normalized)}`;
+  }
+
+  private singularize(word: string): string {
+    if (word.endsWith('ies')) return word.slice(0, -3) + 'y';
+    if (
+      word.endsWith('ses') ||
+      word.endsWith('xes') ||
+      word.endsWith('zes') ||
+      word.endsWith('ches') ||
+      word.endsWith('shes')
+    ) {
+      return word.slice(0, -2);
+    }
+    if (word.endsWith('s') && !word.endsWith('ss')) return word.slice(0, -1);
+    return word;
+  }
+}

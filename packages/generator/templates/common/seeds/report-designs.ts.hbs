@@ -1,0 +1,241 @@
+/**
+ * Default Report Designs Seed
+ *
+ * Seeds one AnkaReport layout per entity into sys_report_designs, so every
+ * entity has a printable document from the moment the application is created.
+ * Administrators refine any of them in Admin → Report Designs; the detail
+ * screen's Print button renders whatever is stored here.
+ *
+ * The shape below is AnkaReport's own `ILayout`, and every part of it is load
+ * bearing — the renderer reads the layout directly and silently ignores
+ * anything shaped differently:
+ *
+ *   - `width` sets the page element's pixel width. Absent, the renderer writes
+ *     `undefinedpx` and the document collapses to nothing.
+ *   - style properties (`fontSize`, `color`, `fontWeight`, …) are flat on the
+ *     item and inherit from the section and the layout. Nested under a `style`
+ *     object they are read by nobody.
+ *   - `fontSize` is a CSS length, not a number: `11` is not a valid value for
+ *     `element.style.fontSize` and the browser drops the assignment.
+ *   - every section carries a `binding`; the content section's names the array
+ *     in the data that it repeats over, which is what makes one section render
+ *     once per record.
+ *
+ * Generated: {{now}}
+ */
+
+import { type Kysely } from 'kysely';
+
+interface FieldRow {
+  label: string;
+  field: string;
+}
+
+/** AnkaReport's flat style bag — inherited down layout → section → item. */
+interface ReportStyle {
+  color?: string;
+  backgroundColor?: string;
+  textAlign?: 'left' | 'center' | 'right';
+  borderWidth?: number;
+  borderStyle?: string;
+  borderColor?: string;
+  fontFamily?: string;
+  fontSize?: string;
+  fontWeight?: string;
+}
+
+interface ReportItem extends ReportStyle {
+  type: 'text';
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  binding?: string;
+}
+
+interface ReportSection extends ReportStyle {
+  height: number;
+  binding: string;
+  items: ReportItem[];
+}
+
+interface ReportLayout extends ReportStyle {
+  width: number;
+  headerSection: ReportSection;
+  contentSection: ReportSection;
+  footerSection: ReportSection;
+}
+
+/** A4 at 96dpi is 794px; 760 leaves a printable margin either side. */
+const PAGE_W = 760;
+const ROW_H = 22;
+const ROW_GAP = 4;
+const LABEL_W = 220;
+const MARGIN_X = 16;
+const VALUE_W = PAGE_W - LABEL_W - MARGIN_X * 2 - 12;
+
+function toLabel(columnName: string): string {
+  return columnName
+    .replace(/_id$/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function buildLayout(entityName: string, fields: FieldRow[]): ReportLayout {
+  const startY = 10;
+  const items: ReportItem[] = [];
+
+  fields.forEach((f, i) => {
+    const y = startY + i * (ROW_H + ROW_GAP);
+    items.push({
+      type: 'text',
+      name: `${f.field}_label`,
+      x: MARGIN_X,
+      y,
+      width: LABEL_W,
+      height: ROW_H,
+      text: `${f.label}`,
+      fontSize: '11px',
+      fontWeight: 'bold',
+      color: '#374151',
+    });
+    items.push({
+      type: 'text',
+      name: f.field,
+      x: MARGIN_X + LABEL_W + 12,
+      y,
+      width: VALUE_W,
+      height: ROW_H,
+      text: '',
+      binding: f.field,
+      fontSize: '11px',
+      color: '#111827',
+    });
+  });
+
+  const contentHeight = Math.max(startY * 2 + fields.length * (ROW_H + ROW_GAP), 64);
+
+  return {
+    width: PAGE_W,
+    fontFamily: 'Helvetica, Arial, sans-serif',
+    fontSize: '11px',
+    color: '#111827',
+    headerSection: {
+      height: 60,
+      binding: '',
+      items: [
+        {
+          type: 'text',
+          name: 'title',
+          x: MARGIN_X,
+          y: 16,
+          width: PAGE_W - MARGIN_X * 2,
+          height: 30,
+          text: `${entityName}`,
+          fontSize: '20px',
+          fontWeight: 'bold',
+          color: '#0f4c75',
+        },
+      ],
+    },
+    contentSection: {
+      height: contentHeight,
+      // The renderer repeats this section once per element of `data.records`.
+      binding: 'records',
+      items,
+    },
+    footerSection: {
+      height: 30,
+      binding: '',
+      items: [
+        {
+          type: 'text',
+          name: 'footer',
+          x: MARGIN_X,
+          y: 8,
+          width: PAGE_W - MARGIN_X * 2,
+          height: 18,
+          text: '{{project.name}}',
+          fontSize: '9px',
+          color: '#9ca3af',
+          textAlign: 'center',
+        },
+      ],
+    },
+  };
+}
+
+const entityReports: Array<{ tableName: string; displayName: string; columns: string[] }> = [
+  {{#each entities}}
+  {
+    tableName: '{{tableName}}',
+    displayName: '{{displayName}}',
+    columns: [
+      {{#each attributes}}
+      {{#unless (eq name ../primaryKey)}}
+      {{#unless (eq name 'created_at')}}
+      {{#unless (eq name 'updated_at')}}
+      {{#unless (eq name 'deleted_at')}}
+      {{#unless (eq name 'version')}}
+      '{{name}}',
+      {{/unless}}
+      {{/unless}}
+      {{/unless}}
+      {{/unless}}
+      {{/unless}}
+      {{/each}}
+    ],
+  },
+  {{/each}}
+];
+
+/**
+ * The fields a document prints, as the window shows them: the form's own
+ * fields, in its order, under its labels. The dictionary is seeded before this
+ * (02_sys_dictionary), so a print layout matches the screen the record is
+ * printed from instead of a label guessed from the column name. The column
+ * list from the model is only the fallback for a table no window shows.
+ */
+async function windowFields(
+  db: Kysely<any>,
+  tableName: string,
+  columns: string[],
+): Promise<FieldRow[]> {
+  const rows = (await db
+    .selectFrom('sys_field as f')
+    .innerJoin('sys_tab as t', 't.sys_tab_id', 'f.sys_tab_id')
+    .innerJoin('sys_table as tb', 'tb.sys_table_id', 't.sys_table_id')
+    .innerJoin('sys_column as c', 'c.sys_column_id', 'f.sys_column_id')
+    .select(['f.name as label', 'c.column_name as field', 't.tab_level as level', 'f.seq_no as seq'])
+    .where('tb.table_name', '=', tableName)
+    .where('f.is_active', '=', true)
+    .where('f.is_displayed', '=', true)
+    .orderBy('t.tab_level')
+    .orderBy('f.seq_no')
+    .execute()
+    .catch(() => [])) as Array<{ label: string; field: string; level: number }>;
+  const firstLevel = rows[0]?.level;
+  const own = rows.filter((row) => row.level === firstLevel);
+  if (own.length > 0) return own.map(({ label, field }) => ({ label, field }));
+  return columns.map((col) => ({ label: toLabel(col), field: col }));
+}
+
+export async function seed(db: Kysely<any>): Promise<void> {
+  for (const entity of entityReports) {
+    if (entity.columns.length === 0) continue;
+    const fields = await windowFields(db, entity.tableName, entity.columns);
+    const layout = buildLayout(entity.displayName, fields);
+    await db
+      .insertInto('sys_report_designs')
+      .values({
+        table_name: entity.tableName,
+        name: `${entity.displayName} Default Report`,
+        layout: JSON.stringify(layout),
+      })
+      .onConflict((oc) => oc.column('table_name').doNothing())
+      .execute();
+  }
+  console.log('✓ Default report designs seeded');
+}

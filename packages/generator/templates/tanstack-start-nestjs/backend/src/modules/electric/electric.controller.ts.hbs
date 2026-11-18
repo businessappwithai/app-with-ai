@@ -1,0 +1,270 @@
+/**
+ * Electric Shape Proxy
+ *
+ * Fronts the upstream ElectricSQL server so a browser never talks to it
+ * directly. Two things are decided here and nowhere else:
+ *
+ *   1. Which tables may be synced at all — the Application Dictionary, and
+ *      nothing else. Business data is not shape-synced.
+ *   2. Which rows of them this caller may see — derived from the roles on the
+ *      authenticated session, never from anything the client sends.
+ *
+ * The client asks for a table; it does not get to say who it is. An earlier
+ * revision read the role from a `role` query parameter and interpolated it
+ * into the upstream `where` clause, which let any caller name its own role and
+ * inject SQL through it. Both are closed here: the role set comes off the
+ * session, and it is matched against roles that exist in the database before it
+ * is used, so only a known role name is ever formatted into a clause.
+ *
+ * Generated: {{now}}
+ * Project: {{project.name}}
+ */
+
+import {
+  Controller,
+  Get,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import type { FastifyRequest, FastifyReply } from 'fastify';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { DatabaseService } from '../../database/database.service';
+import { getLogger } from '../../common/logging/logger.service';
+
+/**
+ * Says that this deployment has no Electric server behind the proxy.
+ *
+ * The one signal the client latches on. Kept as a header rather than a body
+ * field so the decision does not depend on parsing an error payload whose
+ * shape belongs to the exception filter.
+ */
+const ELECTRIC_SYNC_HEADER = 'x-electric-sync';
+
+/** Dictionary tables a client may sync. Nothing else is reachable this way. */
+const ALLOWED_SYS_TABLES = new Set([
+  'sys_window',
+  'sys_table',
+  'sys_tab',
+  'sys_column',
+  'sys_field',
+  'sys_reference',
+  'sys_ref_list',
+]);
+
+/**
+ * Tables carrying no per-role rows. They are the shared type vocabulary every
+ * window needs to render a field, so they sync whole rather than filtered.
+ */
+const UNSCOPED_SYS_TABLES = new Set(['sys_reference', 'sys_ref_list']);
+
+/** Electric's own protocol parameters. Anything else the client sends is dropped. */
+const FORWARDED_PARAMS = new Set([
+  'offset',
+  'handle',
+  'live',
+  'cursor',
+  'columns',
+  'replica',
+]);
+
+/**
+ * Read per request, not once at module scope.
+ *
+ * Nest imports this controller while `AppModule` is being resolved, which
+ * happens as main.ts is imported — before its bootstrap has loaded .env. A
+ * constant captured up here is therefore always null in a dotenv-configured
+ * deployment, and sync silently never turns on.
+ */
+function electricUpstream(): string | null {
+  return process.env.ELECTRIC_URL ?? null;
+}
+
+@ApiTags('electric')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('v1/shape')
+export class ElectricController {
+
+  constructor(private readonly databaseService: DatabaseService) {}
+
+  /**
+   * The sys_role names this session holds.
+   *
+   * Read from the database by joining the session's user through
+   * `sys_user_roles`, not taken from the session object. The session carries
+   * Better Auth's own coarse `role` field ('admin' / 'user'), which is a
+   * different vocabulary from the sys_role names the dictionary is scoped by —
+   * and more to the point, a role used to build a SQL clause has to come from
+   * the database rather than from anything travelling with the request. Only
+   * names that come back from this query are ever formatted into a clause.
+   */
+  private async resolveRoles(user: unknown): Promise<string[]> {
+    const u = user as { id?: unknown; sysUserId?: unknown } | null;
+    const userId = typeof u?.id === 'string' ? u.id : null;
+    const sysUserId = typeof u?.sysUserId === 'string' ? u.sysUserId : null;
+
+    // The session may or may not carry the sys_user link; resolve it if not.
+    let resolvedSysUserId = sysUserId;
+    if (!resolvedSysUserId && userId) {
+      const row = await this.databaseService.kysely
+        .selectFrom('user')
+        .select('sysUserId')
+        .where('id', '=', userId)
+        .executeTakeFirst();
+      resolvedSysUserId = (row as { sysUserId?: string } | undefined)?.sysUserId ?? null;
+    }
+    if (!resolvedSysUserId) return [];
+
+    const rows = await this.databaseService.kysely
+      .selectFrom('sys_user_roles')
+      .innerJoin('sys_role', 'sys_role.sys_role_id', 'sys_user_roles.sys_role_id')
+      .select('sys_role.name')
+      .where('sys_user_roles.sys_user_id', '=', resolvedSysUserId)
+      .where('sys_user_roles.is_active', '=', true)
+      .where('sys_role.is_active', '=', true)
+      .execute();
+
+    return rows.map((r: { name: string }) => r.name);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Role-scoped Electric shape proxy for the Application Dictionary' })
+  async proxyShape(
+    @Query() query: Record<string, string>,
+    @Req() req: FastifyRequest,
+    @Res() res: FastifyReply,
+  ) {
+    // Authorization first, and before the upstream is even considered. What a
+    // caller may sync is not a function of whether Electric happens to be
+    // running, and deciding it here means the rules stay observable — and
+    // testable — in a deployment that has sync switched off.
+    const table = query['table'];
+    if (!table || !ALLOWED_SYS_TABLES.has(table)) {
+      throw new HttpException(
+        `Table '${table ?? ''}' is not available through the Electric proxy`,
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const roles = await this.resolveRoles((req as { user?: unknown }).user);
+    if (roles.length === 0) {
+      throw new HttpException(
+        'No active role on this session; nothing to sync',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const upstreamBase = electricUpstream();
+    if (!upstreamBase) {
+      /*
+       * Answered here rather than thrown, so it can carry a header.
+       *
+       * "No Electric server is configured" is permanent for this deployment,
+       * and the client stops trying once it hears it. "The backend is not
+       * reachable" is transient, and the client must keep trying. Both arrive
+       * at the browser as a 503 — the second one from the front end's own
+       * /api proxy, which answers `apiUnavailable()` with that status whenever
+       * the API is down or still starting.
+       *
+       * A client that reads only the status cannot tell them apart, so a
+       * backend restart during a page load looked exactly like a deployment
+       * with sync switched off, and the client latched it for the whole tab.
+       * This header is the difference, stated rather than inferred: only the
+       * backend sends it, and the proxy forwards it unchanged.
+       */
+      res
+        .header(ELECTRIC_SYNC_HEADER, 'unconfigured')
+        .status(HttpStatus.SERVICE_UNAVAILABLE)
+        .send({
+          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+          message:
+            'Electric upstream not configured (set ELECTRIC_URL); the client falls back to the HTTP API',
+        });
+      return;
+    }
+
+    // Built from the allowlist and from role names verified against sys_role —
+    // no caller-supplied text reaches this string.
+    const upstreamParams = new URLSearchParams();
+    upstreamParams.set('table', table);
+    for (const [key, value] of Object.entries(query)) {
+      if (FORWARDED_PARAMS.has(key) && typeof value === 'string') {
+        upstreamParams.set(key, value);
+      }
+    }
+    if (!UNSCOPED_SYS_TABLES.has(table)) {
+      const list = roles.map((r) => `'${r}'`).join(',');
+      upstreamParams.set('where', `allowed_roles @> ARRAY[${list}]::text[]`);
+    }
+
+    const upstreamUrl = `${upstreamBase}/v1/shape?${upstreamParams.toString()}`;
+
+    try {
+      const upstream = await fetch(upstreamUrl, {
+        headers: {
+          Accept: (req.headers['accept'] as string) ?? 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+      });
+
+      // Electric's own cache headers describe a response computed for one role.
+      // Passing them through would let a shared cache hand that response to a
+      // different role, so the proxy marks every response private.
+      //
+      // The framing headers go too, and that one is not a nicety. Electric
+      // answers `transfer-encoding: chunked`; `fetch` consumes the chunking and
+      // hands back a decoded buffer, so relaying that header alongside a
+      // fixed-length body produced a response whose framing disagreed with its
+      // bytes. Undici refused it outright (`UND_ERR_HTTP_PARSER`) and the front
+      // end's own `/api` proxy answered the browser 500 — for every dictionary
+      // collection, on every page load, with the upstream's `electric-*`
+      // headers still attached so the failure read like an Electric problem.
+      // `content-encoding` and `content-length` are dropped for the same
+      // reason: `fetch` has already decompressed, and the length it measured is
+      // the compressed one.
+      const FRAMING = new Set([
+        'transfer-encoding',
+        'content-encoding',
+        'content-length',
+        'connection',
+        'keep-alive',
+      ]);
+      // The page may call this route cross-origin (VITE_ELECTRIC_PROXY_URL
+      // points at the API's own port) with `credentials: 'include'`. Electric
+      // answers `access-control-allow-origin: *`, which a browser rejects on a
+      // credentialed request; relayed, it also overwrites the specific origin
+      // Nest's CORS layer already set on this reply. So Electric's CORS
+      // headers are dropped and Nest's stand.
+      //
+      // `access-control-expose-headers` is deliberately NOT dropped: it is how
+      // Electric lets the client read electric-offset, electric-handle,
+      // electric-cursor, electric-schema, electric-up-to-date and
+      // electric-has-data. Without it sync cannot advance.
+      const CORS_HEADERS = new Set([
+        'access-control-allow-origin',
+        'access-control-allow-credentials',
+        'access-control-allow-methods',
+        'access-control-allow-headers',
+        'access-control-max-age',
+      ]);
+      const headers: Record<string, string> = {};
+      upstream.headers.forEach((value, key) => {
+        const name = key.toLowerCase();
+        if (name === 'cache-control' || FRAMING.has(name) || CORS_HEADERS.has(name)) return;
+        headers[key] = value;
+      });
+      headers['cache-control'] = 'private, no-store';
+
+      const body = await upstream.arrayBuffer();
+      res.status(upstream.status).headers(headers).send(Buffer.from(body));
+    } catch (err) {
+      getLogger('http').event('http.proxy.failed', { target: 'electric', err });
+      throw new HttpException('Electric upstream unavailable', HttpStatus.BAD_GATEWAY);
+    }
+  }
+}

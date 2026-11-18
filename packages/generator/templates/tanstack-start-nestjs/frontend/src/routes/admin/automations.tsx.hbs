@@ -1,0 +1,84 @@
+/**
+ * Rules & workflows — the modelling tool's Logic step, inside the application.
+ *
+ * Everything on this screen is `LogicWorkbench`, vendored from `@appwithai/editors`: the
+ * same rail, the same rule editor (decision tables, the GoRules graph, Try it), the same
+ * lifecycle, process and status-machine editors, flowchart views and per-topic help.
+ * What is this application's is `lib/logic-host.ts`: where the rules and workflows are
+ * read from and written to, and what the model says they may name.
+ *
+ * A status flow saved here is the one the application runs from then on: the record's
+ * action buttons, the transition API and the badge all follow it (`lib/use-lifecycles.ts`).
+ *
+ * Generated for: {{project.name}}
+ */
+
+import { useQueryClient } from '@tanstack/react-query';
+import { createFileRoute } from '@tanstack/react-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LogicWorkbench } from '@/editors/components/LogicWorkbench';
+import { createLogicHost, logicConstraints, logicEntities, simulateRule, type LoadedLogic } from '@/lib/logic-host';
+import { LIFECYCLES_QUERY_KEY } from '@/lib/use-lifecycles';
+
+export const Route = createFileRoute('/admin/automations')({
+  component: RulesAndWorkflowsPage,
+});
+
+function RulesAndWorkflowsPage() {
+  const host = useMemo(() => createLogicHost(), []);
+  const queryClient = useQueryClient();
+  const [model, setModel] = useState<LoadedLogic | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    host
+      .load()
+      .then((loaded) => {
+        if (!cancelled) setModel(loaded);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Could not load the rules and workflows.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [host]);
+
+  const save = useCallback(
+    async (payload: Parameters<typeof host.save>[0]) => {
+      try {
+        await host.save(payload);
+      } finally {
+        // A status flow saved (or refused part-way) changes how records move: every
+        // screen reading a lifecycle reads it again.
+        await queryClient.invalidateQueries({ queryKey: LIFECYCLES_QUERY_KEY });
+      }
+    },
+    [host, queryClient]
+  );
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto max-w-[1600px] px-4 py-6">
+        <div className="mb-4">
+          <p className="text-[13px] text-muted-foreground">{{project.name}}</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Rules and workflows</h1>
+        </div>
+        <LogicWorkbench
+          loading={!model && !loadError}
+          loadError={loadError}
+          rules={model?.rules ?? []}
+          workflows={model?.workflows ?? []}
+          entities={logicEntities}
+          constraintsFor={logicConstraints}
+          dryRun={simulateRule}
+          save={save}
+          rulesHavePriority={false}
+          lockedWorkflows={model?.locked}
+          lockedNote="This automation is declared in the model. Edit the model and generate the application again to change it; it is shown here as the author drew it. Status flows are not locked: a flow saved here is the one records follow."
+        />
+      </div>
+    </div>
+  );
+}

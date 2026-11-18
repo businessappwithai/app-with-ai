@@ -1,0 +1,63 @@
+/*
+ * Self-hosted webfonts — latin subsets of Inter, Newsreader and JetBrains Mono,
+ * all under the SIL Open Font License (see LICENSE.txt in this directory).
+ *
+ * These are served from the app's own origin on purpose. Loading them from a
+ * font CDN made every page depend on a third-party host being reachable, which
+ * it is not behind a corporate proxy, in an air-gapped deployment, or in CI.
+ *
+ * THREE FILES, NOT NINE. Each of these families is a *variable* font: one file
+ * carrying the whole weight axis, which `font-weight: <min> <max>` below tells
+ * the browser about so it can interpolate any weight in the range.
+ *
+ * It used to be nine `@font-face` rules over nine files — Inter at 400, 500,
+ * 600 and 700, Newsreader at 400 and 600, JetBrains Mono at 400 and 600 — and
+ * the vendoring had copied *the same variable file* under each weight's name.
+ * `md5sum` gave one hash for all four Inter files. So the browser, told they
+ * were four different fonts at four URLs, dutifully downloaded 193KB of Inter
+ * to get 48KB of it three more times; 396KB shipped, 314KB fetched on a first
+ * page load, of which 152KB was bytes it already had.
+ *
+ * The weight ranges are read from each file's own `fvar` table, not assumed:
+ * Inter 100–900, Newsreader 200–800, JetBrains Mono 400–800. Declaring a range
+ * wider than the file carries makes the browser synthesise the weights outside
+ * it, which looks like a font that has been artificially emboldened, because it
+ * has been.
+ *
+ * Newsreader's italic is the exception and is still its own file: it is a
+ * static instance, with no variation axis to fold into the roman.
+ *
+ * Regenerate with the generator's font vendoring script; do not edit by hand.
+ */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-variable-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/newsreader-variable-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/newsreader-400-italic-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-variable-latin.woff2') format('woff2');
+}
