@@ -9,7 +9,7 @@
 
 - **EML version**: 1.2.0 · **Based on**: Mermaid · **Updated**: 2026-10-20
 - **This document**: `https://www.appwithai.org/llms.txt`
-- **Authority**: `language/appwithai-language.json`. Where this document and that
+- **Authority**: `common/language/appwithai-language.json`. Where this document and that
   file disagree, that file wins.
 - **Validators** (§8): `https://www.appwithai.org/guide/checker.js` and
   `https://www.appwithai.org/guide/fixer.js`. **Write that exact form every
@@ -346,7 +346,7 @@ a document the generator will accept.
 
 | Module | URL | What it gives you |
 |---|---|---|
-| `checker.js` | `https://www.appwithai.org/guide/checker.js` | Every diagnostic `language/checker.ts` prints, as `check(source)` |
+| `checker.js` | `https://www.appwithai.org/guide/checker.js` | Every diagnostic `common/language/checker.ts` prints, as `check(source)` |
 | `fixer.js` | `https://www.appwithai.org/guide/fixer.js` | The thirteen auto-repairs, plus `checkAndFix(source)` — repair and re-check in one call |
 
 ### 8.1 The API

@@ -6,4 +6,4 @@
  * package without a deep relative path at every call site.
  */
 
-export * from "../../../../language/rag";
+export * from "../../../../common/language/rag";

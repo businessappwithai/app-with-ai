@@ -16,7 +16,7 @@ import { extractRuleSections } from "../../../../../generator/src/eml";
 import { withNodePositions } from "../graph-layout";
 
 const CRM = readFileSync(
-  join(import.meta.dirname, "../../../../../../language/examples/crm.eml.mmd"),
+  join(import.meta.dirname, "../../../../../../common/language/examples/crm.eml.mmd"),
   "utf8"
 );
 

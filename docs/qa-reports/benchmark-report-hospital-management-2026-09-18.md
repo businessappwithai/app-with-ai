@@ -4,7 +4,7 @@
 |---|---|
 | **Skill** | gstack `/benchmark` (Performance Regression Detection), v1.0.0 |
 | **Date** | 2026-09-18 |
-| **Model** | `examples/hospital-management-system.mmd` — 28 entities, 47 relationships, 12 enums, 8 rules, 16 workflows, 57 `%%rbac` lines. Checks clean: `bun language/checker.ts` reports 0 errors, 0 warnings |
+| **Model** | `examples/hospital-management-system.mmd` — 28 entities, 47 relationships, 12 enums, 8 rules, 16 workflows, 57 `%%rbac` lines. Checks clean: `bun common/language/checker.ts` reports 0 errors, 0 warnings |
 | **Application** | Generated with `packages/generator/src/cli/generate.ts generate --records-per-entity 25`, installed, **production build**, run behind `vinxi start` |
 | **Stack under test** | Generated NestJS backend on `:4001` against local Postgres 16, generated TanStack Start frontend |
 | **Branch** | `claude/hospital-gstack-benchmark-em5o75` |

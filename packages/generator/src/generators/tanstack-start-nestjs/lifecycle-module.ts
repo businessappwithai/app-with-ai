@@ -5,7 +5,7 @@
  * everything that reads an entry — the phase of a value, the moves out of a
  * state, whether a record is locked — is here, once, so the bus service, the
  * transition service and the access guard cannot read a lifecycle differently.
- * The vocabulary is language/state-field.ts's.
+ * The vocabulary is common/language/state-field.ts's.
  */
 
 import {
@@ -17,7 +17,7 @@ import {
   moveLabel,
   normalizeEvent,
   stateFieldOf,
-} from "../../../../../language/state-field";
+} from "../../../../../common/language/state-field";
 import type { CompiledWorkflow } from "../../workflows";
 
 export const LIFECYCLE_MODULE_HEAD = `/**

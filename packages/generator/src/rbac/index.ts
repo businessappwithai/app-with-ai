@@ -31,7 +31,7 @@
  * so operation rules live in `sys_operation_access`.
  */
 
-import { LIFECYCLE_DRAFT, normalizeEvent, REOPEN_EVENT } from "../../../../language/state-field";
+import { LIFECYCLE_DRAFT, normalizeEvent, REOPEN_EVENT } from "../../../../common/language/state-field";
 
 /** The CRUD operations an `%%rbac` directive may restrict. */
 export const RBAC_OPERATIONS = ["create", "read", "update", "delete"] as const;

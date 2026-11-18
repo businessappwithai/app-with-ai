@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { checkSource } from "../../../../../language/checker";
+import { checkSource } from "../../../../../common/language/checker";
 
 const MODEL = (secondTitle: string) => `%%meta name: Field Service
 %%meta kind: erd

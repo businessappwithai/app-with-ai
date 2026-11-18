@@ -4,7 +4,7 @@ node_modules
 packages/*/node_modules
 packages/*/dist
 packages/web/.output
-language/cli/node_modules
+common/language/cli/node_modules
 
 # Applications this generator has already produced. They are output, they can be
 # large, and a stale one baked into the image would be mistaken for a fresh one.

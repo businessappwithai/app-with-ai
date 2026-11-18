@@ -69,7 +69,7 @@ const TEMPLATE_ROOTS = [
  * `src/common/field-logic.ts` (backend) and `src/lib/field-logic.ts` (front
  * end) are where the field-logic evaluator is *written*: both are copies of one
  * template, `templates/common/field-logic.ts`, itself held byte-identical to
- * `language/field-logic.ts` by `field-logic.test.ts`. One source, two outputs.
+ * `common/language/field-logic.ts` by `field-logic.test.ts`. One source, two outputs.
  *
  * An addition here needs a reason written beside it. That is the point of the
  * allowlist being short: a new entry is a review conversation, not a habit.

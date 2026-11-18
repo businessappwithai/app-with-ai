@@ -25,7 +25,7 @@ import { parseModel } from "../../pipeline/parse-model";
 import { readModel } from "../view-model";
 
 const ROOT = join(import.meta.dirname, "../../../../..");
-const crm = readFileSync(join(ROOT, "language/examples/crm.eml.mmd"), "utf-8");
+const crm = readFileSync(join(ROOT, "common/language/examples/crm.eml.mmd"), "utf-8");
 
 describe("readModel composes the pipeline's own reading", () => {
   it("carries every entity, relationship and enum the parser found", () => {

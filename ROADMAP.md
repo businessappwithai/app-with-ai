@@ -40,7 +40,7 @@ server. This is a foundation, not coverage.
   generated backend logs a failed seed and continues, so `bun run migrate` exits
   0 regardless of whether seeding succeeded.
 - Coverage of every documented language directive. `%%loop` is specified in
-  `language/spec/03-workflows.md` and referenced by the checker's help text, but
+  `common/language/spec/03-workflows.md` and referenced by the checker's help text, but
   the multi-line `%%step <id> type: …` form the specification shows is rejected
   by `EML261`, and in the compact form the `in:` property that binds a step to a
   loop is rejected by `EML268` on every step type. No model can use it and pass
@@ -48,7 +48,7 @@ server. This is a foundation, not coverage.
 
 **Done when.** Every user-facing path has a test that fails when that path
 regresses; no suite or setup script continues past a failed step; and every
-directive the language documents is exercised by a model in `language/examples/`
+directive the language documents is exercised by a model in `common/language/examples/`
 that passes the checker.
 
 ## 2. Security assessment

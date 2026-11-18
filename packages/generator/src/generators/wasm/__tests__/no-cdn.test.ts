@@ -21,7 +21,7 @@ const CDN = new RegExp(
   ["cdn\\.jsdelivr", "unpkg\\.com", "cdnjs\\.", "esm\\.sh", "cdn\\.skypack", "jspm\\.io"].join("|")
 );
 
-const MODEL = readFileSync(path.join(REPO, "language/examples/crm.eml.mmd"), "utf8");
+const MODEL = readFileSync(path.join(REPO, "common/language/examples/crm.eml.mmd"), "utf8");
 const OPTIONS = {
   name: "No CDN",
   version: "1.0.0",

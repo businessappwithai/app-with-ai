@@ -107,7 +107,7 @@ test-output/
 docker/ca-certificates/*.crt
 
 # Generated CRM reference application — the source is committed on purpose (it
-# is the worked example for language/examples/crm.eml.mmd), but never its
+# is the worked example for common/language/examples/crm.eml.mmd), but never its
 # dependencies, build output or lockfile.
 
 # PGlite vendored beside the guide by `bun run vendor:pglite` — 17MB of

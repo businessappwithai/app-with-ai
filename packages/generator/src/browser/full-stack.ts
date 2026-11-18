@@ -22,8 +22,8 @@
  * PostgreSQL there.
  */
 
-import { setLanguageDefinition as setCheckerDefinition } from "../../../../language";
-import languageDefinition from "../../../../language/appwithai-language.json";
+import { setLanguageDefinition as setCheckerDefinition } from "../../../../common/language";
+import languageDefinition from "../../../../common/language/appwithai-language.json";
 import { DEFAULT_BACKEND_PORT, DEFAULT_FRONTEND_PORT } from "../generators/ports";
 import { applyWasmOverlay } from "../generators/wasm/overlay";
 import { setLanguageDefinition } from "../parsers/language-maps";

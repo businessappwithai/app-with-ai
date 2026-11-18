@@ -404,7 +404,7 @@ var init_node_path = __esm(() => {
 var fileURLToPath = (url) => String(url).replace(/^file:\/\//, "");
 var init_node_url = () => {};
 
-// language/index.ts
+// common/language/index.ts
 function setLanguageDefinition(definition) {
   cached = definition;
 }
@@ -5870,7 +5870,7 @@ var init_model_check_error = __esm(() => {
 
 // packages/generator/src/browser/full-stack.ts
 init_language();
-// language/appwithai-language.json
+// common/language/appwithai-language.json
 var appwithai_language_default = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://appwithai.dev/language/appwithai-language.json",
@@ -8389,7 +8389,7 @@ function findDefinitionFile() {
   for (const start of starts) {
     let dir = start;
     for (let i = 0;i < 12; i++) {
-      const candidate = node_path_default.join(dir, "language", "appwithai-language.json");
+      const candidate = node_path_default.join(dir, "common", "language", "appwithai-language.json");
       if (existsSync(candidate))
         return candidate;
       const parent = node_path_default.dirname(dir);
@@ -14151,7 +14151,7 @@ function generatedErrorCatalogue() {
 `);
 }
 
-// language/state-field.ts
+// common/language/state-field.ts
 var STATE_FIELD_CANDIDATES = ["status", "state", "stage"];
 function stateFieldOf(columns) {
   const names = new Set(columns);
@@ -14541,7 +14541,7 @@ ${stderr}`);
   }
 }
 
-// language/composer.ts
+// common/language/composer.ts
 var RULE_LEAD = "%%rule ";
 var WORKFLOW_LEAD = "%%workflow ";
 function tidy(block) {
@@ -15991,7 +15991,7 @@ function buildFkConstraints(busEntities, relationships) {
   return constraints;
 }
 
-// language/sections.ts
+// common/language/sections.ts
 var KEYS = new Set(["entity", "name", "help", "rows", "collapsed"]);
 var REQUIRED = ["entity", "name", "rows"];
 var DIRECTIVE3 = /^\s*%%section\b\s*(.*)$/i;
@@ -23228,14 +23228,14 @@ async function writeModelSource(outputDir, sources, log = NO_LOG) {
   }
 }
 
-// language/checker.ts
+// common/language/checker.ts
 init_memory_fs();
 init_node_path();
 
-// language/cli/src/parser.ts
+// common/language/cli/src/parser.ts
 init_language();
 
-// language/cli/src/model.ts
+// common/language/cli/src/model.ts
 function emptyModel() {
   return {
     meta: {},
@@ -23254,7 +23254,7 @@ function emptyModel() {
   };
 }
 
-// language/cli/src/util.ts
+// common/language/cli/src/util.ts
 function toSnakeCase(str) {
   if (/^[A-Z0-9_]+$/.test(str))
     return str.toLowerCase();
@@ -23281,7 +23281,7 @@ function splitHead(text) {
   return { head: trimmed.slice(0, at), rest: trimmed.slice(at).trim() };
 }
 
-// language/cli/src/parser.ts
+// common/language/cli/src/parser.ts
 var SECTION_OPENERS = /^(erDiagram|flowchart|graph|stateDiagram-v2|stateDiagram)\b/;
 function parseEml(source) {
   const model = emptyModel();
@@ -23896,10 +23896,10 @@ function applyFieldEnumRefs(model) {
   fieldHelp.length = 0;
 }
 
-// language/checker.ts
+// common/language/checker.ts
 init_language();
 
-// language/field-logic.ts
+// common/language/field-logic.ts
 var OPERATOR_ALIASES = {
   "=": "=",
   "==": "=",
@@ -24042,7 +24042,7 @@ function parseLogic(source) {
   return { ok: true, logic: { conditions, joins: split.joins, variables } };
 }
 
-// language/move-facts.ts
+// common/language/move-facts.ts
 var SAGA = /^%%workflow\s+(\w+)\s+entity:\s*(\w+)\s+kind:\s*saga\b.*\btrigger:\s*rule\b/;
 var RULE = /^%%rule\s+(\w+)\s+on\s+(\w+)\b/;
 var STEP = /^%%step\s+\w+\s+(\w+)\b(.*)$/;
@@ -24192,7 +24192,7 @@ function rewriteStockHelp(lines) {
   return rewrites.length;
 }
 
-// language/checker.ts
+// common/language/checker.ts
 var useColor = typeof process !== "undefined" && !process.env?.NO_COLOR && Boolean(process.stdout?.isTTY) && !hasFlag("--no-color");
 function hasFlag(name) {
   return typeof process !== "undefined" && (process.argv?.includes(name) ?? false);
@@ -26599,7 +26599,7 @@ var AUTO_FIXABLE_CODES = new Set([
 ]);
 if (false) {}
 
-// language/fixer.ts
+// common/language/fixer.ts
 init_memory_fs();
 init_node_path();
 var useColor2 = typeof process !== "undefined" && !process.env?.NO_COLOR && Boolean(process.stdout?.isTTY) && !hasFlag2("--no-color");

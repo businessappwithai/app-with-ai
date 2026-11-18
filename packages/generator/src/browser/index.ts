@@ -12,8 +12,8 @@
  * inlined by `scripts/build-wasm-runtime.ts` rather than read off disk.
  */
 
-import { setLanguageDefinition as setCheckerDefinition } from "../../../../language";
-import languageDefinition from "../../../../language/appwithai-language.json";
+import { setLanguageDefinition as setCheckerDefinition } from "../../../../common/language";
+import languageDefinition from "../../../../common/language/appwithai-language.json";
 import { setLanguageDefinition } from "../parsers/language-maps";
 import { type ParsedModel, parseModel } from "../pipeline/parse-model";
 import { type ModelReview, reviewModel } from "../pipeline/review-model";
@@ -23,7 +23,7 @@ import { ModelCheckError } from "./model-check-error";
 // none of. Injecting the real JSON here — bundled, not re-typed — is what makes
 // a model read the same way in a tab as it does in a terminal.
 setLanguageDefinition(languageDefinition);
-// The checker resolves it separately, through `language/index.ts`. Same JSON,
+// The checker resolves it separately, through `common/language/index.ts`. Same JSON,
 // same object — a tab has no disk for either of them to read it from.
 setCheckerDefinition(languageDefinition as unknown as Parameters<typeof setCheckerDefinition>[0]);
 

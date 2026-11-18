@@ -12,9 +12,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateApplication } from "../../pipeline/generate-application";
-import { moveLabel } from "../../../../../language/state-field";
+import { moveLabel } from "../../../../../common/language/state-field";
 
-const CRM = readFileSync(join(import.meta.dirname, "../../../../../language/examples/crm.eml.mmd"), "utf8");
+const CRM = readFileSync(join(import.meta.dirname, "../../../../../common/language/examples/crm.eml.mmd"), "utf8");
 const BOUND = `
 %%meta name: Won Notice
 %%meta kind: workflow

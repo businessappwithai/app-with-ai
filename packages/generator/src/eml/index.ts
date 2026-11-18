@@ -5,4 +5,4 @@
  * like; this re-export is what makes it reachable from the generator package —
  * and therefore from the web app, which imports the built generator.
  */
-export * from "../../../../language/composer";
+export * from "../../../../common/language/composer";

@@ -188,13 +188,13 @@ New codes in the EML2xx range. None is auto-fixable.
 - **EML298 (error):** `status:` on a saga whose operation is not `UPDATE`, or on a hook workflow carrying a rung that is not an update hook.
 - **EML299 (warning):** `status:` names the machine's initial state, or a state no drawn arrow enters, so the workflow can never run.
 
-Before using these numbers, check they are free in `language/checker.ts` and `appwithai-language.json`.
+Before using these numbers, check they are free in `common/language/checker.ts` and `appwithai-language.json`.
 
 ### Button names
 
 `lifecycleMoveLabel(event, to)` (`generators/tanstack-start-nestjs/lifecycle-module.ts:143`) returns the **target state's name** ("To be reviewed"), always. The event still identifies the move (`%%rbac`, `sys_record_transitions`, `{event}` in the POST). Reopen stays "Reopen".
 
-The browser twin is `templates/wasm/server/lib/lifecycle.js`. `language/appwithai-language.json` `stateForm.moves` changes its wording to match.
+The browser twin is `templates/wasm/server/lib/lifecycle.js`. `common/language/appwithai-language.json` `stateForm.moves` changes its wording to match.
 
 ### Error, populated
 
@@ -331,7 +331,7 @@ Rebuild every artifact whose sources this change touches, then run all five `--c
 - `build:wasm-runtime` (`templates/wasm`)
 - `build:wasm-browser`
 - `build:fullstack-browser` (anything under `generator/src` or the templates)
-- `build:language-tools` (`language/**`)
+- `build:language-tools` (`common/language/**`)
 - `build:viewers`
 
 ### 8. After screenshots and the write-up
@@ -384,7 +384,7 @@ Rebuild every artifact whose sources this change touches, then run all five `--c
 
 ## Critical files
 - `packages/editors/src/components/eml/NewWorkflowPanel.tsx`, `components/LogicWorkbench.tsx`, `components/automation/AutomationBuilder.tsx`, `lib/automation/model.ts`, `lib/eml/{workflow-model,workflow-hooks,section-problems}.ts`
-- `language/{composer,checker,move-facts}.ts`, `language/appwithai-language.json`
+- `language/{composer,checker,move-facts}.ts`, `common/language/appwithai-language.json`
 - `packages/generator/src/workflows/steps.ts`, `generators/tanstack-start-nestjs/{lifecycle-module,nestjs-backend.generator}.ts`
 - `templates/tanstack-start-nestjs/backend/src/modules/{bus/transition.service,workflow/workflow.service}.ts.hbs`, `migrations/024_widen_workflow_operation.ts.hbs`, `frontend/src/lib/logic-host.ts`, `frontend/src/components/admin/record-actions.tsx`
 - `templates/wasm/server/{modules/bus.routes.js,lib/sagas.js,lib/lifecycle.js}`, `ui/views/entity-form.js`

@@ -3,7 +3,7 @@
  *
  * `%%field <E>.<c> display: | readonly: | mandatory: <logic>` passes through
  * five readers, and these tests hold them to one meaning: the syntax itself
- * (language/field-logic.ts), the checker, the dictionary both stacks seed
+ * (common/language/field-logic.ts), the checker, the dictionary both stacks seed
  * from, the NestJS seed template, and the browser stack's JavaScript twin.
  *
  * The copies are the part most worth pinning. The generated applications
@@ -18,8 +18,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Handlebars from "handlebars";
 import { describe, expect, it } from "vitest";
-import { checkSource } from "../../../../../language/checker";
-import * as canonical from "../../../../../language/field-logic";
+import { checkSource } from "../../../../../common/language/checker";
+import * as canonical from "../../../../../common/language/field-logic";
 import * as twin from "../../../templates/wasm/server/lib/field-logic.js";
 import { DictionaryGenerator } from "../dictionary.generator";
 import { withFormLayout } from "../tanstack-start-nestjs/nestjs-backend.generator";
@@ -153,9 +153,9 @@ describe("what the API refuses", () => {
 });
 
 describe("the copies the generated applications carry", () => {
-  it("NestJS: templates/common/field-logic.ts is language/field-logic.ts, byte for byte", () => {
+  it("NestJS: templates/common/field-logic.ts is common/language/field-logic.ts, byte for byte", () => {
     expect(readFileSync(join(ROOT, "packages/generator/templates/common/field-logic.ts"), "utf8"))
-      .toBe(readFileSync(join(ROOT, "language/field-logic.ts"), "utf8"));
+      .toBe(readFileSync(join(ROOT, "common/language/field-logic.ts"), "utf8"));
   });
 
   it("browser: the JavaScript twin exports the same functions", () => {

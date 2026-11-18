@@ -5,12 +5,12 @@
  * `assumed` decision, an entity with no primary key gets one, a missing FK is
  * inferred. That is right for generation and wrong as the *only* thing a person
  * hears, because the result is an application that runs and quietly does not
- * mean what the model said. `language/checker.ts` already knows the difference —
+ * mean what the model said. `common/language/checker.ts` already knows the difference —
  * it just lived behind a CLI that read files and printed colour.
  *
  * So this is the checker and the fixer, run over a string. Nothing here
- * re-implements a rule: `checkSource` is the same engine `bun language/checker.ts`
- * runs, and `applyFixes` is the same repair `bun language/fixer.ts` applies. What
+ * re-implements a rule: `checkSource` is the same engine `bun common/language/checker.ts`
+ * runs, and `applyFixes` is the same repair `bun common/language/fixer.ts` applies. What
  * this adds is the loop between them — fix, then check again, so that what is
  * reported is what survived the repair rather than what was wrong before it.
  *
@@ -24,8 +24,8 @@ import {
   type CheckResult,
   checkSource,
   type Issue,
-} from "../../../../language/checker";
-import { applyFixes, type FixResult } from "../../../../language/fixer";
+} from "../../../../common/language/checker";
+import { applyFixes, type FixResult } from "../../../../common/language/fixer";
 
 export type { FixResult, Issue };
 

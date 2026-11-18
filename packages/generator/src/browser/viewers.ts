@@ -8,14 +8,14 @@
  * separate entry only so a reader who wants a picture does not download the
  * whole application assembler to get one.
  *
- * The checker travels with it, re-exported from `language/browser/checker.entry.ts`
+ * The checker travels with it, re-exported from `common/language/browser/checker.entry.ts`
  * rather than re-reported here. A viewer that renders a document happily while
  * `checker.js` refuses it teaches the author the wrong thing; re-exporting the
  * published entry is what makes the two verdicts the same sentence rather than
  * two sentences that ought to agree.
  */
 
-import languageDefinition from "../../../../language/appwithai-language.json";
+import languageDefinition from "../../../../common/language/appwithai-language.json";
 import { setLanguageDefinition } from "../parsers/language-maps";
 
 // The parser resolves the language definition off disk, which a browser has
@@ -30,7 +30,7 @@ import {
   formatIssue,
   formatReport,
   LANGUAGE_VERSION,
-} from "../../../../language/browser/checker.entry";
+} from "../../../../common/language/browser/checker.entry";
 import { readModel, type ViewModel } from "../viewers";
 
 export type {

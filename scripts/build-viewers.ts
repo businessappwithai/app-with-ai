@@ -36,7 +36,7 @@ const TARGET = "website/viewers/eml-model.js";
 /**
  * Stubs for the Node builtins the reader still names.
  *
- * `language-maps.ts` and `language/index.ts` resolve the language definition
+ * `language-maps.ts` and `common/language/index.ts` resolve the language definition
  * off disk, and `checker.ts` names the file operations its CLI half uses. The
  * entry injects the definition and calls only the pure functions, so none of
  * these ever run — the imports simply have to resolve. Identical to the stubs

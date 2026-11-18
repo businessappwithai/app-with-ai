@@ -37,7 +37,7 @@ Protocol: `llmdetailed.txt` §10, read from https://appwithai.org/llmdetailed.tx
   replaces it.** Original text: does it replace the published
   `guide/models/hospital-management-system.eml.mmd` (and its upstream twin), or
   stand beside it as a second hospital model? This decides the `%%meta name:`
-  and whether the byte-parity rule between `html/models/` and `language/examples/`
+  and whether the byte-parity rule between `html/models/` and `common/language/examples/`
   applies to the result.
 
 ## Notes on the protocol itself

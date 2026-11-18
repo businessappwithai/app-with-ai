@@ -105,7 +105,7 @@ function parseDefinition(row) {
  * The column an entity's state machine drives, and the state a new record
  * starts in — or null when the entity has no state machine.
  *
- * `status`, else `state`, else `stage`: the same order `language/state-field.ts`
+ * `status`, else `state`, else `stage`: the same order `common/language/state-field.ts`
  * states for the checker, the generator and the NestJS stack. That column is
  * system-managed. No person writes it: the bus routes drop it on create (the
  * record starts in `initial`) and refuse a change to it on update, and only the

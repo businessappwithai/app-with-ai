@@ -66,8 +66,8 @@ the `.mmd` itself. Look for an unfinished session there first and offer to resum
 ## 4. Check after every edit, not only at the end
 
 ```bash
-bun language/fixer.ts docs/eml-sessions/<slug>/<slug>.mmd     # auto-fixes, then re-checks
-bun language/checker.ts docs/eml-sessions/<slug>/<slug>.mmd   # the report; exit 0 = accepted
+bun common/language/fixer.ts docs/eml-sessions/<slug>/<slug>.mmd     # auto-fixes, then re-checks
+bun common/language/checker.ts docs/eml-sessions/<slug>/<slug>.mmd   # the report; exit 0 = accepted
 node ../businessappwithai.github.io/guide/audit-model.mjs docs/eml-sessions/<slug>/<slug>.mmd
 #   or: curl -sO https://www.appwithai.org/guide/audit-model.mjs && node audit-model.mjs <file>
 ```

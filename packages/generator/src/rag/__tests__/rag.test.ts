@@ -129,7 +129,7 @@ describe("extractEnums", () => {
 });
 
 describe("chunkMarkdown", () => {
-  const spec = readFileSync(join(ROOT, "language/spec/03-workflows.md"), "utf-8");
+  const spec = readFileSync(join(ROOT, "common/language/spec/03-workflows.md"), "utf-8");
   const chunks = chunkMarkdown(spec, "spec/03-workflows.md");
 
   it("splits on headings rather than on length", () => {

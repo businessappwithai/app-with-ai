@@ -261,14 +261,14 @@ async function runE2ETests(opts: {
 // ---------------------------------------------------------------------------
 
 /**
- * Run the language/checker.ts on a .mmd file, then auto-fix with fixer.ts,
+ * Run the common/language/checker.ts on a .mmd file, then auto-fix with fixer.ts,
  * then re-check. Throws if errors remain after fixing.
  */
 async function runCheckerFixer(mmdPath: string, quiet: boolean): Promise<void> {
   // Workspace root is 4 levels above packages/generator/src/cli/
   const workspaceRoot = path.resolve(__dirname, "../../../../");
-  const checkerScript = path.join(workspaceRoot, "language", "checker.ts");
-  const fixerScript = path.join(workspaceRoot, "language", "fixer.ts");
+  const checkerScript = path.join(workspaceRoot, "common", "language", "checker.ts");
+  const fixerScript = path.join(workspaceRoot, "common", "language", "fixer.ts");
 
   // If language tooling isn't present in this installation, skip silently
   try {

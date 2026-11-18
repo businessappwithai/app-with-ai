@@ -12,7 +12,7 @@
  * application actually applies.
  */
 
-import { lifecycleValuesFor, RESERVED_STATE_NAMES } from "../../../../language/state-field";
+import { lifecycleValuesFor, RESERVED_STATE_NAMES } from "../../../../common/language/state-field";
 import { extractWorkflowSections } from "../eml";
 import { type CompiledSaga, compileSagas } from "./steps";
 
@@ -50,7 +50,7 @@ export interface CompiledWorkflow {
   terminal: string[];
   /**
    * Every value the lifecycle column may hold: `draft`, the machine's states, and
-   * `error` (`lifecycleValuesFor` in language/state-field.ts — the one statement).
+   * `error` (`lifecycleValuesFor` in common/language/state-field.ts — the one statement).
    */
   lifecycleValues: string[];
 }

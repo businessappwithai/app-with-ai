@@ -200,7 +200,7 @@ test.describe
       // its write restrictions, which is what gives each seeded role its own
       // set of windows, and 48 moves, each the button of the roles it names.
       // html/models/crm.eml.mmd is the copy this page loads and it must stay identical to
-      // language/examples/crm.eml.mmd — they had drifted, and this number is
+      // common/language/examples/crm.eml.mmd — they had drifted, and this number is
       // what noticed.
       expect(tally["Access rules"]).toBe("72");
 

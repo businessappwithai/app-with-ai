@@ -296,7 +296,7 @@ Verified against 545 rows.
 ## Deferred by `/qa` on `claude/qa-gstack-generator-dance-studio-qr619s`, 2026-08-31
 
 Found while QA-ing the CLI and a generated application against
-`language/examples/dance-studio.eml.mmd`. Fourteen issues were fixed in the
+`common/language/examples/dance-studio.eml.mmd`. Fourteen issues were fixed in the
 generator on that branch; these eight were not. Full write-up, with evidence, in
 `docs/qa/qa-report-dance-studio-2026-08-31.md`.
 

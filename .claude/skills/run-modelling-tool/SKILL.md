@@ -29,7 +29,7 @@ There is no `chromium-cli` here; `driver.mjs` (Playwright, headless, signs in as
 ```bash
 node .claude/skills/run-modelling-tool/driver.mjs /projects /var/tmp/projects.png
 node .claude/skills/run-modelling-tool/driver.mjs "/projects/{id}/logic" /var/tmp/logic.png \
-  --new-project language/examples/crm.eml.mmd --wait 5000
+  --new-project common/language/examples/crm.eml.mmd --wait 5000
 node .claude/skills/run-modelling-tool/driver.mjs /projects/<id>/logic /var/tmp/x.png --click "Lead Qualification"
 ```
 

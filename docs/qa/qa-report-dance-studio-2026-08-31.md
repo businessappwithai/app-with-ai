@@ -3,7 +3,7 @@
 **Date:** 2026-08-31
 **Method:** the gstack `/qa` skill, Standard tier, applied to a generated application
 **Target:** the `appwithai` CLI, `packages/generator/src`, `packages/generator/templates`, `packages/core`
-**Source model:** `language/examples/dance-studio.eml.mmd` — 9 entities, 10 relationships,
+**Source model:** `common/language/examples/dance-studio.eml.mmd` — 9 entities, 10 relationships,
 5 categories, 7 enums, 2 state machines, 1 saga, 21 `%%rbac` restrictions
 **Branch:** `claude/qa-gstack-generator-dance-studio-qr619s`
 **Stack:** TanStack Start + React 19 (frontend), NestJS + Fastify + Kysely (backend), PostgreSQL 16
@@ -59,7 +59,7 @@ green on both.
 ## Method
 
 1. Generated with the CLI:
-   `node packages/generator/dist/cli/generate.js generate -i language/examples/dance-studio.eml.mmd -o generated-projects/dance-studio -n dance-studio --force`
+   `node packages/generator/dist/cli/generate.js generate -i common/language/examples/dance-studio.eml.mmd -o generated-projects/dance-studio -n dance-studio --force`
    which runs install → migrate → seed against a local PostgreSQL 16.
 2. Ran `validate` and `inspect` over the same model and read what they said.
 3. Booted both halves and drove the application in Chromium (Playwright,
@@ -297,7 +297,7 @@ times out at 60s on this container (4 cores) while writing 1000 records across
 nine entities. It is the suite `--run-tests-fast` deliberately skips, and it is
 a machine limit rather than a defect.
 
-Two model-quality notes, which belong to `language/examples/dance-studio.eml.mmd`
+Two model-quality notes, which belong to `common/language/examples/dance-studio.eml.mmd`
 rather than to the generator: `WaitlistEntry` is named by no `%%category`, so it
 lands under "General"; and the dashboard orders categories alphabetically, which
 puts that group second rather than last.
@@ -317,7 +317,7 @@ PostgreSQL 16.13:
 | `bun test packages/core packages/generator/src` | ✅ 279/279 |
 | `bun run type-check` (this repository) | ✅ |
 | `bun run test:wasm:cli` | ✅ 16/16 |
-| `validate language/examples/dance-studio.eml.mmd` | ✅ no issues found (was 5 warnings) |
+| `validate common/language/examples/dance-studio.eml.mmd` | ✅ no issues found (was 5 warnings) |
 | `inspect` — Via column against the ERD | ✅ all 10 relationships agree |
 
 Browser, against the regenerated application:

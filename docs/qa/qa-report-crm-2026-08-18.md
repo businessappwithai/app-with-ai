@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-18
 **Branch:** `claude/app-builder-generator-qa-3tsg72`
-**Model under test:** `language/examples/crm.eml.mmd` — 17 entities, 39 relationships, 8 rules, 17 workflows
+**Model under test:** `common/language/examples/crm.eml.mmd` — 17 entities, 39 relationships, 8 rules, 17 workflows
 **Targets:** generator at `localhost:3000`, generated CRM at `localhost:4000` (API `:4001`)
 **Screenshots:** `pics/qa01`–`qa31` (28 files)
 

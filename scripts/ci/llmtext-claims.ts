@@ -18,9 +18,9 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-import definition from "../../language/appwithai-language.json";
-import { check } from "../../language/browser/checker.entry";
-import { AUTO_FIXABLE_CODES } from "../../language/checker";
+import definition from "../../common/language/appwithai-language.json";
+import { check } from "../../common/language/browser/checker.entry";
+import { AUTO_FIXABLE_CODES } from "../../common/language/checker";
 import { parseModel } from "../../packages/generator/src/pipeline/parse-model";
 
 /* The checker exports a Set; every assertion below wants a stable ordering. */
@@ -56,7 +56,7 @@ const readChunk = (name: string): string =>
   readFileSync(join(ROOT, "website", "llmtext", name), "utf-8");
 const ALL = CHUNKS.map(readChunk).join("\n");
 const DOCUMENTS = ["llms.txt (all chunks)"] as const;
-const checkerSource = readFileSync(join(ROOT, "language/checker.ts"), "utf-8");
+const checkerSource = readFileSync(join(ROOT, "common/language/checker.ts"), "utf-8");
 
 let failed = 0;
 const held = (condition: boolean, label: string): void => {
@@ -139,7 +139,7 @@ for (const name of DOCUMENTS) {
     }`
   );
 
-  /* Directive status, against `language/appwithai-language.json` — the file both
+  /* Directive status, against `common/language/appwithai-language.json` — the file both
      documents name as the authority. This is the check that was missing: §11
      rule 2 claimed %%entity was "validated but not compiled" while the same
      document's own §3.2 table said compiled, and a reader who believed rule 2
@@ -407,7 +407,7 @@ for (const [pattern, label] of [
    published report calls mandatory — DICTIONARY_COMPLETENESS in the checker
    entry. Read from its source, because it is not exported and a copy of it here
    would be the second answer this file exists to prevent. */
-const entrySource = readFileSync(join(ROOT, "language/browser/checker.entry.ts"), "utf-8");
+const entrySource = readFileSync(join(ROOT, "common/language/browser/checker.entry.ts"), "utf-8");
 const completenessBlock = /const DICTIONARY_COMPLETENESS = new Set\(\[([\s\S]*?)\]\)/.exec(entrySource);
 const completeness = [...(completenessBlock?.[1] ?? "").matchAll(/"(EML\d{3})"/g)].map((m) => m[1]);
 held(completeness.length > 0, `checker.entry.ts: DICTIONARY_COMPLETENESS read (${completeness.length})`);

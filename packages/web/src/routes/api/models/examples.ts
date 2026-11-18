@@ -2,7 +2,7 @@
  * The models that ship with the application.
  *
  * Starting a project should not require having a `.mmd` to hand. These are the
- * bundled examples — the same files in `examples/` and `language/examples/` —
+ * bundled examples — the same files in `examples/` and `common/language/examples/` —
  * offered as a starting point, with uploading your own still the other option.
  *
  * In a container the interesting directory is usually a mount: point
@@ -32,7 +32,7 @@ function searchPaths(): string[] {
     // there — offering it is safe even when it is somebody else's directory.
     "/models",
     path.join(cwd, "examples"),
-    path.join(cwd, "language", "examples"),
+    path.join(cwd, "common", "language", "examples"),
   ];
 }
 

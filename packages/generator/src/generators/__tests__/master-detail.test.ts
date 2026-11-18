@@ -22,7 +22,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { checkSource } from "../../../../../language/checker";
+import { checkSource } from "../../../../../common/language/checker";
 import { parseModel } from "../../pipeline/parse-model";
 import { DictionaryGenerator } from "../dictionary.generator";
 

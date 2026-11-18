@@ -84,7 +84,7 @@ jobs:
       - name: Type-check
         run: bun run type-check
 
-      # language/** has its own tsconfig, which the root type-check does not
+      # common/language/** has its own tsconfig, which the root type-check does not
       # read. Unchecked, it went red when the flowchart parser moved into
       # packages/editors and nothing noticed.
       - name: Type-check the language package
@@ -168,10 +168,10 @@ jobs:
           # Same name and description to both, so the comparison below is about
           # the overlay rather than about two CLIs' defaults.
           bun packages/generator/src/cli/generate.ts generate \
-            -i language/examples/crm.eml.mmd -o plain-app \
+            -i common/language/examples/crm.eml.mmd -o plain-app \
             --name "CI CRM" -d "CI CRM" --force --no-setup
           bun run wasm generate \
-            -i language/examples/crm.eml.mmd -o wasm-app \
+            -i common/language/examples/crm.eml.mmd -o wasm-app \
             --name "CI CRM" -d "CI CRM" --force
 
       - name: The overlay changed only what it is allowed to change

@@ -20,7 +20,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { checkSource } from "../../../../../language/checker";
+import { checkSource } from "../../../../../common/language/checker";
 
 /** A small model with help worth having on every entity and every column. */
 const DOCUMENTED = `%%meta name: Lending

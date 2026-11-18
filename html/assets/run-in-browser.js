@@ -293,8 +293,8 @@ function setModel(source, label) {
 /**
  * Run the checker over the model and show what it found.
  *
- * This is the same engine as `bun language/checker.ts`, and the same repairs as
- * `bun language/fixer.ts` — bundled, not reimplemented. A model that passes says
+ * This is the same engine as `bun common/language/checker.ts`, and the same repairs as
+ * `bun common/language/fixer.ts` — bundled, not reimplemented. A model that passes says
  * nothing beyond a line in the build detail; a model that does not gets every
  * finding with its code, line and hint, because "generation failed" on its own
  * leaves the reader with a file and no idea which line of it is wrong.

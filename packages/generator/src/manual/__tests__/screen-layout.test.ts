@@ -29,7 +29,7 @@ import { GRID_NOISE } from "../../generators/wasm/model-bundle";
 import { parseModel } from "../../pipeline/parse-model";
 import { renderManual } from "../index";
 
-const MODEL = join(import.meta.dirname, "../../../../../language/examples/crm.eml.mmd");
+const MODEL = join(import.meta.dirname, "../../../../../common/language/examples/crm.eml.mmd");
 
 function manual() {
   const parsed = parseModel(readFileSync(MODEL, "utf-8"));

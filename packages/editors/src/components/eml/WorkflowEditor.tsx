@@ -89,7 +89,7 @@ export function emitWorkflowDiagram(workflow: EditableWorkflow): string {
   }
   if (workflow.kind === "saga") {
     // Body only: the wizard sends name, entity, kind, trigger and operation as
-    // fields, and language/composer.ts writes the %%workflow directive from
+    // fields, and common/language/composer.ts writes the %%workflow directive from
     // them. Emitting it here too would write the header twice.
     if (workflow.automation) return serializeAutomation(workflow.automation, { header: false });
     return emitSagaFlow(workflow.saga);

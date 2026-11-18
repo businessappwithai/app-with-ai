@@ -17,8 +17,8 @@ import { buildReportingPack } from "../pack";
 const ROOT = resolve(__dirname, "../../../../..");
 
 const PUBLISHED = [
-  "language/examples/crm.eml.mmd",
-  "language/examples/dance-studio.eml.mmd",
+  "common/language/examples/crm.eml.mmd",
+  "common/language/examples/dance-studio.eml.mmd",
   "examples/drug-discovery.eml.mmd",
   "examples/airport-management-system.eml.mmd",
   "examples/shipping-management-system.eml.mmd",

@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import { parseModel } from "../../pipeline/parse-model";
 import { renderManual } from "../index";
 
-const MODEL = join(import.meta.dirname, "../../../../../language/examples/crm.eml.mmd");
+const MODEL = join(import.meta.dirname, "../../../../../common/language/examples/crm.eml.mmd");
 
 function manual(stack: "browser" | "nestjs") {
   return renderManual(parseModel(readFileSync(MODEL, "utf-8")), {

@@ -1,7 +1,7 @@
 /**
  * `%%section` — the form's layout, read for the generator.
  *
- * The reading of the directive is `language/sections.ts`, the same module the
+ * The reading of the directive is `common/language/sections.ts`, the same module the
  * checker uses, so a model the checker accepts lays out exactly as it was
  * checked. This file only attaches the sections to their entities and turns
  * them into what both stacks' dictionaries store:
@@ -23,7 +23,7 @@ import {
   placeFields,
   sectionsByEntity,
   UNPLACED_SECTION,
-} from "../../../../language/sections";
+} from "../../../../common/language/sections";
 
 /** Attach every entity's `%%section` declarations to it, in place. */
 export function attachFormSections(source: string, entities: Entity[]): void {

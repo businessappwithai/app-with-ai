@@ -4,7 +4,7 @@
  * Report: .gstack/qa-reports/qa-report-dance-studio-qa-2026-09-01.md
  *
  * `serializeAutomation()` is the only writer of automations, and everything it
- * emitted failed `language/checker.ts`:
+ * emitted failed `common/language/checker.ts`:
  *
  *   - `%%workflow name: <name>` drew EML240 "Invalid %%workflow syntax".
  *   - `%%hook <event> on <Entity>`, the two-token trigger form, drew EML201
@@ -25,7 +25,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { checkSource } from "../../../../../../language/checker";
+import { checkSource } from "../../../../../../common/language/checker";
 import {
   type Automation,
   emptyAutomation,

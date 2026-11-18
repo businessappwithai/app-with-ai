@@ -14,5 +14,5 @@ GEN_DIR=/path/to/generated-app bun run-rules.ts      # GEN_URL, GEN_EMAIL, GEN_P
 GEN_DIR=/path/to/generated-app bun run-workflows.ts
 ```
 
-Generate the CRM model (`language/examples/crm.eml.mmd`) first. The editors' real
+Generate the CRM model (`common/language/examples/crm.eml.mmd`) first. The editors' real
 canvas is driven by `scripts/e2e-rules-workflows/specs/10` and `11`.

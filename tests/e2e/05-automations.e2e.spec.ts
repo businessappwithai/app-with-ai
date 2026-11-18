@@ -16,7 +16,7 @@
 
 import { type APIRequestContext, expect, test } from "@playwright/test";
 
-import { checkSource } from "../../language/checker";
+import { checkSource } from "../../common/language/checker";
 import {
   type Automation,
   emptyAutomation,

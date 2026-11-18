@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateApplication } from "../../pipeline/generate-application";
 
-const MODEL = join(import.meta.dirname, "../../../../../language/examples/crm.eml.mmd");
+const MODEL = join(import.meta.dirname, "../../../../../common/language/examples/crm.eml.mmd");
 const CACHE_KEYS = [
   "CACHE_TTL_DEFAULT_MS",
   "CACHE_TTL_CAPABILITIES_MS",

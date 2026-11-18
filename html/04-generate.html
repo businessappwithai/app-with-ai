@@ -33,7 +33,7 @@
     <li><a href="08-reference.html"><span class="nav-num">08</span> Reference</a></li>
     <li><a href="run-in-browser.html"><span class="nav-num">09</span> Run it here</a></li>
   </ul>
-  <div class="sidebar-foot">Every screenshot is from the CRM built in this guide, running locally.<br><br>Model: <code>language/examples/crm.eml.mmd</code></div>
+  <div class="sidebar-foot">Every screenshot is from the CRM built in this guide, running locally.<br><br>Model: <code>common/language/examples/crm.eml.mmd</code></div>
 </aside>
 
 <main class="main">
@@ -55,7 +55,7 @@
     <p>Optional, because the generator runs the checker itself, but it is instant and it tells you the truth before anything is written.</p>
     <div class="code">
       <div class="code-head"><span class="tag">shell</span></div>
-<pre><code>bun language/checker.ts language/examples/crm.eml.mmd
+<pre><code>bun common/language/checker.ts common/language/examples/crm.eml.mmd
 <span class="c-com"># crm.eml.mmd  0 errors · 0 warnings</span></code></pre>
     </div>
   </li>
@@ -66,7 +66,7 @@
     <div class="code">
       <div class="code-head"><span class="tag">shell</span></div>
 <pre><code>bun packages/generator/src/cli/generate.ts generate \
-  --input language/examples/crm.eml.mmd \
+  --input common/language/examples/crm.eml.mmd \
   --output generated-projects/crm \
   --name crm \
   --port 4001 --frontend-port 4000 \

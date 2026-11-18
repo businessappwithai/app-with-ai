@@ -7,7 +7,7 @@
  *
  *   node .claude/skills/run-modelling-tool/driver.mjs /projects /var/tmp/projects.png
  *   node .claude/skills/run-modelling-tool/driver.mjs "/projects/{id}/logic" /var/tmp/logic.png \
- *     --new-project language/examples/crm.eml.mmd      # creates the project first, fills {id}
+ *     --new-project common/language/examples/crm.eml.mmd      # creates the project first, fills {id}
  *   node .claude/skills/run-modelling-tool/driver.mjs /projects/<id>/logic /var/tmp/logic.png \
  *     --click "Lead Qualification" --wait 4000
  *

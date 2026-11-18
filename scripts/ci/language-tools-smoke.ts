@@ -9,7 +9,7 @@
  * a broken document, which is the worst way for it to present.
  *
  * So this loads the built files the way a page loads them and checks every
- * example model twice: once through the bundle, once through `language/checker.ts`
+ * example model twice: once through the bundle, once through `common/language/checker.ts`
  * directly. Any disagreement in errors, warnings, infos or the diagnostic codes
  * themselves fails the run.
  *
@@ -18,14 +18,14 @@
 
 import { readdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { checkSource } from "../../language/checker";
+import { checkSource } from "../../common/language/checker";
 
 const ROOT = resolve(import.meta.dir, "../..");
 
 const bundleChecker = await import(join(ROOT, "html/checker.js"));
 const bundleFixer = await import(join(ROOT, "html/fixer.js"));
 
-const dir = join(ROOT, "language/examples");
+const dir = join(ROOT, "common/language/examples");
 const models = (await readdir(dir)).filter((name) => name.endsWith(".mmd"));
 if (models.length === 0) {
   console.error("✖ no example models to check against");
