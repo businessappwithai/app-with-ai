@@ -11,10 +11,10 @@ services:
     container_name: ers-remote-mariadb
     restart: always
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root_pass}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?MARIADB_ROOT_PASSWORD must be set}
       MARIADB_DATABASE:      ${MARIADB_DATABASE:-enterprise_config}
       MARIADB_USER:          ${MARIADB_USER:-enterprise}
-      MARIADB_PASSWORD:      ${MARIADB_PASSWORD:-enterprise_pass}
+      MARIADB_PASSWORD:      ${MARIADB_PASSWORD:?MARIADB_PASSWORD must be set}
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
@@ -26,7 +26,7 @@ services:
       # Optional: Import database dump on first run
       # - ./enterprise_config_backup.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -40,11 +40,11 @@ services:
     image: redis:7-alpine
     container_name: ers-remote-redis
     restart: always
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_pass}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -121,7 +121,7 @@ services:
       NODE_ENV:             production
       PORT:                 "3000"
       NEXT_PUBLIC_APP_URL:  "${NEXT_PUBLIC_APP_URL:-http://localhost:3000}"
-      AUTH_SECRET:          "${AUTH_SECRET}"
+      AUTH_SECRET:          "${AUTH_SECRET:?AUTH_SECRET must be set}"
       AUTH_URL:             "${AUTH_URL:-http://localhost:3000}"
 
       # MariaDB
@@ -129,11 +129,11 @@ services:
       MARIADB_PORT:     "3306"
       MARIADB_DATABASE: ${MARIADB_DATABASE:-enterprise_config}
       MARIADB_USER:     ${MARIADB_USER:-enterprise}
-      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-enterprise_pass}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:?MARIADB_PASSWORD must be set}
 
       # Redis
-      REDIS_URL:             "redis://:${REDIS_PASSWORD:-redis_pass}@redis:6379"
-      ENCRYPTION_KEY:        "${ENCRYPTION_KEY}"
+      REDIS_URL:             "redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379"
+      ENCRYPTION_KEY:        "${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set}"
       JOB_OUTPUT_PATH:       /app/job-outputs
       MAX_CONCURRENT_JOBS:   "5"
 
@@ -170,7 +170,7 @@ services:
       mastra:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 5
