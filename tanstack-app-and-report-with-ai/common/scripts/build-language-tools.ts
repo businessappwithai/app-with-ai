@@ -35,22 +35,22 @@ process.chdir(ROOT);
 
 const TOOLS = [
   {
-    entry: "language/browser/checker.entry.ts",
+    entry: "../../common/language/browser/checker.entry.ts",
     target: "html/checker.js",
     global: "EMLChecker",
     what: "the EML checker",
     blurb:
-      "// Every diagnostic `bun language/checker.ts` prints, as a function:\n" +
+      "// Every diagnostic `bun ../../common/language/checker.ts` prints, as a function:\n" +
       "//   import { check, formatReport } from './checker.js';\n" +
       "//   const report = check(source);   // { ok, counts, issues, languageVersion }\n",
   },
   {
-    entry: "language/browser/fixer.entry.ts",
+    entry: "../../common/language/browser/fixer.entry.ts",
     target: "html/fixer.js",
     global: "EMLFixer",
     what: "the EML fixer",
     blurb:
-      "// The five repairs `bun language/fixer.ts` applies, plus the check-fix-recheck\n" +
+      "// The five repairs `bun ../../common/language/fixer.ts` applies, plus the check-fix-recheck\n" +
       "// loop that makes them trustworthy:\n" +
       "//   import { checkAndFix } from './fixer.js';\n" +
       "//   const { source, ok, remaining } = checkAndFix(model);\n",
