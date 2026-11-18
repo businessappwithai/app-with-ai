@@ -1,0 +1,584 @@
+%% ============================================================================
+%% EML Example — Analytics & Reporting
+%%
+%% The reporting platform's own domain, modelled in EML: data sources, saved
+%% queries, the report / chart / dashboard definitions built on them, and the
+%% scheduled jobs that deliver them.
+%%
+%% Written for the `enterprise-reporting` target:
+%%
+%%   bun language/cli/eml.ts generate -i examples/analytics-reporting.eml.mmd \
+%%     -o ./out --stack enterprise-reporting
+%%
+%% That target compiles the ERD — tables, Zod schemas, forms, columns — and
+%% emits the rules below as GoRules JDM without wiring them up. It does not
+%% compile the workflow section or %%rbac. Both are written anyway: the same
+%% file generates a whole application under --stack tanstack-nestjs, and the
+%% checker validates all of it either way.
+%%
+%% Reporting: the questions written for each role by hand sit beside charted reports derived from the
+%% model's own structure (its lifecycles, enumerated columns, dates, flags, measures, parents and optional
+%% fields), and a %%dashboard per job groups them. Every role can run at least 50 charted reports and has
+%% at least 10 dashboards of three or more.
+%% ============================================================================
+
+%% ---- Section 1: ERD (structure) -------------------------------------------
+%%meta name: Analytics Reporting
+%%meta kind: erd
+%%meta version: 1.0.0
+%%meta description: A reporting workspace: connected data sources, the queries saved against them, and the reports, charts, dashboards and scheduled deliveries built on those queries.
+
+%%enum ClientType: pg, mysql, mssql
+%%enum SourceStatus: draft, testing, connected, unreachable, retired
+%%enum QueryStatus: draft, published, deprecated
+%%enum ChartType: bar, line, area, pie, scatter, table
+%%enum ExportFormat: csv, xlsx, pdf
+%%enum JobStatus: scheduled, queued, running, succeeded, failed, cancelled
+
+%%category name: Sources; description: The databases this workspace can query, and what the platform knows about the tables inside them; icon: Database; color: #0ea5e9; entities: DataSource
+%%category name: Analysis; description: The saved questions, and the reports and charts built on them; icon: LineChart; color: #6366f1; entities: SavedQuery, ReportDefinition, ChartDefinition
+%%category name: Delivery; description: Dashboards people read, and the schedules that send reports to those who do not open the platform; icon: Send; color: #ec4899; entities: Dashboard, ScheduledJob
+%%category name: People; description: The workspace itself and the analysts who work in it; icon: Users; color: #22c55e; entities: Workspace, Analyst
+
+erDiagram
+    Workspace {
+        string   id PK
+        string   name UK
+        string   slug UK
+        text     description OPTIONAL
+        boolean  is_active
+    }
+
+    Analyst {
+        string   id PK
+        string   workspace_id FK
+        string   email UK
+        string   display_name
+        string   job_title OPTIONAL
+        boolean  is_active
+        datetime last_seen_at OPTIONAL
+    }
+
+    DataSource {
+        string   id PK
+        string   workspace_id FK
+        string   name UK
+        text     description OPTIONAL
+        string   client_type
+        string   host
+        integer  port
+        string   database_name
+        string   status
+        boolean  is_readonly
+        datetime last_checked_at OPTIONAL
+    }
+
+    SchemaEntity {
+        string   id PK
+        string   data_source_id FK
+        string   table_name
+        string   display_name OPTIONAL
+        text     instructions OPTIONAL
+        integer  column_count
+        boolean  is_indexed
+    }
+
+    SavedQuery {
+        string   id PK
+        string   data_source_id FK
+        string   author_id FK
+        string   name
+        text     sql_text
+        text     description OPTIONAL
+        string   status
+        integer  row_limit
+        datetime last_run_at OPTIONAL
+    }
+
+    ReportDefinition {
+        string   id PK
+        string   saved_query_id FK
+        string   owner_id FK
+        string   name
+        text     description OPTIONAL
+        string   filename_template OPTIONAL
+        boolean  is_public
+        integer  page_size
+    }
+
+    ChartDefinition {
+        string   id PK
+        string   saved_query_id FK
+        string   owner_id FK
+        string   name
+        string   chart_type
+        string   x_field
+        string   y_field
+        integer  refresh_interval_seconds OPTIONAL
+        boolean  is_public
+    }
+
+    Dashboard {
+        string   id PK
+        string   workspace_id FK
+        string   owner_id FK
+        string   name
+        text     description OPTIONAL
+        boolean  is_public
+        integer  column_count
+    }
+
+    DashboardWidget {
+        string   id PK
+        string   dashboard_id FK
+        string   report_definition_id FK OPTIONAL
+        string   chart_definition_id FK OPTIONAL
+        string   title
+        integer  grid_x
+        integer  grid_y
+        integer  grid_width
+        integer  grid_height
+    }
+
+    ScheduledJob {
+        string   id PK
+        string   report_id FK
+        string   requested_by_id FK
+        string   name
+        string   schedule_cron
+        string   export_format
+        string   recipients
+        boolean  is_active
+    }
+
+    JobExecution {
+        string   id PK
+        string   scheduled_job_id FK
+        string   status
+        datetime started_at OPTIONAL
+        datetime finished_at OPTIONAL
+        integer  row_count OPTIONAL
+        text     error_message OPTIONAL
+        datetime queued_at OPTIONAL
+        datetime running_at OPTIONAL
+        datetime succeeded_at OPTIONAL
+        datetime failed_at OPTIONAL
+        datetime cancelled_at OPTIONAL
+    }
+
+    Workspace  ||--o{ Analyst          : "employs"
+    Workspace  ||--o{ DataSource       : "connects"
+    Workspace  ||--o{ Dashboard        : "publishes"
+    DataSource ||--o{ SchemaEntity     : "exposes"
+    DataSource ||--o{ SavedQuery       : "answers"
+    Analyst    ||--o{ SavedQuery       : "writes"
+    SavedQuery ||--o{ ReportDefinition : "feeds"
+    SavedQuery ||--o{ ChartDefinition  : "feeds"
+    Analyst    ||--o{ ReportDefinition : "owns"
+    Analyst    ||--o{ ChartDefinition  : "owns"
+    Analyst    ||--o{ Dashboard        : "owns"
+    Dashboard  ||--o{ DashboardWidget  : "arranges"
+    ReportDefinition ||--o{ DashboardWidget : "is shown in"
+    ChartDefinition  ||--o{ DashboardWidget : "is shown in"
+    ReportDefinition ||--o{ ScheduledJob : "is delivered by"
+    Analyst    ||--o{ ScheduledJob     : "requests"
+    ScheduledJob ||--o{ JobExecution   : "records"
+
+    %%field DataSource.client_type enum: ClientType
+    %%field DataSource.status enum: SourceStatus
+    %%field SavedQuery.status enum: QueryStatus
+    %%field ChartDefinition.chart_type enum: ChartType
+    %%field ScheduledJob.export_format enum: ExportFormat
+    %%field JobExecution.status enum: JobStatus
+
+    %%field DataSource.is_readonly help: Whether the platform may only read. A source that is not read-only is one an analyst's query can change, which is why every connection defaults to true.
+    %%field SavedQuery.row_limit help: The LIMIT applied at the source database. Pagination happens there, never in the browser — these are other people's production databases.
+    %%field SchemaEntity.instructions help: Written by a person, in prose, saying what this table actually means. It is fed to the model as context, and it is the single highest-leverage thing anyone can fill in for natural-language query quality.
+    %%field ReportDefinition.is_public help: Whether the report is served on an unauthenticated share link. A publication decision, not a convenience flag.
+    %%field ChartDefinition.refresh_interval_seconds help: How often a rendered chart re-runs its query. Empty means it runs once when opened.
+
+    %%entity DataSource help: An external database this workspace can query. Its credentials are stored encrypted and never shown again after they are entered.
+    %%entity SavedQuery help: One SQL statement, named and kept, against one data source. Reports and charts are built on saved queries rather than on ad-hoc SQL so that the same question is asked the same way every time.
+    %%entity ScheduledJob help: A standing instruction to run a report on a schedule and deliver the result. Every run is recorded as a JobExecution, successes included.
+
+    %%entity Workspace help: A tenant of the reporting platform — one organisation's data sources, queries and dashboards, kept apart from every other's. It is the outermost boundary in the system: nothing in one workspace can reference anything in another, which is what makes the platform safe to share.
+    %%field Workspace.name help: The organisation as its own people refer to it. It appears in the header of every screen and in the subject line of every scheduled delivery.
+    %%field Workspace.slug help: The short, URL-safe form the workspace is addressed by. It cannot change once links have been shared, because a renamed slug breaks every dashboard URL anybody has bookmarked.
+    %%field Workspace.description help: What this workspace is for, for the benefit of somebody who has just been given access to it and does not yet know what they are looking at.
+    %%field Workspace.is_active help: Whether the workspace may still be used. Clearing it stops sign-in and scheduled deliveries while leaving every definition intact, which is what a suspension needs to be.
+
+    %%entity Analyst help: Somebody who can ask questions of this workspace's data. An analyst is scoped to one workspace and owns the queries, reports and dashboards they create — which is why deactivating one has to leave their work behind rather than delete it.
+    %%field Analyst.workspace_id help: The workspace this analyst belongs to. It is the whole of their access: an analyst cannot see a data source, query or dashboard outside it.
+    %%field Analyst.email help: The address the analyst signs in with and where scheduled deliveries addressed to them arrive. It identifies the person, so changing it changes who the account belongs to.
+    %%field Analyst.display_name help: The name shown as the author of a query and the owner of a dashboard. It is what a colleague sees when they want to ask who built something.
+    %%field Analyst.job_title help: What the analyst does, which is the quickest way for a reader to judge how much weight to give a query they did not write.
+    %%field Analyst.is_active help: Whether the analyst may still sign in. Their queries, reports and dashboards keep running — a deactivated author does not stop a scheduled delivery, which is deliberate and worth knowing.
+    %%field Analyst.last_seen_at help: When the analyst last used the platform. It is what an access review is conducted on: an account unused for months is the one to question.
+
+    %%section entity: Workspace; name: Identity; help: What the organisation is called and how its address reads.; rows: name, slug | description
+    %%section entity: Workspace; name: Access; help: Whether the workspace may still be used.; rows: is_active
+    %%section entity: Analyst; name: Identity; help: Who the analyst is and which workspace they work in.; rows: display_name, job_title | email, workspace_id
+    %%section entity: Analyst; name: Access; help: Whether the analyst can sign in, and when they last did.; rows: is_active, last_seen_at
+    %%section entity: DataSource; name: Identity; help: What the source is called and which workspace owns the connection.; rows: name, workspace_id | description
+    %%section entity: DataSource; name: Connection; help: Where the database lives and how the platform reaches it.; rows: client_type, database_name | host, port
+    %%section entity: DataSource; name: Health; help: Whether the source is safe to query and when it last answered.; rows: status, is_readonly | last_checked_at
+    %%section entity: SchemaEntity; name: Table; help: Which table of the source this describes and how it is shown to analysts.; rows: data_source_id, table_name | display_name, column_count
+    %%section entity: SchemaEntity; name: Guidance; help: What the table means, written for the natural-language query model.; rows: instructions | is_indexed
+    %%section entity: SavedQuery; name: Query; help: The statement itself, the source it runs against and who wrote it.; rows: name, status | data_source_id, author_id | sql_text | description
+    %%section entity: SavedQuery; name: Limits and use; help: How many rows come back and when anyone last ran it.; rows: row_limit, last_run_at
+    %%section entity: ReportDefinition; name: Report; help: Which saved query the report presents and who owns it.; rows: name, saved_query_id | owner_id, page_size | description
+    %%section entity: ReportDefinition; name: Publishing; help: How the exported file is named and whether the report is shared.; rows: filename_template, is_public
+    %%section entity: ChartDefinition; name: Chart; help: Which saved query the chart draws and who owns it.; rows: name, chart_type | saved_query_id, owner_id
+    %%section entity: ChartDefinition; name: Axes and refresh; help: What is plotted on each axis and how often the chart re-runs.; rows: x_field, y_field | refresh_interval_seconds, is_public
+    %%section entity: Dashboard; name: Dashboard; help: What the dashboard is called, who owns it and where it sits.; rows: name, workspace_id | owner_id, column_count | description
+    %%section entity: Dashboard; name: Sharing; help: Whether the dashboard is served on a public link.; rows: is_public
+    %%section entity: DashboardWidget; name: Content; help: Which dashboard the widget is on and the report or chart it shows.; rows: title, dashboard_id | report_definition_id, chart_definition_id
+    %%section entity: DashboardWidget; name: Position; help: Where on the dashboard grid the widget sits and how large it is.; rows: grid_x, grid_y | grid_width, grid_height
+    %%section entity: ScheduledJob; name: Delivery; help: Which report is delivered, by whom it was requested and in what format.; rows: name, report_id | requested_by_id, export_format | recipients
+    %%section entity: ScheduledJob; name: Schedule; help: When the delivery runs and whether it is switched on.; rows: schedule_cron, is_active
+    %%section entity: JobExecution; name: Run; help: Which delivery ran, how it ended and how many rows it produced.; rows: scheduled_job_id | row_count
+    %%section entity: JobExecution; name: Timing and outcome; help: When the run started and finished, and the error if it failed.; rows: started_at, finished_at | error_message
+
+    %%field DataSource.workspace_id help: The workspace this connection belongs to. A data source is never shared between workspaces, which is the boundary the whole tenancy model rests on.
+    %%field DataSource.name help: What this connection is called when an analyst picks it from a list. Name it for the business system it points at, not for the server it runs on.
+    %%field DataSource.description help: What lives in this database and what it is good for answering. It is the note that stops an analyst querying the wrong system, and the only place that knowledge is written down.
+    %%field DataSource.client_type help: pg, mysql or mssql — which driver the platform connects with. It also decides which SQL dialect a saved query has to be written in, so a query is not portable between sources of different types.
+    %%field DataSource.host help: The hostname or address the database answers on. Reachable from the platform rather than from the analyst's own machine, which is the usual reason a connection test fails.
+    %%field DataSource.port help: The port the database listens on. Held explicitly rather than defaulted, because a non-standard port is common and a wrong one looks exactly like a firewall problem.
+    %%field DataSource.database_name help: The database to connect to on that server. One data source is one database: a server holding three of them is three data sources.
+    %%field DataSource.status help: draft — not yet tested; testing — a connection attempt is in progress; connected — last check succeeded; unreachable — last check failed; retired — deliberately taken out of use. Only a connected source can be queried.
+    %%field DataSource.is_readonly help: Whether the credentials are read-only. They should be: a reporting platform has no business writing to a production database, and this flag is the record that somebody checked.
+    %%field DataSource.last_checked_at help: When the connection was last verified. A `connected` status from three weeks ago is not evidence the source is reachable now, which is what this date is for.
+
+    %%entity SchemaEntity parent: DataSource
+    %%entity SchemaEntity help: One table in a connected data source, as the platform understands it. The catalogue is what the natural-language pipeline reads to turn a question into SQL, so a table missing from it is a table nobody can ask about — and the instructions on it are how a business teaches the platform its own vocabulary.
+    %%field SchemaEntity.data_source_id help: The connection this table was found in. Read inside the data source, where the catalogue together is what the platform knows about it.
+    %%field SchemaEntity.table_name help: The table's real name in the database, exactly as SQL must spell it. Discovered by introspection rather than typed, so a mismatch here means the catalogue is stale.
+    %%field SchemaEntity.display_name help: What people call this table when they are talking about the business rather than the schema — `Invoices` for `fin_inv_hdr`. It is what appears in a question's answer.
+    %%field SchemaEntity.instructions help: What the natural-language pipeline needs to know to use this table correctly: which column is the date anyone means, which rows are test data, what a status code stands for. This is the single most valuable text in the catalogue and the one nobody fills in.
+    %%field SchemaEntity.column_count help: How many columns the table has, from introspection. A quick signal of how much of a table a question is likely to be reaching into.
+    %%field SchemaEntity.is_indexed help: Whether this table has been added to the retrieval index the question pipeline searches. An unindexed table is invisible to natural-language questions even though it is catalogued.
+
+    %%field SavedQuery.data_source_id help: The connection this statement runs against. It also fixes the dialect the SQL has to be written in, so a query cannot be repointed at a source of a different type.
+    %%field SavedQuery.author_id help: The analyst who wrote it. It is who a colleague asks when the result looks wrong, and it stays attributed after they leave.
+    %%field SavedQuery.name help: The question this query answers, phrased as a question if that reads better. `Monthly revenue by region` tells a reader what they will get; `Query 14` does not.
+    %%field SavedQuery.sql_text help: The statement itself. It is read-only at run time and must be a SELECT or a WITH — a reporting query that writes is refused, which is the platform's main structural safeguard.
+    %%field SavedQuery.description help: What the query means, what it excludes, and what it must not be used for. A query that silently filters out cancelled orders is right for one question and badly wrong for another, and this is the only place that is said.
+    %%field SavedQuery.status help: draft — being worked on; published — safe for others to build on; deprecated — kept because reports still reference it, but not to be used again. Publishing is a promise to colleagues, not a save.
+    %%field SavedQuery.row_limit help: The most rows a run may return. It protects the source database and the platform alike — an unbounded query against a fact table is the single easiest way to take both down.
+    %%field SavedQuery.last_run_at help: When the query last executed. A published query nothing has run for months is usually one whose underlying table has changed shape.
+
+    %%entity ReportDefinition help: A saved query presented as a document — named, laid out, and exportable. The report is what somebody outside the analytics team actually receives, which is why it is a definition of its own rather than a view of the query.
+    %%field ReportDefinition.saved_query_id help: The query that supplies the rows. Changing the query changes every delivery of this report, which is why queries are published rather than edited in place.
+    %%field ReportDefinition.owner_id help: The analyst answerable for the report. It is who is contacted when a recipient disputes a figure.
+    %%field ReportDefinition.name help: The report's title as recipients see it, on screen and in the exported file. Write it for somebody who did not ask for it.
+    %%field ReportDefinition.description help: What the report shows and what it deliberately leaves out. Recipients read this before the numbers, and it is what stops a figure being quoted out of context.
+    %%field ReportDefinition.filename_template help: The pattern the exported file is named by, so a recipient receiving one every week can tell them apart and file them. A template without a date in it produces a folder of indistinguishable attachments.
+    %%field ReportDefinition.is_public help: Whether everybody in the workspace may open it, as opposed to only the owner. Public is the default worth choosing deliberately: a report nobody can find is a report nobody uses.
+    %%field ReportDefinition.page_size help: Rows per page when the report is read on screen or paginated into a document. It is a readability setting, not a limit on what the query returns.
+
+    %%entity ChartDefinition help: A saved query drawn rather than tabulated. A chart is its own definition because the choice of axes is an interpretation of the data: the same query plotted two ways answers two different questions, and both are worth keeping.
+    %%field ChartDefinition.saved_query_id help: The query supplying the points. Its columns are what the axes below have to name, so a query whose columns are renamed breaks every chart built on it.
+    %%field ChartDefinition.owner_id help: The analyst answerable for the chart, and who is asked when a reader thinks it is misleading.
+    %%field ChartDefinition.name help: The chart's title, as it appears above the drawing and on any dashboard carrying it. Say what the chart shows, not what kind of chart it is.
+    %%field ChartDefinition.chart_type help: bar, line, area, pie, scatter or table. It is a claim about the data's shape: a line implies a continuous series, and using one for unordered categories misleads a reader who is reading the shape rather than the labels.
+    %%field ChartDefinition.x_field help: The query column plotted along the horizontal axis — normally the dimension being compared or the period being tracked. It must be a column the query actually returns.
+    %%field ChartDefinition.y_field help: The query column plotted vertically — the measure being read off. A chart with a measure on the wrong axis is not wrong so much as unreadable.
+    %%field ChartDefinition.refresh_interval_seconds help: How often an open chart re-runs its query. Short intervals on a heavy query are the most common way a dashboard puts load on a production database.
+    %%field ChartDefinition.is_public help: Whether the whole workspace may see the chart, or only its owner. A chart on a public dashboard has to be public itself, or the dashboard renders a gap.
+
+    %%entity Dashboard help: A page of reports and charts arranged together to answer one recurring question — how did last week go, where are we against target. Dashboards are what most people in a business actually use the platform for, and they are the reason reports and charts are definitions rather than one-off runs.
+    %%field Dashboard.workspace_id help: The workspace this dashboard belongs to. Every widget on it must draw on the same workspace's queries, which is what keeps the tenancy boundary intact.
+    %%field Dashboard.owner_id help: The analyst who maintains it. Dashboards decay quietly as underlying queries change, and this is who is expected to notice.
+    %%field Dashboard.name help: The dashboard's title, and the thing people will refer to it by in conversation. Name it for the question it answers.
+    %%field Dashboard.description help: What this page is for, who it is for, and how often the numbers on it move. It is what stops three near-identical dashboards being built by three different people.
+    %%field Dashboard.is_public help: Whether everybody in the workspace can open it. A dashboard is usually meant to be shared — an unshared one is a working page, and saying which it is prevents the awkward discovery that nobody else could see it.
+    %%field Dashboard.column_count help: How many columns the grid is divided into. Widget positions below are expressed in this grid, so changing it reflows the whole page.
+
+    %%entity DashboardWidget parent: Dashboard
+    %%entity DashboardWidget help: One panel on one dashboard: which report or chart it shows, and where it sits on the grid. It is a line item of the dashboard — a widget away from its page has no position and no meaning — and it holds either a report or a chart, never both.
+    %%field DashboardWidget.dashboard_id help: The page this panel sits on. Read inside the dashboard, where the widgets together are the layout.
+    %%field DashboardWidget.report_definition_id help: The report shown in this panel, when the panel is tabular. Empty when the widget shows a chart instead — exactly one of the two references is set.
+    %%field DashboardWidget.chart_definition_id help: The chart drawn in this panel. Empty when the widget shows a report, for the same reason.
+    %%field DashboardWidget.title help: The heading over this panel, which may differ from the report's or chart's own name — a dashboard often needs a shorter or more pointed label than the definition carries.
+    %%field DashboardWidget.grid_x help: The panel's column position on the dashboard's grid, counted from the left. With the width it decides whether two panels sit side by side or collide.
+    %%field DashboardWidget.grid_y help: The panel's row position, counted from the top. It is what fixes reading order, and reading order is most of what makes a dashboard legible.
+    %%field DashboardWidget.grid_width help: How many grid columns the panel spans. A chart squeezed into two columns of a twelve-column grid is technically present and practically unreadable.
+    %%field DashboardWidget.grid_height help: How many rows the panel spans. Tables need more than charts, which is the usual reason a dashboard has to be re-laid-out after a widget is swapped.
+
+    %%field ScheduledJob.report_id help: The report to run and deliver. Only reports are scheduled, not charts: what arrives by email is a document, and a chart's value is in being looked at rather than filed.
+    %%field ScheduledJob.requested_by_id help: The analyst who set the schedule up. It is who is asked to justify a delivery that is still running long after anybody needed it.
+    %%field ScheduledJob.name help: What this schedule is called internally, so a list of dozens of them can be maintained. Name it for the audience and the cadence — `Regional sales, Monday 8am`.
+    %%field ScheduledJob.schedule_cron help: When to run, as a cron expression in the platform's own time zone. The time zone is the thing that catches people out: a delivery set for 08:00 arrives at a different local hour for half its recipients.
+    %%field ScheduledJob.export_format help: csv, xlsx or pdf. It is a decision about what the recipient will do with it — a spreadsheet for somebody who will re-cut the numbers, a PDF for somebody who will read and forward it.
+    %%field ScheduledJob.recipients help: Who receives the delivery. Recipients do not need platform accounts, which is what makes a schedule useful and also what makes an unreviewed recipient list a data-disclosure risk.
+    %%field ScheduledJob.is_active help: Whether the schedule still runs. Pausing is the right way to stop a delivery: deleting it loses the execution history that says what was sent to whom.
+
+    %%entity JobExecution parent: ScheduledJob
+    %%entity JobExecution help: One run of one scheduled job, successful or not. Executions are kept for every run rather than only for failures, because the question a recipient asks is usually 'did this go out on the 1st' and the only honest answer comes from a record of the run.
+    %%field JobExecution.scheduled_job_id help: The schedule this run belongs to. Read inside the job, where the executions together are its delivery history.
+    %%field JobExecution.status help: scheduled, queued, running, succeeded, failed or cancelled. Only the moves the lifecycle draws are allowed, so a run cannot be recorded as succeeded without having run.
+    %%field JobExecution.started_at help: When the run actually began, as opposed to when it was due. A widening gap between the two is the first sign the job queue is behind.
+    %%field JobExecution.finished_at help: When it ended. With the start time it gives the duration, which is what says whether a query has outgrown its schedule.
+    %%field JobExecution.row_count help: How many rows were delivered. It is the cheapest correctness check there is: a report that normally sends four thousand rows and today sent none has not failed, and needs looking at.
+    %%field JobExecution.error_message help: What went wrong, kept verbatim from the failure. It is what distinguishes an unreachable data source from a broken query, and the two need entirely different people to fix them.
+
+    %%index DataSource(workspace_id, name) unique
+    %%index SavedQuery(data_source_id)
+    %%index SchemaEntity(data_source_id, table_name) unique
+    %%index JobExecution(scheduled_job_id, started_at)
+
+%% ---- The questions this workspace's own users ask -------------------------
+%%
+%% Derived reports cover the shape of the data: a register per entity, a
+%% breakdown per enum, a lifecycle per state machine. These are the ones that
+%% need somebody who knows the job. An analytics team lead does not open the
+%% tool asking "how many saved queries are there"; they ask which sources are
+%% unreachable, which scheduled deliveries are failing, and which expensive
+%% queries nobody has run in months.
+    %%report unreachable-sources title: Data sources that are not answering entity: DataSource chart: bar x: source y: days_since_check help: The first thing to check when a report comes back empty. A source stuck in testing or unreachable is a reporting outage nobody has noticed yet. sql: SELECT name AS source, COALESCE(EXTRACT(day FROM now() - last_checked_at), 0)::int AS days_since_check FROM bus_data_source WHERE status IN ('unreachable', 'testing') AND deleted_at IS NULL ORDER BY days_since_check DESC
+    %%report failing-deliveries title: Scheduled deliveries that failed entity: JobExecution help: Every failed run of a standing report, newest first, with the error. A delivery that fails silently is a report somebody is waiting on and will not chase. sql: SELECT j.name AS job, e.started_at, e.error_message FROM bus_job_execution e JOIN bus_scheduled_job j ON j.id = e.scheduled_job_id WHERE e.status = 'failed' AND e.deleted_at IS NULL ORDER BY e.started_at DESC LIMIT 100
+    %%report stale-queries title: Saved queries nobody runs entity: SavedQuery chart: bar x: query y: days_idle help: Published queries with no run in ninety days. Each one is a maintenance cost and a wrong answer waiting to be quoted. sql: SELECT name AS query, COALESCE(EXTRACT(day FROM now() - last_run_at), 999)::int AS days_idle FROM bus_saved_query WHERE status = 'published' AND (last_run_at IS NULL OR last_run_at < now() - interval '90 days') AND deleted_at IS NULL ORDER BY days_idle DESC LIMIT 50
+    %%report dashboard-coverage title: Dashboards by widget count entity: Dashboard chart: bar x: dashboard y: widgets help: A dashboard with one widget is usually an abandoned draft; one with twenty is usually unreadable. sql: SELECT d.name AS dashboard, COUNT(w.id) AS widgets FROM bus_dashboard d LEFT JOIN bus_dashboard_widget w ON w.dashboard_id = d.id AND w.deleted_at IS NULL WHERE d.deleted_at IS NULL GROUP BY 1 ORDER BY widgets DESC
+
+%% ---- Section 2: Business rules --------------------------------------------
+%%meta name: Query Safety
+%%meta kind: rules
+%%rule querySafety on SavedQuery event: beforeCreate priority: 10
+flowchart TD
+    A([Start: Query Submitted]) --> B{Row limit set?}
+    B -->|No| R1[Reject: Unbounded Query]
+    B -->|Yes| C{Source is readonly?}
+    C -->|No| R2[Warn: Writable Source]
+    C -->|Yes| P(Accept Query)
+    R1 --> E([End])
+    R2 --> E
+    P  --> E
+
+    %%action requireRowLimit validation-error when: row_limit == null message: A saved query must declare a row limit — an unbounded query runs against a production database
+    %%action capRowLimit transform when: row_limit > 100000 field: row_limit value: 100000 message: Row limit capped at 100000
+
+%%meta name: Publication Gate
+%%meta kind: rules
+%%rule publicationGate on ReportDefinition event: beforeUpdate priority: 20
+flowchart TD
+    A([Start: Publish Requested]) --> B{Query published?}
+    B -->|No| R1[Reject: Draft Query]
+    B -->|Yes| P(Allow Publication)
+    R1 --> E([End])
+    P  --> E
+
+    %%action limitPublicPageSize validation-error when: is_public == true and page_size > 1000 message: A public report may not page more than 1000 rows at a time
+
+%% ---- Section 3: Workflow — the delivery lifecycle -------------------------
+%%meta name: Delivery Lifecycle
+%%meta kind: workflow
+%%workflow DeliveryLifecycle entity: JobExecution kind: state
+stateDiagram-v2
+    [*] --> scheduled
+    scheduled --> queued   : enqueue
+    queued --> running     : start
+    running --> succeeded  : complete
+    running --> failed     : error
+    scheduled --> cancelled : cancel
+    queued --> cancelled    : cancel
+    failed --> queued       : retry
+    succeeded --> [*]
+    cancelled --> [*]
+
+    %% Who presses each button. The job runner makes the first four moves; a person
+    %% cancels a run that has not started, or retries one that failed.
+    %%rbac role:admin on JobExecution.enqueue
+    %%rbac role:admin on JobExecution.start
+    %%rbac role:admin on JobExecution.complete
+    %%rbac role:admin on JobExecution.error
+    %%rbac role:admin|analyst on JobExecution.cancel
+    %%rbac role:admin|analyst on JobExecution.retry
+    %%rbac role:admin on JobExecution.reopen
+
+%% ---- Section 4: Workflow — lifecycle hooks --------------------------------
+%%meta name: Source Onboarding
+%%meta kind: workflow
+%%workflow SourceOnboarding entity: DataSource kind: hook
+flowchart TD
+    A[Client Request] --> B[Validate Request]
+    B --> C[beforeCreate: encryptConnectionConfig]
+    C --> D[Process DataSource]
+    D --> E[afterCreate: introspectSchema]
+    E --> F[afterUpdate: refreshSchemaEmbeddings]
+    F --> G[Response]
+
+    %%hook beforeCreate encryptConnectionConfig on DataSource
+    %%hook afterCreate introspectSchema on DataSource
+    %%hook afterUpdate refreshSchemaEmbeddings on DataSource
+
+%% ---- Section 5: Access ----------------------------------------------------
+%%meta name: Access
+%%meta kind: workflow
+%%rbac role:admin on DataSource.*
+%%rbac role:admin|analyst on DataSource.read
+%%rbac role:analyst|viewer on SavedQuery.read
+%%rbac role:analyst on SavedQuery.create
+%%rbac role:analyst|viewer on ReportDefinition.read
+%%rbac role:analyst|viewer on ChartDefinition.read
+%%rbac role:analyst|viewer on Dashboard.read
+%%rbac role:analyst|viewer on DashboardWidget.read
+%%rbac role:analyst|viewer on JobExecution.read
+%%rbac role:analyst on ScheduledJob.read
+%%rbac role:admin on ScheduledJob.delete
+%%rbac role:admin|analyst on SchemaEntity.read
+%%rbac role:admin on Workspace.read
+%%rbac role:admin on Analyst.read
+%%report workspace-created-per-month title: Workspaces created per month entity: Workspace chart: line x: month y: records help: A tenant of the reporting platform — one organisation's data sources, queries and dashboards, kept apart from every other's. New workspaces per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_workspace WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report workspace-created-by-weekday title: Workspaces created by day of the week entity: Workspace chart: bar x: weekday y: records help: A tenant of the reporting platform — one organisation's data sources, queries and dashboards, kept apart from every other's. Which days workspaces are recorded on, which is the working rhythm of the people who enter them. sql: SELECT to_char(created_at, 'Dy') AS weekday, COUNT(*) AS records FROM bus_workspace WHERE deleted_at IS NULL GROUP BY 1, EXTRACT(isodow FROM created_at) ORDER BY EXTRACT(isodow FROM created_at)
+%%report workspace-changed-per-month title: Workspaces last changed per month entity: Workspace chart: line x: month y: records help: A tenant of the reporting platform — one organisation's data sources, queries and dashboards, kept apart from every other's. How recently workspaces were touched - a falling line is a register nobody is keeping up. sql: SELECT to_char(date_trunc('month', updated_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_workspace WHERE deleted_at IS NULL AND updated_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report workspace-age-bands title: How recently workspaces were changed entity: Workspace chart: bar x: last_changed y: records help: A tenant of the reporting platform — one organisation's data sources, queries and dashboards, kept apart from every other's. Records by time since their last change; the oldest band is the stale tail to review or retire. sql: SELECT CASE WHEN updated_at >= now() - interval '30 days' THEN 'last 30 days' WHEN updated_at >= now() - interval '90 days' THEN '30 to 90 days' WHEN updated_at >= now() - interval '180 days' THEN '90 to 180 days' ELSE 'older than 180 days' END AS last_changed, COUNT(*) AS records FROM bus_workspace WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(updated_at) DESC
+%%report workspace-edit-churn title: How often workspaces are edited entity: Workspace chart: bar x: edits y: records help: A tenant of the reporting platform — one organisation's data sources, queries and dashboards, kept apart from every other's. Records by how many times they have been saved; the heavily edited ones are where the process is being fought. sql: SELECT CASE WHEN version <= 1 THEN 'never edited' WHEN version <= 3 THEN 'edited once or twice' WHEN version <= 9 THEN 'edited 3 to 8 times' ELSE 'edited 9 or more times' END AS edits, COUNT(*) AS records FROM bus_workspace WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(version)
+%%report workspace-removed-per-month title: Workspaces removed per month entity: Workspace chart: line x: month y: removed help: A tenant of the reporting platform — one organisation's data sources, queries and dashboards, kept apart from every other's. Records withdrawn from use each month; a rising line means the register is being cleared faster than it is kept. sql: SELECT to_char(date_trunc('month', deleted_at), 'YYYY-MM') AS month, COUNT(*) AS removed FROM bus_workspace WHERE deleted_at IS NOT NULL GROUP BY 1 ORDER BY 1
+%%report workspace-is-active-share title: Workspaces: is active entity: Workspace chart: pie x: is_active y: records help: A tenant of the reporting platform — one organisation's data sources, queries and dashboards, kept apart from every other's. The share of workspaces where is active holds against those where it does not. sql: SELECT CASE WHEN is_active THEN 'yes' ELSE 'no' END AS is_active, COUNT(*) AS records FROM bus_workspace WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report workspace-created-by-calendar-month title: Workspaces by time of year entity: Workspace chart: bar x: calendar_month y: records help: A tenant of the reporting platform — one organisation's data sources, queries and dashboards, kept apart from every other's. Workspaces created in each calendar month across all years, which shows seasonality the month-by-month line hides. sql: SELECT to_char(created_at, 'Mon') AS calendar_month, COUNT(*) AS records FROM bus_workspace WHERE deleted_at IS NULL GROUP BY 1, EXTRACT(month FROM created_at) ORDER BY EXTRACT(month FROM created_at)
+%%report workspace-created-by-hour title: Workspaces created by hour of day entity: Workspace chart: bar x: hour y: records help: A tenant of the reporting platform — one organisation's data sources, queries and dashboards, kept apart from every other's. The hours of the day workspaces are recorded in, which is when the people who enter them are working. sql: SELECT EXTRACT(hour FROM created_at)::int AS hour, COUNT(*) AS records FROM bus_workspace WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 1
+%%report analyst-created-per-month title: Analysts created per month entity: Analyst chart: line x: month y: records help: Somebody who can ask questions of this workspace's data. New analysts per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_analyst WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report analyst-created-by-weekday title: Analysts created by day of the week entity: Analyst chart: bar x: weekday y: records help: Somebody who can ask questions of this workspace's data. Which days analysts are recorded on, which is the working rhythm of the people who enter them. sql: SELECT to_char(created_at, 'Dy') AS weekday, COUNT(*) AS records FROM bus_analyst WHERE deleted_at IS NULL GROUP BY 1, EXTRACT(isodow FROM created_at) ORDER BY EXTRACT(isodow FROM created_at)
+%%report analyst-changed-per-month title: Analysts last changed per month entity: Analyst chart: line x: month y: records help: Somebody who can ask questions of this workspace's data. How recently analysts were touched - a falling line is a register nobody is keeping up. sql: SELECT to_char(date_trunc('month', updated_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_analyst WHERE deleted_at IS NULL AND updated_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report analyst-age-bands title: How recently analysts were changed entity: Analyst chart: bar x: last_changed y: records help: Somebody who can ask questions of this workspace's data. Records by time since their last change; the oldest band is the stale tail to review or retire. sql: SELECT CASE WHEN updated_at >= now() - interval '30 days' THEN 'last 30 days' WHEN updated_at >= now() - interval '90 days' THEN '30 to 90 days' WHEN updated_at >= now() - interval '180 days' THEN '90 to 180 days' ELSE 'older than 180 days' END AS last_changed, COUNT(*) AS records FROM bus_analyst WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(updated_at) DESC
+%%report analyst-edit-churn title: How often analysts are edited entity: Analyst chart: bar x: edits y: records help: Somebody who can ask questions of this workspace's data. Records by how many times they have been saved; the heavily edited ones are where the process is being fought. sql: SELECT CASE WHEN version <= 1 THEN 'never edited' WHEN version <= 3 THEN 'edited once or twice' WHEN version <= 9 THEN 'edited 3 to 8 times' ELSE 'edited 9 or more times' END AS edits, COUNT(*) AS records FROM bus_analyst WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(version)
+%%report analyst-removed-per-month title: Analysts removed per month entity: Analyst chart: line x: month y: removed help: Somebody who can ask questions of this workspace's data. Records withdrawn from use each month; a rising line means the register is being cleared faster than it is kept. sql: SELECT to_char(date_trunc('month', deleted_at), 'YYYY-MM') AS month, COUNT(*) AS removed FROM bus_analyst WHERE deleted_at IS NOT NULL GROUP BY 1 ORDER BY 1
+%%report analyst-last-seen-at-per-month title: Analysts by last seen at entity: Analyst chart: line x: month y: records help: Somebody who can ask questions of this workspace's data. Analysts grouped by the month of last seen at, looking two years back and one ahead. sql: SELECT to_char(date_trunc('month', last_seen_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_analyst WHERE deleted_at IS NULL AND last_seen_at IS NOT NULL AND last_seen_at >= now() - interval '24 months' AND last_seen_at < now() + interval '12 months' GROUP BY 1 ORDER BY 1
+%%report analyst-is-active-share title: Analysts: is active entity: Analyst chart: pie x: is_active y: records help: Somebody who can ask questions of this workspace's data. The share of analysts where is active holds against those where it does not. sql: SELECT CASE WHEN is_active THEN 'yes' ELSE 'no' END AS is_active, COUNT(*) AS records FROM bus_analyst WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report analyst-created-by-calendar-month title: Analysts by time of year entity: Analyst chart: bar x: calendar_month y: records help: Somebody who can ask questions of this workspace's data. Analysts created in each calendar month across all years, which shows seasonality the month-by-month line hides. sql: SELECT to_char(created_at, 'Mon') AS calendar_month, COUNT(*) AS records FROM bus_analyst WHERE deleted_at IS NULL GROUP BY 1, EXTRACT(month FROM created_at) ORDER BY EXTRACT(month FROM created_at)
+%%report analyst-created-by-hour title: Analysts created by hour of day entity: Analyst chart: bar x: hour y: records help: Somebody who can ask questions of this workspace's data. The hours of the day analysts are recorded in, which is when the people who enter them are working. sql: SELECT EXTRACT(hour FROM created_at)::int AS hour, COUNT(*) AS records FROM bus_analyst WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 1
+%%report analyst-last-seen-at-by-weekday title: Analysts by weekday of last seen at entity: Analyst chart: bar x: weekday y: records help: Somebody who can ask questions of this workspace's data. Which day of the week last seen at falls on for analysts. sql: SELECT to_char(last_seen_at, 'Dy') AS weekday, COUNT(*) AS records FROM bus_analyst WHERE deleted_at IS NULL AND last_seen_at IS NOT NULL GROUP BY 1, EXTRACT(isodow FROM last_seen_at) ORDER BY EXTRACT(isodow FROM last_seen_at)
+%%report analyst-per-workspace title: Analysts per workspace entity: Analyst chart: bar x: workspace y: records help: Somebody who can ask questions of this workspace's data. Which workspace the most analysts belong to; the head of the list is the concentration to know about. sql: SELECT COALESCE(p.name::text, '(none)') AS workspace, COUNT(*) AS records FROM bus_analyst x LEFT JOIN bus_workspace p ON p.id = x.workspace_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+%%report analyst-completeness title: How complete analysts are entity: Analyst chart: bar x: field y: missing help: Somebody who can ask questions of this workspace's data. For each optional field, how many analysts leave it empty; the long bars are the fields nobody fills in. sql: SELECT 'job title' AS field, COUNT(*) FILTER (WHERE job_title IS NULL) AS missing FROM bus_analyst WHERE deleted_at IS NULL UNION ALL SELECT 'last seen at', COUNT(*) FILTER (WHERE last_seen_at IS NULL) FROM bus_analyst WHERE deleted_at IS NULL ORDER BY 2 DESC
+%%report data-source-by-status title: Data Sources by status entity: DataSource chart: pie x: status y: records help: An external database this workspace can query. How data sources divide across status, so the dominant group and the empty ones are both visible. sql: SELECT COALESCE(status::text, '(unset)') AS status, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report data-source-by-client-type title: Data Sources by client type entity: DataSource chart: pie x: client_type y: records help: An external database this workspace can query. How data sources divide across client type, so the dominant group and the empty ones are both visible. sql: SELECT COALESCE(client_type::text, '(unset)') AS client_type, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report data-source-created-per-month title: Data Sources created per month entity: DataSource chart: line x: month y: records help: An external database this workspace can query. New data sources per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report data-source-created-by-weekday title: Data Sources created by day of the week entity: DataSource chart: bar x: weekday y: records help: An external database this workspace can query. Which days data sources are recorded on, which is the working rhythm of the people who enter them. sql: SELECT to_char(created_at, 'Dy') AS weekday, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL GROUP BY 1, EXTRACT(isodow FROM created_at) ORDER BY EXTRACT(isodow FROM created_at)
+%%report data-source-changed-per-month title: Data Sources last changed per month entity: DataSource chart: line x: month y: records help: An external database this workspace can query. How recently data sources were touched - a falling line is a register nobody is keeping up. sql: SELECT to_char(date_trunc('month', updated_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL AND updated_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report data-source-age-bands title: How recently data sources were changed entity: DataSource chart: bar x: last_changed y: records help: An external database this workspace can query. Records by time since their last change; the oldest band is the stale tail to review or retire. sql: SELECT CASE WHEN updated_at >= now() - interval '30 days' THEN 'last 30 days' WHEN updated_at >= now() - interval '90 days' THEN '30 to 90 days' WHEN updated_at >= now() - interval '180 days' THEN '90 to 180 days' ELSE 'older than 180 days' END AS last_changed, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(updated_at) DESC
+%%report data-source-edit-churn title: How often data sources are edited entity: DataSource chart: bar x: edits y: records help: An external database this workspace can query. Records by how many times they have been saved; the heavily edited ones are where the process is being fought. sql: SELECT CASE WHEN version <= 1 THEN 'never edited' WHEN version <= 3 THEN 'edited once or twice' WHEN version <= 9 THEN 'edited 3 to 8 times' ELSE 'edited 9 or more times' END AS edits, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(version)
+%%report data-source-removed-per-month title: Data Sources removed per month entity: DataSource chart: line x: month y: removed help: An external database this workspace can query. Records withdrawn from use each month; a rising line means the register is being cleared faster than it is kept. sql: SELECT to_char(date_trunc('month', deleted_at), 'YYYY-MM') AS month, COUNT(*) AS removed FROM bus_data_source WHERE deleted_at IS NOT NULL GROUP BY 1 ORDER BY 1
+%%report data-source-last-checked-at-per-month title: Data Sources by last checked at entity: DataSource chart: line x: month y: records help: An external database this workspace can query. Data Sources grouped by the month of last checked at, looking two years back and one ahead. sql: SELECT to_char(date_trunc('month', last_checked_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL AND last_checked_at IS NOT NULL AND last_checked_at >= now() - interval '24 months' AND last_checked_at < now() + interval '12 months' GROUP BY 1 ORDER BY 1
+%%report data-source-is-readonly-share title: Data Sources: is readonly entity: DataSource chart: pie x: is_readonly y: records help: An external database this workspace can query. The share of data sources where is readonly holds against those where it does not. sql: SELECT CASE WHEN is_readonly THEN 'yes' ELSE 'no' END AS is_readonly, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report data-source-port-by-status title: Total port by status entity: DataSource chart: bar x: status y: total_port help: An external database this workspace can query. Data Sources added up on port, split by status, to show where the quantity sits. sql: SELECT COALESCE(status::text, '(unset)') AS status, ROUND(SUM(port)::numeric, 2) AS total_port FROM bus_data_source WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST
+%%report data-source-port-per-month title: Average port per month entity: DataSource chart: line x: month y: average_port help: An external database this workspace can query. The average port of data sources created each month, to see whether the typical record is growing or shrinking. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, ROUND(AVG(port)::numeric, 2) AS average_port FROM bus_data_source WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report data-source-largest-by-port title: The ten largest data sources by port entity: DataSource chart: bar x: record y: port help: An external database this workspace can query. The records with the highest port; worth reading for outliers and for the few that carry most of the total. sql: SELECT name::text AS record, port FROM bus_data_source WHERE deleted_at IS NULL AND port IS NOT NULL ORDER BY port DESC LIMIT 10
+%%report data-source-status-by-client-type title: Data Sources: status and client type together entity: DataSource chart: bar x: combination y: records help: An external database this workspace can query. The most common pairings of status and client type among data sources, which shows which combinations the business actually sees. sql: SELECT COALESCE(status::text, '(unset)') || ' / ' || COALESCE(client_type::text, '(unset)') AS combination, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 15
+%%report data-source-created-by-calendar-month title: Data Sources by time of year entity: DataSource chart: bar x: calendar_month y: records help: An external database this workspace can query. Data Sources created in each calendar month across all years, which shows seasonality the month-by-month line hides. sql: SELECT to_char(created_at, 'Mon') AS calendar_month, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL GROUP BY 1, EXTRACT(month FROM created_at) ORDER BY EXTRACT(month FROM created_at)
+%%report data-source-port-quartiles title: Data Sources by port quartile entity: DataSource chart: bar x: band y: records help: An external database this workspace can query. Data Sources split into four equal groups by port; the spread between the bands shows how uneven the values are. sql: SELECT 'quartile ' || q AS band, COUNT(*) AS records FROM (SELECT NTILE(4) OVER (ORDER BY port) AS q FROM bus_data_source WHERE deleted_at IS NULL AND port IS NOT NULL) x GROUP BY q ORDER BY q
+%%report data-source-last-checked-at-by-weekday title: Data Sources by weekday of last checked at entity: DataSource chart: bar x: weekday y: records help: An external database this workspace can query. Which day of the week last checked at falls on for data sources. sql: SELECT to_char(last_checked_at, 'Dy') AS weekday, COUNT(*) AS records FROM bus_data_source WHERE deleted_at IS NULL AND last_checked_at IS NOT NULL GROUP BY 1, EXTRACT(isodow FROM last_checked_at) ORDER BY EXTRACT(isodow FROM last_checked_at)
+%%report data-source-per-workspace title: Data Sources per workspace entity: DataSource chart: bar x: workspace y: records help: An external database this workspace can query. Which workspace the most data sources belong to; the head of the list is the concentration to know about. sql: SELECT COALESCE(p.name::text, '(none)') AS workspace, COUNT(*) AS records FROM bus_data_source x LEFT JOIN bus_workspace p ON p.id = x.workspace_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+%%report data-source-port-per-workspace title: Total port per workspace entity: DataSource chart: bar x: workspace y: total_port help: An external database this workspace can query. Data Sources added up on port for each workspace, ten largest first. sql: SELECT COALESCE(p.name::text, '(none)') AS workspace, ROUND(SUM(x.port)::numeric, 2) AS total_port FROM bus_data_source x LEFT JOIN bus_workspace p ON p.id = x.workspace_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT 10
+%%report data-source-completeness title: How complete data sources are entity: DataSource chart: bar x: field y: missing help: An external database this workspace can query. For each optional field, how many data sources leave it empty; the long bars are the fields nobody fills in. sql: SELECT 'description' AS field, COUNT(*) FILTER (WHERE description IS NULL) AS missing FROM bus_data_source WHERE deleted_at IS NULL UNION ALL SELECT 'last checked at', COUNT(*) FILTER (WHERE last_checked_at IS NULL) FROM bus_data_source WHERE deleted_at IS NULL ORDER BY 2 DESC
+%%report schema-entity-created-per-month title: Schema Entities created per month entity: SchemaEntity chart: line x: month y: records help: One table in a connected data source, as the platform understands it. New schema entities per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_schema_entity WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report schema-entity-created-by-weekday title: Schema Entities created by day of the week entity: SchemaEntity chart: bar x: weekday y: records help: One table in a connected data source, as the platform understands it. Which days schema entities are recorded on, which is the working rhythm of the people who enter them. sql: SELECT to_char(created_at, 'Dy') AS weekday, COUNT(*) AS records FROM bus_schema_entity WHERE deleted_at IS NULL GROUP BY 1, EXTRACT(isodow FROM created_at) ORDER BY EXTRACT(isodow FROM created_at)
+%%report schema-entity-changed-per-month title: Schema Entities last changed per month entity: SchemaEntity chart: line x: month y: records help: One table in a connected data source, as the platform understands it. How recently schema entities were touched - a falling line is a register nobody is keeping up. sql: SELECT to_char(date_trunc('month', updated_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_schema_entity WHERE deleted_at IS NULL AND updated_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report schema-entity-age-bands title: How recently schema entities were changed entity: SchemaEntity chart: bar x: last_changed y: records help: One table in a connected data source, as the platform understands it. Records by time since their last change; the oldest band is the stale tail to review or retire. sql: SELECT CASE WHEN updated_at >= now() - interval '30 days' THEN 'last 30 days' WHEN updated_at >= now() - interval '90 days' THEN '30 to 90 days' WHEN updated_at >= now() - interval '180 days' THEN '90 to 180 days' ELSE 'older than 180 days' END AS last_changed, COUNT(*) AS records FROM bus_schema_entity WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(updated_at) DESC
+%%report schema-entity-edit-churn title: How often schema entities are edited entity: SchemaEntity chart: bar x: edits y: records help: One table in a connected data source, as the platform understands it. Records by how many times they have been saved; the heavily edited ones are where the process is being fought. sql: SELECT CASE WHEN version <= 1 THEN 'never edited' WHEN version <= 3 THEN 'edited once or twice' WHEN version <= 9 THEN 'edited 3 to 8 times' ELSE 'edited 9 or more times' END AS edits, COUNT(*) AS records FROM bus_schema_entity WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(version)
+%%report schema-entity-removed-per-month title: Schema Entities removed per month entity: SchemaEntity chart: line x: month y: removed help: One table in a connected data source, as the platform understands it. Records withdrawn from use each month; a rising line means the register is being cleared faster than it is kept. sql: SELECT to_char(date_trunc('month', deleted_at), 'YYYY-MM') AS month, COUNT(*) AS removed FROM bus_schema_entity WHERE deleted_at IS NOT NULL GROUP BY 1 ORDER BY 1
+%%report schema-entity-is-indexed-share title: Schema Entities: is indexed entity: SchemaEntity chart: pie x: is_indexed y: records help: One table in a connected data source, as the platform understands it. The share of schema entities where is indexed holds against those where it does not. sql: SELECT CASE WHEN is_indexed THEN 'yes' ELSE 'no' END AS is_indexed, COUNT(*) AS records FROM bus_schema_entity WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report schema-entity-column-count-per-month title: Average column count per month entity: SchemaEntity chart: line x: month y: average_column_count help: One table in a connected data source, as the platform understands it. The average column count of schema entities created each month, to see whether the typical record is growing or shrinking. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, ROUND(AVG(column_count)::numeric, 2) AS average_column_count FROM bus_schema_entity WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report schema-entity-largest-by-column-count title: The ten largest schema entities by column count entity: SchemaEntity chart: bar x: record y: column_count help: One table in a connected data source, as the platform understands it. The records with the highest column count; worth reading for outliers and for the few that carry most of the total. sql: SELECT table_name::text AS record, column_count FROM bus_schema_entity WHERE deleted_at IS NULL AND column_count IS NOT NULL ORDER BY column_count DESC LIMIT 10
+%%report schema-entity-column-count-quartiles title: Schema Entities by column count quartile entity: SchemaEntity chart: bar x: band y: records help: One table in a connected data source, as the platform understands it. Schema Entities split into four equal groups by column count; the spread between the bands shows how uneven the values are. sql: SELECT 'quartile ' || q AS band, COUNT(*) AS records FROM (SELECT NTILE(4) OVER (ORDER BY column_count) AS q FROM bus_schema_entity WHERE deleted_at IS NULL AND column_count IS NOT NULL) x GROUP BY q ORDER BY q
+%%report schema-entity-per-data-source title: Schema Entities per data source entity: SchemaEntity chart: bar x: data_source y: records help: One table in a connected data source, as the platform understands it. Which data source the most schema entities belong to; the head of the list is the concentration to know about. sql: SELECT COALESCE(p.name::text, '(none)') AS data_source, COUNT(*) AS records FROM bus_schema_entity x LEFT JOIN bus_data_source p ON p.id = x.data_source_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+%%report schema-entity-column-count-per-data-source title: Total column count per data source entity: SchemaEntity chart: bar x: data_source y: total_column_count help: One table in a connected data source, as the platform understands it. Schema Entities added up on column count for each data source, ten largest first. sql: SELECT COALESCE(p.name::text, '(none)') AS data_source, ROUND(SUM(x.column_count)::numeric, 2) AS total_column_count FROM bus_schema_entity x LEFT JOIN bus_data_source p ON p.id = x.data_source_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT 10
+%%report schema-entity-completeness title: How complete schema entities are entity: SchemaEntity chart: bar x: field y: missing help: One table in a connected data source, as the platform understands it. For each optional field, how many schema entities leave it empty; the long bars are the fields nobody fills in. sql: SELECT 'display name' AS field, COUNT(*) FILTER (WHERE display_name IS NULL) AS missing FROM bus_schema_entity WHERE deleted_at IS NULL UNION ALL SELECT 'instructions', COUNT(*) FILTER (WHERE instructions IS NULL) FROM bus_schema_entity WHERE deleted_at IS NULL ORDER BY 2 DESC
+%%report saved-query-by-status title: Saved Queries by status entity: SavedQuery chart: pie x: status y: records help: One SQL statement, named and kept, against one data source. How saved queries divide across status, so the dominant group and the empty ones are both visible. sql: SELECT COALESCE(status::text, '(unset)') AS status, COUNT(*) AS records FROM bus_saved_query WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report saved-query-created-per-month title: Saved Queries created per month entity: SavedQuery chart: line x: month y: records help: One SQL statement, named and kept, against one data source. New saved queries per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_saved_query WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report saved-query-age-bands title: How recently saved queries were changed entity: SavedQuery chart: bar x: last_changed y: records help: One SQL statement, named and kept, against one data source. Records by time since their last change; the oldest band is the stale tail to review or retire. sql: SELECT CASE WHEN updated_at >= now() - interval '30 days' THEN 'last 30 days' WHEN updated_at >= now() - interval '90 days' THEN '30 to 90 days' WHEN updated_at >= now() - interval '180 days' THEN '90 to 180 days' ELSE 'older than 180 days' END AS last_changed, COUNT(*) AS records FROM bus_saved_query WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(updated_at) DESC
+%%report saved-query-last-run-at-per-month title: Saved Queries by last run at entity: SavedQuery chart: line x: month y: records help: One SQL statement, named and kept, against one data source. Saved Queries grouped by the month of last run at, looking two years back and one ahead. sql: SELECT to_char(date_trunc('month', last_run_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_saved_query WHERE deleted_at IS NULL AND last_run_at IS NOT NULL AND last_run_at >= now() - interval '24 months' AND last_run_at < now() + interval '12 months' GROUP BY 1 ORDER BY 1
+%%report saved-query-row-limit-by-status title: Total row limit by status entity: SavedQuery chart: bar x: status y: total_row_limit help: One SQL statement, named and kept, against one data source. Saved Queries added up on row limit, split by status, to show where the quantity sits. sql: SELECT COALESCE(status::text, '(unset)') AS status, ROUND(SUM(row_limit)::numeric, 2) AS total_row_limit FROM bus_saved_query WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST
+%%report saved-query-row-limit-per-month title: Average row limit per month entity: SavedQuery chart: line x: month y: average_row_limit help: One SQL statement, named and kept, against one data source. The average row limit of saved queries created each month, to see whether the typical record is growing or shrinking. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, ROUND(AVG(row_limit)::numeric, 2) AS average_row_limit FROM bus_saved_query WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report saved-query-largest-by-row-limit title: The ten largest saved queries by row limit entity: SavedQuery chart: bar x: record y: row_limit help: One SQL statement, named and kept, against one data source. The records with the highest row limit; worth reading for outliers and for the few that carry most of the total. sql: SELECT name::text AS record, row_limit FROM bus_saved_query WHERE deleted_at IS NULL AND row_limit IS NOT NULL ORDER BY row_limit DESC LIMIT 10
+%%report saved-query-completeness title: How complete saved queries are entity: SavedQuery chart: bar x: field y: missing help: One SQL statement, named and kept, against one data source. For each optional field, how many saved queries leave it empty; the long bars are the fields nobody fills in. sql: SELECT 'description' AS field, COUNT(*) FILTER (WHERE description IS NULL) AS missing FROM bus_saved_query WHERE deleted_at IS NULL UNION ALL SELECT 'last run at', COUNT(*) FILTER (WHERE last_run_at IS NULL) FROM bus_saved_query WHERE deleted_at IS NULL ORDER BY 2 DESC
+%%report report-definition-created-per-month title: Report Definitions created per month entity: ReportDefinition chart: line x: month y: records help: A saved query presented as a document — named, laid out, and exportable. New report definitions per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_report_definition WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report report-definition-age-bands title: How recently report definitions were changed entity: ReportDefinition chart: bar x: last_changed y: records help: A saved query presented as a document — named, laid out, and exportable. Records by time since their last change; the oldest band is the stale tail to review or retire. sql: SELECT CASE WHEN updated_at >= now() - interval '30 days' THEN 'last 30 days' WHEN updated_at >= now() - interval '90 days' THEN '30 to 90 days' WHEN updated_at >= now() - interval '180 days' THEN '90 to 180 days' ELSE 'older than 180 days' END AS last_changed, COUNT(*) AS records FROM bus_report_definition WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(updated_at) DESC
+%%report report-definition-is-public-share title: Report Definitions: is public entity: ReportDefinition chart: pie x: is_public y: records help: A saved query presented as a document — named, laid out, and exportable. The share of report definitions where is public holds against those where it does not. sql: SELECT CASE WHEN is_public THEN 'yes' ELSE 'no' END AS is_public, COUNT(*) AS records FROM bus_report_definition WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report report-definition-page-size-per-month title: Average page size per month entity: ReportDefinition chart: line x: month y: average_page_size help: A saved query presented as a document — named, laid out, and exportable. The average page size of report definitions created each month, to see whether the typical record is growing or shrinking. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, ROUND(AVG(page_size)::numeric, 2) AS average_page_size FROM bus_report_definition WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report report-definition-largest-by-page-size title: The ten largest report definitions by page size entity: ReportDefinition chart: bar x: record y: page_size help: A saved query presented as a document — named, laid out, and exportable. The records with the highest page size; worth reading for outliers and for the few that carry most of the total. sql: SELECT name::text AS record, page_size FROM bus_report_definition WHERE deleted_at IS NULL AND page_size IS NOT NULL ORDER BY page_size DESC LIMIT 10
+%%report report-definition-per-saved-query title: Report Definitions per saved query entity: ReportDefinition chart: bar x: saved_query y: records help: A saved query presented as a document — named, laid out, and exportable. Which saved query the most report definitions belong to; the head of the list is the concentration to know about. sql: SELECT COALESCE(p.name::text, '(none)') AS saved_query, COUNT(*) AS records FROM bus_report_definition x LEFT JOIN bus_saved_query p ON p.id = x.saved_query_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+%%report report-definition-page-size-per-saved-query title: Total page size per saved query entity: ReportDefinition chart: bar x: saved_query y: total_page_size help: A saved query presented as a document — named, laid out, and exportable. Report Definitions added up on page size for each saved query, ten largest first. sql: SELECT COALESCE(p.name::text, '(none)') AS saved_query, ROUND(SUM(x.page_size)::numeric, 2) AS total_page_size FROM bus_report_definition x LEFT JOIN bus_saved_query p ON p.id = x.saved_query_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT 10
+%%report report-definition-completeness title: How complete report definitions are entity: ReportDefinition chart: bar x: field y: missing help: A saved query presented as a document — named, laid out, and exportable. For each optional field, how many report definitions leave it empty; the long bars are the fields nobody fills in. sql: SELECT 'description' AS field, COUNT(*) FILTER (WHERE description IS NULL) AS missing FROM bus_report_definition WHERE deleted_at IS NULL UNION ALL SELECT 'filename template', COUNT(*) FILTER (WHERE filename_template IS NULL) FROM bus_report_definition WHERE deleted_at IS NULL ORDER BY 2 DESC
+%%report chart-definition-by-chart-type title: Chart Definitions by chart type entity: ChartDefinition chart: pie x: chart_type y: records help: A saved query drawn rather than tabulated. How chart definitions divide across chart type, so the dominant group and the empty ones are both visible. sql: SELECT COALESCE(chart_type::text, '(unset)') AS chart_type, COUNT(*) AS records FROM bus_chart_definition WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report chart-definition-created-per-month title: Chart Definitions created per month entity: ChartDefinition chart: line x: month y: records help: A saved query drawn rather than tabulated. New chart definitions per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_chart_definition WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report chart-definition-age-bands title: How recently chart definitions were changed entity: ChartDefinition chart: bar x: last_changed y: records help: A saved query drawn rather than tabulated. Records by time since their last change; the oldest band is the stale tail to review or retire. sql: SELECT CASE WHEN updated_at >= now() - interval '30 days' THEN 'last 30 days' WHEN updated_at >= now() - interval '90 days' THEN '30 to 90 days' WHEN updated_at >= now() - interval '180 days' THEN '90 to 180 days' ELSE 'older than 180 days' END AS last_changed, COUNT(*) AS records FROM bus_chart_definition WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(updated_at) DESC
+%%report chart-definition-is-public-share title: Chart Definitions: is public entity: ChartDefinition chart: pie x: is_public y: records help: A saved query drawn rather than tabulated. The share of chart definitions where is public holds against those where it does not. sql: SELECT CASE WHEN is_public THEN 'yes' ELSE 'no' END AS is_public, COUNT(*) AS records FROM bus_chart_definition WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report chart-definition-refresh-interval-seconds-by-chart-type title: Total refresh interval seconds by chart type entity: ChartDefinition chart: bar x: chart_type y: total_refresh_interval_seconds help: A saved query drawn rather than tabulated. Chart Definitions added up on refresh interval seconds, split by chart type, to show where the quantity sits. sql: SELECT COALESCE(chart_type::text, '(unset)') AS chart_type, ROUND(SUM(refresh_interval_seconds)::numeric, 2) AS total_refresh_interval_seconds FROM bus_chart_definition WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST
+%%report chart-definition-refresh-interval-seconds-per-month title: Average refresh interval seconds per month entity: ChartDefinition chart: line x: month y: average_refresh_interval_seconds help: A saved query drawn rather than tabulated. The average refresh interval seconds of chart definitions created each month, to see whether the typical record is growing or shrinking. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, ROUND(AVG(refresh_interval_seconds)::numeric, 2) AS average_refresh_interval_seconds FROM bus_chart_definition WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report chart-definition-largest-by-refresh-interval-seconds title: The ten largest chart definitions by refresh interval seconds entity: ChartDefinition chart: bar x: record y: refresh_interval_seconds help: A saved query drawn rather than tabulated. The records with the highest refresh interval seconds; worth reading for outliers and for the few that carry most of the total. sql: SELECT name::text AS record, refresh_interval_seconds FROM bus_chart_definition WHERE deleted_at IS NULL AND refresh_interval_seconds IS NOT NULL ORDER BY refresh_interval_seconds DESC LIMIT 10
+%%report chart-definition-per-saved-query title: Chart Definitions per saved query entity: ChartDefinition chart: bar x: saved_query y: records help: A saved query drawn rather than tabulated. Which saved query the most chart definitions belong to; the head of the list is the concentration to know about. sql: SELECT COALESCE(p.name::text, '(none)') AS saved_query, COUNT(*) AS records FROM bus_chart_definition x LEFT JOIN bus_saved_query p ON p.id = x.saved_query_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+%%report chart-definition-refresh-interval-seconds-per-saved-query title: Total refresh interval seconds per saved query entity: ChartDefinition chart: bar x: saved_query y: total_refresh_interval_seconds help: A saved query drawn rather than tabulated. Chart Definitions added up on refresh interval seconds for each saved query, ten largest first. sql: SELECT COALESCE(p.name::text, '(none)') AS saved_query, ROUND(SUM(x.refresh_interval_seconds)::numeric, 2) AS total_refresh_interval_seconds FROM bus_chart_definition x LEFT JOIN bus_saved_query p ON p.id = x.saved_query_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT 10
+%%report dashboard-created-per-month title: Dashboards created per month entity: Dashboard chart: line x: month y: records help: A page of reports and charts arranged together to answer one recurring question — how did last week go, where are we against target. New dashboards per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_dashboard WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report dashboard-age-bands title: How recently dashboards were changed entity: Dashboard chart: bar x: last_changed y: records help: A page of reports and charts arranged together to answer one recurring question — how did last week go, where are we against target. Records by time since their last change; the oldest band is the stale tail to review or retire. sql: SELECT CASE WHEN updated_at >= now() - interval '30 days' THEN 'last 30 days' WHEN updated_at >= now() - interval '90 days' THEN '30 to 90 days' WHEN updated_at >= now() - interval '180 days' THEN '90 to 180 days' ELSE 'older than 180 days' END AS last_changed, COUNT(*) AS records FROM bus_dashboard WHERE deleted_at IS NULL GROUP BY 1 ORDER BY MIN(updated_at) DESC
+%%report dashboard-is-public-share title: Dashboards: is public entity: Dashboard chart: pie x: is_public y: records help: A page of reports and charts arranged together to answer one recurring question — how did last week go, where are we against target. The share of dashboards where is public holds against those where it does not. sql: SELECT CASE WHEN is_public THEN 'yes' ELSE 'no' END AS is_public, COUNT(*) AS records FROM bus_dashboard WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report dashboard-column-count-per-month title: Average column count per month (Dashboard) entity: Dashboard chart: line x: month y: average_column_count help: A page of reports and charts arranged together to answer one recurring question — how did last week go, where are we against target. The average column count of dashboards created each month, to see whether the typical record is growing or shrinking. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, ROUND(AVG(column_count)::numeric, 2) AS average_column_count FROM bus_dashboard WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report dashboard-largest-by-column-count title: The ten largest dashboards by column count entity: Dashboard chart: bar x: record y: column_count help: A page of reports and charts arranged together to answer one recurring question — how did last week go, where are we against target. The records with the highest column count; worth reading for outliers and for the few that carry most of the total. sql: SELECT name::text AS record, column_count FROM bus_dashboard WHERE deleted_at IS NULL AND column_count IS NOT NULL ORDER BY column_count DESC LIMIT 10
+%%report dashboard-per-workspace title: Dashboards per workspace entity: Dashboard chart: bar x: workspace y: records help: A page of reports and charts arranged together to answer one recurring question — how did last week go, where are we against target. Which workspace the most dashboards belong to; the head of the list is the concentration to know about. sql: SELECT COALESCE(p.name::text, '(none)') AS workspace, COUNT(*) AS records FROM bus_dashboard x LEFT JOIN bus_workspace p ON p.id = x.workspace_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+%%report dashboard-widget-created-per-month title: Dashboard Widgets created per month entity: DashboardWidget chart: line x: month y: records help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. New dashboard widgets per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_dashboard_widget WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report dashboard-widget-grid-x-per-month title: Average grid x per month entity: DashboardWidget chart: line x: month y: average_grid_x help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. The average grid x of dashboard widgets created each month, to see whether the typical record is growing or shrinking. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, ROUND(AVG(grid_x)::numeric, 2) AS average_grid_x FROM bus_dashboard_widget WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report dashboard-widget-largest-by-grid-x title: The ten largest dashboard widgets by grid x entity: DashboardWidget chart: bar x: record y: grid_x help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. The records with the highest grid x; worth reading for outliers and for the few that carry most of the total. sql: SELECT title::text AS record, grid_x FROM bus_dashboard_widget WHERE deleted_at IS NULL AND grid_x IS NOT NULL ORDER BY grid_x DESC LIMIT 10
+%%report dashboard-widget-grid-y-per-month title: Average grid y per month entity: DashboardWidget chart: line x: month y: average_grid_y help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. The average grid y of dashboard widgets created each month, to see whether the typical record is growing or shrinking. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, ROUND(AVG(grid_y)::numeric, 2) AS average_grid_y FROM bus_dashboard_widget WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report dashboard-widget-largest-by-grid-y title: The ten largest dashboard widgets by grid y entity: DashboardWidget chart: bar x: record y: grid_y help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. The records with the highest grid y; worth reading for outliers and for the few that carry most of the total. sql: SELECT title::text AS record, grid_y FROM bus_dashboard_widget WHERE deleted_at IS NULL AND grid_y IS NOT NULL ORDER BY grid_y DESC LIMIT 10
+%%report dashboard-widget-grid-width-per-month title: Average grid width per month entity: DashboardWidget chart: line x: month y: average_grid_width help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. The average grid width of dashboard widgets created each month, to see whether the typical record is growing or shrinking. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, ROUND(AVG(grid_width)::numeric, 2) AS average_grid_width FROM bus_dashboard_widget WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report dashboard-widget-largest-by-grid-width title: The ten largest dashboard widgets by grid width entity: DashboardWidget chart: bar x: record y: grid_width help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. The records with the highest grid width; worth reading for outliers and for the few that carry most of the total. sql: SELECT title::text AS record, grid_width FROM bus_dashboard_widget WHERE deleted_at IS NULL AND grid_width IS NOT NULL ORDER BY grid_width DESC LIMIT 10
+%%report dashboard-widget-per-dashboard title: Dashboard Widgets per dashboard entity: DashboardWidget chart: bar x: dashboard y: records help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. Which dashboard the most dashboard widgets belong to; the head of the list is the concentration to know about. sql: SELECT COALESCE(p.name::text, '(none)') AS dashboard, COUNT(*) AS records FROM bus_dashboard_widget x LEFT JOIN bus_dashboard p ON p.id = x.dashboard_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+%%report dashboard-widget-grid-x-per-dashboard title: Total grid x per dashboard entity: DashboardWidget chart: bar x: dashboard y: total_grid_x help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. Dashboard Widgets added up on grid x for each dashboard, ten largest first. sql: SELECT COALESCE(p.name::text, '(none)') AS dashboard, ROUND(SUM(x.grid_x)::numeric, 2) AS total_grid_x FROM bus_dashboard_widget x LEFT JOIN bus_dashboard p ON p.id = x.dashboard_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT 10
+%%report dashboard-widget-per-report-definition title: Dashboard Widgets per report definition entity: DashboardWidget chart: bar x: report_definition y: records help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. Which report definition the most dashboard widgets belong to; the head of the list is the concentration to know about. sql: SELECT COALESCE(p.name::text, '(none)') AS report_definition, COUNT(*) AS records FROM bus_dashboard_widget x LEFT JOIN bus_report_definition p ON p.id = x.report_definition_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+%%report dashboard-widget-grid-x-per-report-definition title: Total grid x per report definition entity: DashboardWidget chart: bar x: report_definition y: total_grid_x help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. Dashboard Widgets added up on grid x for each report definition, ten largest first. sql: SELECT COALESCE(p.name::text, '(none)') AS report_definition, ROUND(SUM(x.grid_x)::numeric, 2) AS total_grid_x FROM bus_dashboard_widget x LEFT JOIN bus_report_definition p ON p.id = x.report_definition_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT 10
+%%report dashboard-widget-per-chart-definition title: Dashboard Widgets per chart definition entity: DashboardWidget chart: bar x: chart_definition y: records help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. Which chart definition the most dashboard widgets belong to; the head of the list is the concentration to know about. sql: SELECT COALESCE(p.name::text, '(none)') AS chart_definition, COUNT(*) AS records FROM bus_dashboard_widget x LEFT JOIN bus_chart_definition p ON p.id = x.chart_definition_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+%%report dashboard-widget-grid-x-per-chart-definition title: Total grid x per chart definition entity: DashboardWidget chart: bar x: chart_definition y: total_grid_x help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. Dashboard Widgets added up on grid x for each chart definition, ten largest first. sql: SELECT COALESCE(p.name::text, '(none)') AS chart_definition, ROUND(SUM(x.grid_x)::numeric, 2) AS total_grid_x FROM bus_dashboard_widget x LEFT JOIN bus_chart_definition p ON p.id = x.chart_definition_id AND p.deleted_at IS NULL WHERE x.deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT 10
+%%report dashboard-widget-completeness title: How complete dashboard widgets are entity: DashboardWidget chart: bar x: field y: missing help: One panel on one dashboard - which report or chart it shows, and where it sits on the grid. For each optional field, how many dashboard widgets leave it empty; the long bars are the fields nobody fills in. sql: SELECT 'report definition' AS field, COUNT(*) FILTER (WHERE report_definition_id IS NULL) AS missing FROM bus_dashboard_widget WHERE deleted_at IS NULL UNION ALL SELECT 'chart definition', COUNT(*) FILTER (WHERE chart_definition_id IS NULL) FROM bus_dashboard_widget WHERE deleted_at IS NULL ORDER BY 2 DESC
+%%report scheduled-job-by-export-format title: Scheduled Jobs by export format entity: ScheduledJob chart: pie x: export_format y: records help: A standing instruction to run a report on a schedule and deliver the result. How scheduled jobs divide across export format, so the dominant group and the empty ones are both visible. sql: SELECT COALESCE(export_format::text, '(unset)') AS export_format, COUNT(*) AS records FROM bus_scheduled_job WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report scheduled-job-created-per-month title: Scheduled Jobs created per month entity: ScheduledJob chart: line x: month y: records help: A standing instruction to run a report on a schedule and deliver the result. New scheduled jobs per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_scheduled_job WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report scheduled-job-is-active-share title: Scheduled Jobs: is active entity: ScheduledJob chart: pie x: is_active y: records help: A standing instruction to run a report on a schedule and deliver the result. The share of scheduled jobs where is active holds against those where it does not. sql: SELECT CASE WHEN is_active THEN 'yes' ELSE 'no' END AS is_active, COUNT(*) AS records FROM bus_scheduled_job WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report job-execution-by-status title: Job Executions by status entity: JobExecution chart: pie x: status y: records help: One run of one scheduled job, successful or not. How job executions divide across status, so the dominant group and the empty ones are both visible. sql: SELECT COALESCE(status::text, '(unset)') AS status, COUNT(*) AS records FROM bus_job_execution WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC
+%%report job-execution-lifecycle title: Job Execution lifecycle entity: JobExecution chart: bar x: state y: records help: One run of one scheduled job, successful or not. Where job executions sit in their state machine, in the order the diagram draws it; a state nothing has reached shows as zero. sql: SELECT d.state, COALESCE(c.records, 0) AS records FROM (SELECT 'scheduled' AS state, 0 AS position UNION ALL SELECT 'queued', 1 UNION ALL SELECT 'running', 2 UNION ALL SELECT 'succeeded', 3 UNION ALL SELECT 'failed', 4 UNION ALL SELECT 'cancelled', 5) d LEFT JOIN (SELECT status AS state, COUNT(*) AS records FROM bus_job_execution WHERE deleted_at IS NULL GROUP BY 1) c ON c.state = d.state ORDER BY d.position
+%%report job-execution-created-per-month title: Job Executions created per month entity: JobExecution chart: line x: month y: records help: One run of one scheduled job, successful or not. New job executions per month over two years - the volume the business actually handles. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_job_execution WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report job-execution-started-at-per-month title: Job Executions by started at entity: JobExecution chart: line x: month y: records help: One run of one scheduled job, successful or not. Job Executions grouped by the month of started at, looking two years back and one ahead. sql: SELECT to_char(date_trunc('month', started_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_job_execution WHERE deleted_at IS NULL AND started_at IS NOT NULL AND started_at >= now() - interval '24 months' AND started_at < now() + interval '12 months' GROUP BY 1 ORDER BY 1
+%%report job-execution-finished-at-per-month title: Job Executions by finished at entity: JobExecution chart: line x: month y: records help: One run of one scheduled job, successful or not. Job Executions grouped by the month of finished at, looking two years back and one ahead. sql: SELECT to_char(date_trunc('month', finished_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_job_execution WHERE deleted_at IS NULL AND finished_at IS NOT NULL AND finished_at >= now() - interval '24 months' AND finished_at < now() + interval '12 months' GROUP BY 1 ORDER BY 1
+%%report job-execution-queued-at-per-month title: Job Executions by queued at entity: JobExecution chart: line x: month y: records help: One run of one scheduled job, successful or not. Job Executions grouped by the month of queued at, looking two years back and one ahead. sql: SELECT to_char(date_trunc('month', queued_at), 'YYYY-MM') AS month, COUNT(*) AS records FROM bus_job_execution WHERE deleted_at IS NULL AND queued_at IS NOT NULL AND queued_at >= now() - interval '24 months' AND queued_at < now() + interval '12 months' GROUP BY 1 ORDER BY 1
+%%report job-execution-row-count-by-status title: Total row count by status entity: JobExecution chart: bar x: status y: total_row_count help: One run of one scheduled job, successful or not. Job Executions added up on row count, split by status, to show where the quantity sits. sql: SELECT COALESCE(status::text, '(unset)') AS status, ROUND(SUM(row_count)::numeric, 2) AS total_row_count FROM bus_job_execution WHERE deleted_at IS NULL GROUP BY 1 ORDER BY 2 DESC NULLS LAST
+%%report job-execution-row-count-per-month title: Average row count per month entity: JobExecution chart: line x: month y: average_row_count help: One run of one scheduled job, successful or not. The average row count of job executions created each month, to see whether the typical record is growing or shrinking. sql: SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month, ROUND(AVG(row_count)::numeric, 2) AS average_row_count FROM bus_job_execution WHERE deleted_at IS NULL AND created_at >= now() - interval '24 months' GROUP BY 1 ORDER BY 1
+%%report job-execution-largest-by-row-count title: The ten largest job executions by row count entity: JobExecution chart: bar x: record y: row_count help: One run of one scheduled job, successful or not. The records with the highest row count; worth reading for outliers and for the few that carry most of the total. sql: SELECT status::text AS record, row_count FROM bus_job_execution WHERE deleted_at IS NULL AND row_count IS NOT NULL ORDER BY row_count DESC LIMIT 10
+%%report job-execution-completeness title: How complete job executions are entity: JobExecution chart: bar x: field y: missing help: One run of one scheduled job, successful or not. For each optional field, how many job executions leave it empty; the long bars are the fields nobody fills in. sql: SELECT 'started at' AS field, COUNT(*) FILTER (WHERE started_at IS NULL) AS missing FROM bus_job_execution WHERE deleted_at IS NULL UNION ALL SELECT 'finished at', COUNT(*) FILTER (WHERE finished_at IS NULL) FROM bus_job_execution WHERE deleted_at IS NULL UNION ALL SELECT 'row count', COUNT(*) FILTER (WHERE row_count IS NULL) FROM bus_job_execution WHERE deleted_at IS NULL UNION ALL SELECT 'error message', COUNT(*) FILTER (WHERE error_message IS NULL) FROM bus_job_execution WHERE deleted_at IS NULL UNION ALL SELECT 'queued at', COUNT(*) FILTER (WHERE queued_at IS NULL) FROM bus_job_execution WHERE deleted_at IS NULL UNION ALL SELECT 'running at', COUNT(*) FILTER (WHERE running_at IS NULL) FROM bus_job_execution WHERE deleted_at IS NULL UNION ALL SELECT 'succeeded at', COUNT(*) FILTER (WHERE succeeded_at IS NULL) FROM bus_job_execution WHERE deleted_at IS NULL UNION ALL SELECT 'failed at', COUNT(*) FILTER (WHERE failed_at IS NULL) FROM bus_job_execution WHERE deleted_at IS NULL ORDER BY 2 DESC
+%%dashboard admin-measures title: admin: Amounts and totals role: admin reports: data-source-port-by-status, data-source-port-per-month, data-source-largest-by-port, schema-entity-column-count-per-month, schema-entity-largest-by-column-count help: The quantities the business adds up, and the largest few records behind them.
+%%dashboard admin-concentrations title: admin: Who the records belong to role: admin reports: analyst-per-workspace, data-source-per-workspace, data-source-port-per-workspace, schema-entity-per-data-source, schema-entity-column-count-per-data-source help: Which customers, owners or parents account for the most records and the most value.
+%%dashboard admin-volumes title: admin: Volumes over time role: admin reports: workspace-created-per-month, analyst-created-per-month, data-source-created-per-month, schema-entity-created-per-month help: New records per month across everything this role can see: the workload the business handles.
+%%dashboard admin-data-quality title: admin: Data quality role: admin reports: analyst-completeness, data-source-completeness, schema-entity-completeness help: Which optional fields are left empty, so the gaps can be closed at source.
+%%dashboard admin-working-rhythm title: admin: Working rhythm role: admin reports: workspace-created-by-weekday, workspace-changed-per-month, analyst-created-by-weekday, analyst-changed-per-month, data-source-created-by-weekday, data-source-changed-per-month, schema-entity-created-by-weekday, schema-entity-changed-per-month help: Which days records are entered and how recently they are kept up to date.
+%%dashboard admin-freshness title: admin: Stale records role: admin reports: workspace-age-bands, analyst-age-bands, data-source-age-bands, schema-entity-age-bands help: How long it is since each register was last touched, to review or retire the stale tail.
+%%dashboard admin-edit-churn title: admin: How much records are reworked role: admin reports: workspace-edit-churn, analyst-edit-churn, data-source-edit-churn, schema-entity-edit-churn help: Records by how often they have been edited, which shows where a process is being fought.
+%%dashboard admin-flags title: admin: Yes and no questions role: admin reports: workspace-is-active-share, analyst-is-active-share, data-source-is-readonly-share, schema-entity-is-indexed-share help: The share of records that meet each yes-or-no condition.
+%%dashboard admin-seasonality title: admin: Seasonality role: admin reports: workspace-created-by-calendar-month, workspace-created-by-hour, analyst-created-by-calendar-month, analyst-created-by-hour, data-source-created-by-calendar-month help: Time of year and time of day that records are created.
+%%dashboard admin-removals title: admin: What was withdrawn role: admin reports: workspace-removed-per-month, analyst-removed-per-month, data-source-removed-per-month, schema-entity-removed-per-month help: Records taken out of use each month.
+%%dashboard analyst-key-questions title: analyst: Key questions role: analyst reports: unreachable-sources, stale-queries, dashboard-coverage help: The questions this role asks most often, written for it by the model's author.
+%%dashboard analyst-breakdowns title: analyst: Breakdowns role: analyst reports: data-source-by-status, data-source-by-client-type, saved-query-by-status, chart-definition-by-chart-type, scheduled-job-by-export-format, job-execution-by-status help: How the records this role works with divide across their categories.
+%%dashboard analyst-measures title: analyst: Amounts and totals role: analyst reports: data-source-port-by-status, data-source-port-per-month, data-source-largest-by-port, schema-entity-column-count-per-month, schema-entity-largest-by-column-count, saved-query-row-limit-by-status, saved-query-row-limit-per-month, saved-query-largest-by-row-limit help: The quantities the business adds up, and the largest few records behind them.
+%%dashboard analyst-measures-2 title: analyst: Amounts and totals (2) role: analyst reports: report-definition-page-size-per-month, report-definition-largest-by-page-size, chart-definition-refresh-interval-seconds-by-chart-type, chart-definition-refresh-interval-seconds-per-month, chart-definition-largest-by-refresh-interval-seconds, dashboard-column-count-per-month, dashboard-largest-by-column-count, dashboard-widget-grid-x-per-month help: The quantities the business adds up, and the largest few records behind them.
+%%dashboard analyst-measures-3 title: analyst: Amounts and totals (3) role: analyst reports: dashboard-widget-largest-by-grid-x, dashboard-widget-grid-y-per-month, dashboard-widget-largest-by-grid-y, dashboard-widget-grid-width-per-month, dashboard-widget-largest-by-grid-width, job-execution-row-count-by-status, job-execution-row-count-per-month, job-execution-largest-by-row-count help: The quantities the business adds up, and the largest few records behind them.
+%%dashboard analyst-concentrations title: analyst: Who the records belong to role: analyst reports: schema-entity-per-data-source, schema-entity-column-count-per-data-source, report-definition-per-saved-query, report-definition-page-size-per-saved-query, chart-definition-per-saved-query, chart-definition-refresh-interval-seconds-per-saved-query, dashboard-widget-per-dashboard, dashboard-widget-grid-x-per-dashboard help: Which customers, owners or parents account for the most records and the most value.
+%%dashboard analyst-concentrations-2 title: analyst: Who the records belong to (2) role: analyst reports: dashboard-widget-per-report-definition, dashboard-widget-grid-x-per-report-definition, dashboard-widget-per-chart-definition, dashboard-widget-grid-x-per-chart-definition help: Which customers, owners or parents account for the most records and the most value.
+%%dashboard analyst-volumes title: analyst: Volumes over time role: analyst reports: data-source-created-per-month, schema-entity-created-per-month, saved-query-created-per-month, report-definition-created-per-month, chart-definition-created-per-month, dashboard-created-per-month, dashboard-widget-created-per-month, scheduled-job-created-per-month help: New records per month across everything this role can see: the workload the business handles.
+%%dashboard analyst-calendar title: analyst: What is dated when role: analyst reports: data-source-last-checked-at-per-month, saved-query-last-run-at-per-month, job-execution-started-at-per-month, job-execution-finished-at-per-month, job-execution-queued-at-per-month help: Records grouped by the month of the dates they carry.
+%%dashboard analyst-data-quality title: analyst: Data quality role: analyst reports: data-source-completeness, schema-entity-completeness, saved-query-completeness, report-definition-completeness, dashboard-widget-completeness, job-execution-completeness help: Which optional fields are left empty, so the gaps can be closed at source.
+%%dashboard viewer-breakdowns title: viewer: Breakdowns role: viewer reports: saved-query-by-status, chart-definition-by-chart-type, job-execution-by-status help: How the records this role works with divide across their categories.
+%%dashboard viewer-measures title: viewer: Amounts and totals role: viewer reports: saved-query-row-limit-by-status, saved-query-row-limit-per-month, saved-query-largest-by-row-limit, report-definition-page-size-per-month, report-definition-largest-by-page-size, chart-definition-refresh-interval-seconds-by-chart-type, chart-definition-refresh-interval-seconds-per-month, chart-definition-largest-by-refresh-interval-seconds help: The quantities the business adds up, and the largest few records behind them.
+%%dashboard viewer-measures-2 title: viewer: Amounts and totals (2) role: viewer reports: dashboard-column-count-per-month, dashboard-largest-by-column-count, dashboard-widget-grid-x-per-month, dashboard-widget-largest-by-grid-x, dashboard-widget-grid-y-per-month, dashboard-widget-largest-by-grid-y, dashboard-widget-grid-width-per-month, dashboard-widget-largest-by-grid-width help: The quantities the business adds up, and the largest few records behind them.
+%%dashboard viewer-measures-3 title: viewer: Amounts and totals (3) role: viewer reports: job-execution-row-count-by-status, job-execution-row-count-per-month, job-execution-largest-by-row-count help: The quantities the business adds up, and the largest few records behind them.
+%%dashboard viewer-concentrations title: viewer: Who the records belong to role: viewer reports: report-definition-per-saved-query, report-definition-page-size-per-saved-query, chart-definition-per-saved-query, chart-definition-refresh-interval-seconds-per-saved-query, dashboard-widget-per-dashboard, dashboard-widget-grid-x-per-dashboard, dashboard-widget-per-report-definition, dashboard-widget-grid-x-per-report-definition help: Which customers, owners or parents account for the most records and the most value.
+%%dashboard viewer-volumes title: viewer: Volumes over time role: viewer reports: saved-query-created-per-month, report-definition-created-per-month, chart-definition-created-per-month, dashboard-created-per-month, dashboard-widget-created-per-month, job-execution-created-per-month help: New records per month across everything this role can see: the workload the business handles.
+%%dashboard viewer-calendar title: viewer: What is dated when role: viewer reports: saved-query-last-run-at-per-month, job-execution-started-at-per-month, job-execution-finished-at-per-month, job-execution-queued-at-per-month help: Records grouped by the month of the dates they carry.
+%%dashboard viewer-data-quality title: viewer: Data quality role: viewer reports: saved-query-completeness, report-definition-completeness, dashboard-widget-completeness, job-execution-completeness help: Which optional fields are left empty, so the gaps can be closed at source.
+%%dashboard viewer-freshness title: viewer: Stale records role: viewer reports: saved-query-age-bands, report-definition-age-bands, chart-definition-age-bands, dashboard-age-bands help: How long it is since each register was last touched, to review or retire the stale tail.
+%%dashboard viewer-flags title: viewer: Yes and no questions role: viewer reports: report-definition-is-public-share, chart-definition-is-public-share, dashboard-is-public-share help: The share of records that meet each yes-or-no condition.
+
+%% ---- When each status was reached: stamped by the application ----
+%% A record moves by an action button, along an edge its state diagram draws,
+%% and the application writes the <state>_at time when it does.
+%%field JobExecution.queued_at help: When this job execution moved to queued. Stamped by the application when the move is made; nobody types it.
+%%field JobExecution.running_at help: When this job execution moved to running. Stamped by the application when the move is made; nobody types it.
+%%field JobExecution.succeeded_at help: When this job execution moved to succeeded. Stamped by the application when the move is made; nobody types it.
+%%field JobExecution.failed_at help: When this job execution moved to failed. Stamped by the application when the move is made; nobody types it.
+%%field JobExecution.cancelled_at help: When this job execution moved to cancelled. Stamped by the application when the move is made; nobody types it.
+%%section entity: JobExecution; name: Progress; help: When this job execution reached each status, stamped by the application as the record moves; the status itself is shown in the header.; rows: queued_at, running_at | succeeded_at, failed_at | cancelled_at
