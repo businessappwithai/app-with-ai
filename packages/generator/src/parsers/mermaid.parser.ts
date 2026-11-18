@@ -34,7 +34,7 @@ import { getCardinalityKind, getDefaultType, getTypeMap } from "./language-maps"
 type FieldLogicKey = "display" | "readonly" | "mandatory";
 
 // Type mapping from Mermaid types to our standard types.
-// Sourced from language/appwithai-language.json at runtime (with a built-in
+// Sourced from common/language/appwithai-language.json at runtime (with a built-in
 // fallback) so the parser stays in lockstep with the EML language definition.
 const TYPE_MAP: Record<string, EntityAttribute["type"]> = getTypeMap();
 

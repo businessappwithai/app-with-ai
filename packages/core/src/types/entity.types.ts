@@ -39,7 +39,7 @@ export interface EntityAttribute {
   /**
    * Compiere's field logic, from `%%field <E>.<c> display: | readonly: |
    * mandatory: <logic>` — `@column@=value` conditions over the record being
-   * edited, joined by `&` and `|` (language/field-logic.ts is the one reading).
+   * edited, joined by `&` and `|` (common/language/field-logic.ts is the one reading).
    * Display logic lands on `sys_field.display_logic`; read-only and mandatory
    * logic on both `sys_column` and `sys_field`.
    */
@@ -112,7 +112,7 @@ export interface Entity {
   formSections?: EntityFormSection[];
 }
 
-/** One `%%section` of an entity's form. Mirrors `FormSection` in language/sections.ts. */
+/** One `%%section` of an entity's form. Mirrors `FormSection` in common/language/sections.ts. */
 export interface EntityFormSection {
   name: string;
   help?: string;

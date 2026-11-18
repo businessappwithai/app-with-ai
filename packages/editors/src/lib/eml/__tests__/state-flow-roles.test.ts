@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
 import { emitStateFlow, parseStateFlow } from "../workflow-flow";
 
 const CRM = readFileSync(
-  join(import.meta.dirname, "../../../../../../language/examples/crm.eml.mmd"),
+  join(import.meta.dirname, "../../../../../../common/language/examples/crm.eml.mmd"),
   "utf8"
 );
 

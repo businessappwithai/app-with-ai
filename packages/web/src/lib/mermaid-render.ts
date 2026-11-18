@@ -13,7 +13,7 @@ const DIAGRAM_OPENER =
 
 // EML attribute modifiers that stock Mermaid's ER grammar does not accept.
 // OPTIONAL / NULL have no Mermaid equivalent and are dropped; UNIQUE is an
-// EML alias for UK. See language/appwithai-language.json → modifiers.map.
+// EML alias for UK. See common/language/appwithai-language.json → modifiers.map.
 const EML_ONLY_MODIFIER = /\s+(OPTIONAL|NULL)\b/g;
 const EML_UNIQUE_MODIFIER = /\bUNIQUE\b/g;
 

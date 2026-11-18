@@ -56,7 +56,7 @@ three kinds:
 | 7 | High | Process | *Update a field* on the record the process runs on wrote `entity: FeeInvoice` with no target. The checker the generator runs reads that as a cross-entity write it cannot aim (EML265, an error), so the process failed the check. The executor treats a write with no entity as "this record", which is how the model's own sagas write it. The inspector now shows the own record type for a step that names none, and picking it stores no entity | **Fixed** |
 | 8 | Medium | Process | *Update a field* on a **different** record type had no "Which record" input, so it could never be aimed at a row. The checker rejected it (EML265) and the executor skipped it | **Fixed**: `target` added to the step in the tool's builder, the generated app's copy and `appwithai-language.json`; the builder reports a cross-entity write that does not say which row |
 | 9 | — | Status | A drag that starts within 200 ms of *Add state* misses, because the canvas is re-fitting | **Not a defect.** No person moves that fast; the spec waits for the canvas to settle |
-| 10 | Low | Checker | On a status machine bound to an entity with no status column, EML426 names an unrelated enum (`AssessmentStatus`) | **Open.** `language/**`, outside this change |
+| 10 | Low | Checker | On a status machine bound to an entity with no status column, EML426 names an unrelated enum (`AssessmentStatus`) | **Open.** `common/language/**`, outside this change |
 
 ### How finding 8 was closed
 
@@ -260,7 +260,7 @@ filled with "Untitled automation".
 - **Test:** an assertion in `rule-editor-generated-app.test.ts`.
 
 #### DEFERRED-1: Section headings travel with the preceding section (low, content)
-`extractSections` in `language/composer.ts` keeps a section's trailing prose.
+`extractSections` in `common/language/composer.ts` keeps a section's trailing prose.
 That prose is the next section's `%% ---- …` heading, so Admission Assessment's
 read-only flowchart ends with "admission banding". Deleting a rule deletes the
 next rule's heading too. The rules themselves are unaffected.

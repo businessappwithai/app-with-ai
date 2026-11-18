@@ -27,7 +27,7 @@ import { expect, test } from "@playwright/test";
 const run = promisify(execFile);
 const ROOT = new URL("../../../", import.meta.url).pathname.replace(/\/$/, "");
 const CLI = join(ROOT, "packages/generator/src/cli-wasm/generate.ts");
-const CRM = join(ROOT, "language/examples/crm.eml.mmd");
+const CRM = join(ROOT, "common/language/examples/crm.eml.mmd");
 
 let workspace = "";
 

@@ -1069,7 +1069,7 @@ export interface SerializeOptions {
    *
    * The automations screen stores this string as the whole record, so it needs
    * the header. The wizard's Logic step stores name, entity, kind, trigger and
-   * operation as columns and lets language/composer.ts write the directive, so
+   * operation as columns and lets common/language/composer.ts write the directive, so
    * including it there produces the header twice.
    */
   header?: boolean;
@@ -1086,7 +1086,7 @@ export function serializeAutomation(a: Automation, options: SerializeOptions = {
   if (!header) {
     // Nothing: the caller owns the directive.
   } else if (a.kind === "saga") {
-    // The positional form, matching what language/composer.ts writes. `trigger`
+    // The positional form, matching what common/language/composer.ts writes. `trigger`
     // and `operation` live here and nowhere else, so emitting the automation
     // form instead would silently demote a rule-triggered saga to a lifecycle
     // one. Both are written only when they differ from the default, which is
@@ -1213,7 +1213,7 @@ function parseSagaProps(rest: string): Record<string, string> {
   const props: Record<string, string> = {};
   // The `(?!\/\/)` is what keeps a URL whole: `url: https://host/path` would
   // otherwise split at `https:`, so a REST step opened in the builder with an
-  // empty url. Kept identical in language/checker.ts (parseStepProps) and
+  // empty url. Kept identical in common/language/checker.ts (parseStepProps) and
   // packages/generator/src/workflows/steps.ts (PROP_SPLIT).
   for (const part of rest.trim().split(/\s+(?=[A-Za-z_]\w*:(?!\/\/))/)) {
     const match = part.match(/^([A-Za-z_]\w*):\s*(.*)$/s);
@@ -1327,7 +1327,7 @@ export function parseAutomation(source: string, fallbackEntity = "Record"): Auto
       if (/kind:\s*saga\b/.test(rest)) {
         a.kind = "saga";
         // Absent means automatic, because the writer only ever emits the token
-        // for `rule` — language/composer.ts omits it otherwise. Defaulting the
+        // for `rule` — common/language/composer.ts omits it otherwise. Defaulting the
         // other way turned every automatic saga into a rule-triggered one on
         // the first re-read.
         a.sagaTrigger = trigger === "rule" ? "rule" : "automatic";

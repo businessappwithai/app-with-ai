@@ -33,7 +33,7 @@
     <li><a href="08-reference.html" aria-current="page"><span class="nav-num">08</span> Reference</a></li>
     <li><a href="run-in-browser.html"><span class="nav-num">09</span> Run it here</a></li>
   </ul>
-  <div class="sidebar-foot">Every screenshot is from the CRM built in this guide, running locally.<br><br>Model: <code>language/examples/crm.eml.mmd</code></div>
+  <div class="sidebar-foot">Every screenshot is from the CRM built in this guide, running locally.<br><br>Model: <code>common/language/examples/crm.eml.mmd</code></div>
 </aside>
 
 <main class="main">
@@ -43,7 +43,7 @@
 <h1>Reference</h1>
 <p class="lede">
   Everything the language offers, on one page. The authority is
-  <code>language/appwithai-language.json</code> — when this page and that file disagree, the file wins.
+  <code>common/language/appwithai-language.json</code> — when this page and that file disagree, the file wins.
 </p>
 
 <h2>Directives</h2>
@@ -204,8 +204,8 @@
 <table>
   <thead><tr><th>Command</th><th>Does</th></tr></thead>
   <tbody>
-    <tr><td><code>bun language/checker.ts &lt;file&gt;</code></td><td>Check a model. <code>--strict</code> fails on warnings, <code>--json</code> for CI.</td></tr>
-    <tr><td><code>bun language/cli/eml.ts info -i &lt;file&gt;</code></td><td>Summarise a model: entity, rule, workflow, hook and index counts.</td></tr>
+    <tr><td><code>bun common/language/checker.ts &lt;file&gt;</code></td><td>Check a model. <code>--strict</code> fails on warnings, <code>--json</code> for CI.</td></tr>
+    <tr><td><code>bun common/language/cli/eml.ts info -i &lt;file&gt;</code></td><td>Summarise a model: entity, rule, workflow, hook and index counts.</td></tr>
     <tr><td><code>bun packages/generator/src/cli/generate.ts generate …</code></td><td>Generate an application.</td></tr>
     <tr><td><code>bun run db:setup</code></td><td>In a generated app: migrate, then seed.</td></tr>
     <tr><td><code>bun run dev</code></td><td>In a generated app: API and web together.</td></tr>
@@ -219,10 +219,10 @@
 <table>
   <thead><tr><th>Path</th><th>What</th></tr></thead>
   <tbody>
-    <tr><td><code>language/appwithai-language.json</code></td><td>The canonical language definition — the authority for everything on this page</td></tr>
-    <tr><td><code>language/spec/</code></td><td>The prose spec: ERD, rules, workflows, types, directives</td></tr>
-    <tr><td><code>language/examples/crm.eml.mmd</code></td><td>The model this guide builds</td></tr>
-    <tr><td><code>language/checker.ts</code></td><td>The checker</td></tr>
+    <tr><td><code>common/language/appwithai-language.json</code></td><td>The canonical language definition — the authority for everything on this page</td></tr>
+    <tr><td><code>common/language/spec/</code></td><td>The prose spec: ERD, rules, workflows, types, directives</td></tr>
+    <tr><td><code>common/language/examples/crm.eml.mmd</code></td><td>The model this guide builds</td></tr>
+    <tr><td><code>common/language/checker.ts</code></td><td>The checker</td></tr>
     <tr><td><code>packages/generator/src/parsers/mermaid.parser.ts</code></td><td>The ERD parser</td></tr>
     <tr><td><code>packages/generator/templates/</code></td><td>Every template the generated app is made of</td></tr>
     <tr><td><code>generated-projects/crm/</code></td><td>The application, as generated</td></tr>

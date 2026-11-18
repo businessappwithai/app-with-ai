@@ -34,7 +34,7 @@
 
 import type { Entity } from "@appwithai/core/types";
 import { identifierColumnNames } from "@appwithai/core/types";
-import { LIFECYCLE_DRAFT, moveLabel, REOPEN_EVENT } from "../../../../language/state-field";
+import { LIFECYCLE_DRAFT, moveLabel, REOPEN_EVENT } from "../../../../common/language/state-field";
 import { referenceIdFor, tableNameFor } from "../generators/wasm/model-bundle";
 import type { ParsedModel } from "../pipeline/generate-application";
 import { deriveAccess } from "../rbac/roles";

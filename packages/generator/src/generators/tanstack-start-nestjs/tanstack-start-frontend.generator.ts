@@ -531,7 +531,7 @@ export class TanStackStartFrontendGenerator extends BaseGenerator {
     }
 
     // Field logic — Compiere's Display, Read Only and Mandatory Logic. A copy of
-    // language/field-logic.ts (templates/common/field-logic.ts, held identical
+    // common/language/field-logic.ts (templates/common/field-logic.ts, held identical
     // by a test), so the form reads a condition exactly as the API and the
     // checker do.
     const fieldLogic = await this.component("../../common/field-logic.ts");

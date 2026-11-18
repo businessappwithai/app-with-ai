@@ -220,7 +220,7 @@ export function stateToken(name: string): string {
 /**
  * What a person reads for a state: `closed_won` → "Closed won", `QUALIFICATION`
  * → "Qualification". The same words the record's button shows (`moveLabel` in
- * `language/state-field.ts`, which this package cannot import), so the picker
+ * `common/language/state-field.ts`, which this package cannot import), so the picker
  * names the status the way the button that enters it does.
  */
 export function statusLabel(name: string): string {

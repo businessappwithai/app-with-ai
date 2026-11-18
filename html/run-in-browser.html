@@ -41,7 +41,7 @@
   <div class="sidebar-foot">
     This page generates and runs an application without a server. Everything below
     happens in your browser.<br><br>
-    Model: <code>language/examples/crm.eml.mmd</code>
+    Model: <code>common/language/examples/crm.eml.mmd</code>
   </div>
 </aside>
 
@@ -110,7 +110,7 @@
             The seventeen-entity CRM from this guide: eight rules, five state machines, five sagas and
             fifteen access restrictions. Nothing to download.
           </span>
-          <span class="choice__meta">language/examples/crm.eml.mmd</span>
+          <span class="choice__meta">common/language/examples/crm.eml.mmd</span>
         </button>
         <button type="button" class="choice" id="choice-drug" aria-pressed="false">
           <span class="choice__name">Use the drug-discovery example</span>
@@ -238,7 +238,7 @@
 <p>
   The same output can be written to disk and served anywhere static:
 </p>
-<pre class="code"><code>bun run wasm generate -i language/examples/crm.eml.mmd -o ./crm --name "Acme CRM"
+<pre class="code"><code>bun run wasm generate -i common/language/examples/crm.eml.mmd -o ./crm --name "Acme CRM"
 bun run wasm serve ./crm</code></pre>
 <p>
   The generator copies the WebAssembly build of Postgres into the output, under

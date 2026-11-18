@@ -51,7 +51,7 @@ import {
   DOC_STATUS_COLUMN,
   STATE_FIELD_REFUSAL_CODE,
   stateFieldOf,
-} from "../../../../../language/state-field";
+} from "../../../../../common/language/state-field";
 import { renderLifecycleModule } from "./lifecycle-module";
 
 /**
@@ -2177,7 +2177,7 @@ export async function seed(db: Kysely<any>): Promise<void> {
   /**
    * `src/common/state-fields.ts`: table → its state field and initial state.
    *
-   * The state field is system-managed (language/state-field.ts): no person
+   * The state field is system-managed (common/language/state-field.ts): no person
    * writes it through /bus, a new record starts in the machine's initial state,
    * and only background workflows — saga steps, rules, hooks — move it. Written
    * as a module rather than read from sys_workflow_transitions because the
@@ -2264,7 +2264,7 @@ export async function seed(db: Kysely<any>): Promise<void> {
   /**
    * `src/common/lifecycle.ts`: every business table's lifecycle.
    *
-   * One statement of what language/state-field.ts defines, per table: the column
+   * One statement of what common/language/state-field.ts defines, per table: the column
    * the lifecycle is stored in, the value Draft is stored as, where a successful
    * save goes, the Final values, and the drawn edges a button may move along. Who
    * may press one is not here — that is `sys_access_grant`, which an

@@ -12,7 +12,7 @@
  * and lived only in that database.
  *
  * The step vocabulary is declared canonically in
- * `language/appwithai-language.json` under `workflowConstructs.stepNodes`; the
+ * `common/language/appwithai-language.json` under `workflowConstructs.stepNodes`; the
  * table below is its executable mirror, shared with the checker.
  */
 
@@ -245,7 +245,7 @@ export function sagaPropsFromAutomation(
  *
  * The `(?!\/\/)` is what keeps a URL whole: `url: https://host/path` would
  * otherwise split at `https:`, so a REST step compiled with no url at all and
- * the executor called `undefined`. Kept identical in language/checker.ts
+ * the executor called `undefined`. Kept identical in common/language/checker.ts
  * (parseStepProps) and packages/web/src/lib/automation/model.ts.
  */
 const PROP_SPLIT = /\s+(?=[A-Za-z_]\w*:(?!\/\/))/;

@@ -47,7 +47,7 @@ describe("reading a saga", () => {
   });
 
   it("treats an absent trigger as automatic, because only `rule` is ever written", () => {
-    // language/composer.ts omits the token unless it is `rule`, so defaulting
+    // common/language/composer.ts omits the token unless it is `rule`, so defaulting
     // the other way turned every automatic saga into a rule-triggered one.
     const a = parseAutomation(doc(HEADERS[4] as string, "    A --> B"), "Record");
     expect(a.sagaTrigger).toBe("automatic");

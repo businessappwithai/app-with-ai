@@ -1,5 +1,5 @@
-import { setLanguageDefinition as setCheckerDefinition } from "../../../../language";
-import languageDefinition from "../../../../language/appwithai-language.json";
+import { setLanguageDefinition as setCheckerDefinition } from "../../../../common/language";
+import languageDefinition from "../../../../common/language/appwithai-language.json";
 
 // The checker reads appwithai-language.json from beside its own source file, and a
 // bundled dist/ has no such file: `reviewModel` from the built package failed with

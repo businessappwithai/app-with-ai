@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { checkSource } from "../../../../../language/checker";
+import { checkSource } from "../../../../../common/language/checker";
 import { parseModel } from "../../pipeline/parse-model";
 
 /** Entities named in `names`, each carrying a key to the one before it unless told otherwise. */

@@ -16,7 +16,7 @@ bun --filter @appwithai/web test
 
 - **`bun check`:** success is `✓ No type errors in N files`; a failure ends `Found N errors in M files`, with the errors above it. There is no linter or formatter, so keep the existing style by hand.
 - **Vitest** is run from `packages/web` (`bun --filter @appwithai/web test`); a file path filter from the repo root finds nothing.
-- If you touched `packages/generator`, `language/**` or `templates/**`, run the five `--check` builds from the `generate-and-run-app` skill.
+- If you touched `packages/generator`, `common/language/**` or `templates/**`, run the five `--check` builds from the `generate-and-run-app` skill.
 - If you touched the rule or workflow editors, run `rule-editor-e2e` specs 07 and 09.
 
 ## Traps that have already cost a commit

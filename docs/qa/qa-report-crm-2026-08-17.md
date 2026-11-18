@@ -3,7 +3,7 @@
 **Date:** 2026-08-17
 **Branch:** `claude/enterprise-crm-mmd-diagram-rko0x9`
 **Targets:** generator app at `localhost:3000`, generated CRM at `localhost:4000` (API `:4001`)
-**Model under test:** `language/examples/crm.eml.mmd` — 17 entities, 8 rules, 5 state machines, 7 hook workflows, 5 sagas
+**Model under test:** `common/language/examples/crm.eml.mmd` — 17 entities, 8 rules, 5 state machines, 7 hook workflows, 5 sagas
 **Screenshots:** `pics/` (32 files)
 **Tier:** Standard (critical + high + medium fixed)
 

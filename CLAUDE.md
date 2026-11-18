@@ -107,7 +107,7 @@ Use `/browse` for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
 | `./scripts/start-llm.sh` | Local model server → :8000 |
 | `bun run build` | Build all packages |
 | `bun run type-check` | TypeScript (root tsconfig only) — `bun check`, Bun's own type checker, after `scripts/require-bun.ts` refuses anything but Bun 1.4.4 |
-| `bun run type-check:language` | Type-check `language/**` (separate config) |
+| `bun run type-check:language` | Type-check `common/language/**` (separate config) |
 | `bun run test` | Vitest unit tests (runs `packages/web/vitest.config.ts`) |
 | `bun run test:e2e:server` | Playwright E2E with server startup |
 | `bun run test:wasm` | WASM stack end-to-end |
@@ -155,8 +155,8 @@ have both passed, which is a long way to walk to find out.
 | `build:wasm-runtime` | `runtime-assets.generated.ts`, `overlay-assets.generated.ts` | `templates/wasm/**`, `templates/wasm-overlay/**` |
 | `build:wasm-browser` | `html/assets/appwithai-wasm.js`, `html/wasm-app/sw.js` | the standalone generator, or the service worker |
 | `build:fullstack-browser` | `html/assets/appwithai-fullstack.js` | **anything the real pipeline reaches** — `packages/generator/src/{rules,hooks,workflows,templates,parsers,rbac}/**` included |
-| `build:language-tools` | `html/checker.js`, `html/fixer.js` | `language/**` |
-| `build:viewers` | `website/viewers/eml-model.js` | `language/**`, and the parser, compilers, RBAC and `viewers/` under `packages/generator/src` |
+| `build:language-tools` | `html/checker.js`, `html/fixer.js` | `common/language/**` |
+| `build:viewers` | `website/viewers/eml-model.js` | `common/language/**`, and the parser, compilers, RBAC and `viewers/` under `packages/generator/src` |
 
 `build:fullstack-browser` is the one that catches people out: it inlines the
 whole NestJS + TanStack pipeline over a memory filesystem, so a change anywhere
@@ -223,7 +223,7 @@ One remains, and it is not ours to fix here:
   work and reproduces on `main`. It is why the E2E suite drives `bun run dev`
 
 ### What `type-check` does NOT cover
-- `language/**` → `bun run type-check:language`
+- `common/language/**` → `bun run type-check:language`
 - Templates (`packages/generator/templates/**`) → generate an app and build it
 
 ### What CI runs, and what each job is there to catch
@@ -235,7 +235,7 @@ nothing about whether a generated one compiles.
 
 | Job | What it does that nothing else does |
 |---|---|
-| **Type-check and unit tests** | `bun check` on the root and on `language/**`, the five `--check` artifact comparisons, `test:language-tools` and `test:llmtext` |
+| **Type-check and unit tests** | `bun check` on the root and on `common/language/**`, the five `--check` artifact comparisons, `test:language-tools` and `test:llmtext` |
 | **Generate a browser application and run its backend** | Generates the stack twice (with and without the overlay) and diffs; asserts the overlay's exact footprint; asserts **no `bun`/`bunx` survives** in any generated `package.json`; migrates and seeds on WebAssembly Postgres with no Postgres on the runner |
 | **Drive the browser stack in Chromium** | The only job that *opens* the result — Service Worker, Node-API shim, worker host |
 | **Generate an application and build it** | Builds the generated backend **and** frontend, type-checks the generated `tests/`, then runs that suite against real Postgres (pgvector) with `node run.ts --no-server` |
@@ -457,18 +457,18 @@ before it was taught:
 
 `%%field <E>.<c> display: | readonly: | mandatory: <logic>` in Compiere's own syntax
 (`@column@=value`, `!` not equal, `>`/`<`/`>=`/`<=`, `&`/`|` read left to right, no
-parentheses; `Y`/`N` for booleans, `''` for empty). `language/field-logic.ts` is the one
+parentheses; `Y`/`N` for booleans, `''` for empty). `common/language/field-logic.ts` is the one
 reading — parse, evaluate, `fieldLogicState`, and `logicViolations` (what the API refuses).
 
 | Reader | Copy |
 |---|---|
-| checker (EML156–EML159), parser, dictionary | `language/field-logic.ts` itself |
+| checker (EML156–EML159), parser, dictionary | `common/language/field-logic.ts` itself |
 | NestJS backend + frontend | `templates/common/field-logic.ts` — **byte-identical**, copied to `backend/src/common/` and `frontend/src/lib/` |
 | browser stack (server and form) | `templates/wasm/server/lib/field-logic.js` — the JS twin, held to the same cases |
 
 `generators/__tests__/field-logic.test.ts` fails if a copy drifts. Edit the TypeScript,
 `cp` it to `templates/common/`, and regenerate the twin with
-`bun build language/field-logic.ts --format esm --no-bundle` under its header comment.
+`bun build common/language/field-logic.ts --format esm --no-bundle` under its header comment.
 
 Display logic lands on `sys_field`; read-only and mandatory on `sys_column` **and**
 `sys_field` (the field's wins). The form re-evaluates on every change; `bus.service`
@@ -526,7 +526,7 @@ is a 400, and no header is an unconditional save. The record form answers the
 |---|---|
 | NestJS (and the wasm overlay, and the zip) | `bus.controller.ts.hbs` (`parseIfMatch`, `setEtag`), `bus.service.ts.hbs` (row lock + `WHERE version =`), `frontend/src/lib/version-conflict.ts`, `components/admin/version-conflict-dialog.tsx`, `ad-detail-shell.tsx` |
 | Browser (`--standalone`) | `templates/wasm/server/modules/bus.routes.js`, `ui/views/entity-form.js` (an inline panel — no modal in an iframe) |
-| `eml --stack node-rest` | `language/cli/runtime/src/{services,server}.js` |
+| `eml --stack node-rest` | `common/language/cli/runtime/src/{services,server}.js` |
 
 Two things to keep true: **the comparison and the write are one step** (two
 saves of one version must give one 200 and one 409 — the old compare-then-update
@@ -539,11 +539,11 @@ of the system-edition `llmtext` documents describe it; generated suite
 
 ### State machines — the record lifecycle and its action buttons
 
-Every record has one lifecycle, stated once in `language/state-field.ts` and written per table into `src/common/lifecycle.ts` (backend) and `src/lib/lifecycle.ts` (front end) by one call, `renderLifecycleModule` in `generators/tanstack-start-nestjs/lifecycle-module.ts`; the browser stack's `model.json` carries the same `lifecycleTable` and `server/lib/lifecycle.js` reads it. **A save puts a record in Draft** and runs its rules and workflows (`EntityPromotionService`): accepted, a record with a `kind: state` machine moves to the machine's first state, one with none to **Final**; refused, it goes to **Error** with the reason and stays editable — saving it again runs the pipeline again. A save part-way along a flow is one transaction with its update workflows (422 `WORKFLOW_FAILED` on a failure). Every end state (`x --> [*]`) is **Final and locked** (409 `RECORD_FINAL` on an edit or delete); **a record with no flow is never locked** — each save runs Draft → Final again. `doc_status` holds the phase (`draft`/`active`/`final`/`error`) on every table; the lifecycle column is the state field (`status`, else `state`, else `stage`), or `doc_status` with no machine.
+Every record has one lifecycle, stated once in `common/language/state-field.ts` and written per table into `src/common/lifecycle.ts` (backend) and `src/lib/lifecycle.ts` (front end) by one call, `renderLifecycleModule` in `generators/tanstack-start-nestjs/lifecycle-module.ts`; the browser stack's `model.json` carries the same `lifecycleTable` and `server/lib/lifecycle.js` reads it. **A save puts a record in Draft** and runs its rules and workflows (`EntityPromotionService`): accepted, a record with a `kind: state` machine moves to the machine's first state, one with none to **Final**; refused, it goes to **Error** with the reason and stays editable — saving it again runs the pipeline again. A save part-way along a flow is one transaction with its update workflows (422 `WORKFLOW_FAILED` on a failure). Every end state (`x --> [*]`) is **Final and locked** (409 `RECORD_FINAL` on an edit or delete); **a record with no flow is never locked** — each save runs Draft → Final again. `doc_status` holds the phase (`draft`/`active`/`final`/`error`) on every table; the lifecycle column is the state field (`status`, else `state`, else `stage`), or `doc_status` with no machine.
 
 **A record moves only by its action buttons.** `GET /bus/:e/:id/actions` lists the moves the caller may press from where the record is; `POST /bus/:e/:id/transition` (`{event}` or `{to}`, `If-Match` required — 428 without) is `TransitionService.move`: row lock and version, a drawn edge (409 `INVALID_TRANSITION`), the caller's grant (403 `TRANSITION_FORBIDDEN`), refusing rules on the record as the move leaves it (422), the state written and `<state>_at` stamped, the update workflows and those bound to `TRANSITION:<event>` / `ENTER:<state>` run, then the trigger rules again (a rule keyed on `stage == "closed_won"` starts its process here), every press logged in `sys_record_transitions`. A form still never writes the state field (403 `STATE_FIELD_SYSTEM_MANAGED`); a saga's `UpdateEntity` of it moves only rows in a state with a drawn edge to the new one. `?awaiting=me` lists the records waiting for the caller.
 
-**Who may press is `%%rbac`.** `%%rbac role:<roles> on <Entity>.<event>` (also `from->to`, and `reopen`) compiles to `kind: move`/`reopen` rows of **`sys_access_grant`**, the one grant table — `sys_operation_access` and `sys_transition_access` are read-only views over it (migration `022_record_lifecycle`). A move a grant names is those roles' (a role given a move need not be allowed to edit the record); one no grant names needs update permission; Reopen with no grant is the administrator's. A user's access is the **union** of their roles' grants, read in **one query** through the view `sys_user_capability` and cached per user by `CapabilityService` (`modules/auth/capability.service.ts.hbs`), dropped on `pg_notify('access_changed')`. Every cache's expiry is `CACHE_TTL_<NAME>_MS` in `.env` (`common/ttl-cache.ts`, default 6000, `0` turns it off). The checker: `EML509` (`final`/`error` as a state), `EML511` (info — moves no line names), `EML512` (auto-fixed — a rule and saga pair that only moves a record its buttons move, retired; `language/move-facts.ts`).
+**Who may press is `%%rbac`.** `%%rbac role:<roles> on <Entity>.<event>` (also `from->to`, and `reopen`) compiles to `kind: move`/`reopen` rows of **`sys_access_grant`**, the one grant table — `sys_operation_access` and `sys_transition_access` are read-only views over it (migration `022_record_lifecycle`). A move a grant names is those roles' (a role given a move need not be allowed to edit the record); one no grant names needs update permission; Reopen with no grant is the administrator's. A user's access is the **union** of their roles' grants, read in **one query** through the view `sys_user_capability` and cached per user by `CapabilityService` (`modules/auth/capability.service.ts.hbs`), dropped on `pg_notify('access_changed')`. Every cache's expiry is `CACHE_TTL_<NAME>_MS` in `.env` (`common/ttl-cache.ts`, default 6000, `0` turns it off). The checker: `EML509` (`final`/`error` as a state), `EML511` (info — moves no line names), `EML512` (auto-fixed — a rule and saga pair that only moves a record its buttons move, retired; `common/language/move-facts.ts`).
 
 Held by `templates/__tests__/record-lifecycle-templates.test.ts` (every piece reaches a generated app), suites `06b`, `15` and `20`, `tests/e2e/wasm`, and `compile-rbac.spec.ts`.
 
@@ -576,7 +576,7 @@ move plus every workflow bound to `ENTER:<state>` and `TRANSITION:<event>`. If o
 A save that a workflow fails leaves the record a draft, not in Error. A plain form save never selects
 a bound workflow.
 
-**Buttons are named after the status they enter.** `moveLabel` (`language/state-field.ts`) and its
+**Buttons are named after the status they enter.** `moveLabel` (`common/language/state-field.ts`) and its
 generated copy `lifecycleMoveLabel` both turn `closed_won` into "Closed won" and `QUALIFICATION`
 into "Qualification". The editors' `statusLabel` gives the same words, so the picker and the button
 agree. The arrow's label stays the event, the name `%%rbac` and the log use.
@@ -1040,7 +1040,7 @@ the other:
 | `%%guard` | *nothing* — the RBAC sense it used to carry is `%%rbac` now | `%%guard <field> <op> <json>` → an automation condition |
 | `%%loop` | saga compiler | repeat-while, bounded by the author's `max:`, no nesting |
 
-Whatever the builder can write, `language/checker.ts` must accept — a checker
+Whatever the builder can write, `common/language/checker.ts` must accept — a checker
 that rejects the application's own output discredits both. That pairing is held
 by `packages/web/src/lib/automation/__tests__/checker-accepts-automations.test.ts`.
 
@@ -1475,7 +1475,7 @@ values, List bindings, the help contract, and the form layout. Change what the
 generator derives and change §3.7 with it.
 
 **§7.1 is the reporting application.** `generatorContract.reportingApplication` in
-`language/appwithai-language.json` and §7.1 state what `buildReportingPack`
+`common/language/appwithai-language.json` and §7.1 state what `buildReportingPack`
 derives, the three surfaces that serve it, and the two sign-ins. Edit
 `reporting/pack.ts` and check both. The JSON is inlined in five bundles, so a
 change to it is a rebuild of all of them.
@@ -1488,7 +1488,7 @@ Every entity's form is headed sections of two-column rows, declared in the model
 %%section entity: Order; name: Delivery; help: Where the goods go.; rows: shipping_address | carrier, tracking_number
 ```
 
-`language/sections.ts` is the **one reading** of the directive — the checker
+`common/language/sections.ts` is the **one reading** of the directive — the checker
 (`checkSectionDirectives`, EML170–EML177), the fixer (EML172/174/175, each a
 rewrite of one line's `rows:`) and the generator (`parsers/section.parser.ts`,
 `attachFormSections`, `formLayoutFor`) all call it, and the browser bundles carry
@@ -1508,7 +1508,7 @@ collapsed `Other` section, never off the form. Held by
 
 ## What a diagnostic hands back — the line, its text, and the steps
 
-`language/browser/checker.entry.ts` and `fixer.entry.ts` are what a language
+`common/language/browser/checker.entry.ts` and `fixer.entry.ts` are what a language
 model actually reads a check through. Every diagnostic that can be placed now
 carries `lineText` beside `line` — the source line verbatim — and `formatReport`
 renders it:
@@ -1653,18 +1653,18 @@ asserts the rule's three counter-examples are still present, since a checker tha
 
 ## EML Language
 
-EML is a Mermaid-based language for ERD + business rules + workflows in one `.eml.mmd` file. `language/appwithai-language.json` is the **single source of truth** — for this repository. Two other copies exist, and they have drifted:
+EML is a Mermaid-based language for ERD + business rules + workflows in one `.eml.mmd` file. `common/language/appwithai-language.json` is the **single source of truth** — for this repository. Two other copies exist, and they have drifted:
 
 | Repository | File | Differs from the orchestrator's copy |
 |---|---|---|
 | `app-and-report-with-ai-tanstack` | `common/language/appwithai-language.json` | — it is the one the others are compared against |
-| **this one** | `language/appwithai-language.json` | 90 lines, normalized |
+| **this one** | `common/language/appwithai-language.json` | 90 lines, normalized |
 | `enterprise_reporting_tanstack` | `language/erdwithai-language.json` (older name) | 200 lines, normalized |
 
 **All three declare `"version": "1.2.0"`, so the version string cannot tell you
 which copy you are holding**, and nothing in any repository checks one against
 another — the byte-identical check CI does run is over the duplicated example
-models (`language/examples/` against `html/models/`), which is a different pair
+models (`common/language/examples/` against `html/models/`), which is a different pair
 entirely.
 
 This copy governs this repository: it is what the generator, the checker and CI
@@ -1674,8 +1674,8 @@ about the language itself, so a change meant to be shared has to be made there
 as well — it will not propagate.
 
 ```bash
-bun language/checker.ts language/examples/crm.eml.mmd   # validates, writes .error file
-bun language/fixer.ts   language/examples/crm.eml.mmd.error
+bun common/language/checker.ts common/language/examples/crm.eml.mmd   # validates, writes .error file
+bun common/language/fixer.ts   common/language/examples/crm.eml.mmd.error
 ```
 
 The checker always writes the `.error` file — revert it unless the verdict changed.
@@ -1742,7 +1742,7 @@ language definition; change all of them or none.
 
 | Reader | Where |
 |---|---|
-| Language side — parser, model, shape (`EML297`), minimums (`EML298` reports, `EML299` dashboards) | `language/cli/src/{parser,model}.ts`, `language/checker.ts` (`REPORTS_PER_ROLE`, `DASHBOARDS_PER_ROLE`, `DASHBOARD_MIN_REPORTS`) |
+| Language side — parser, model, shape (`EML297`), minimums (`EML298` reports, `EML299` dashboards) | `common/language/cli/src/{parser,model}.ts`, `common/language/checker.ts` (`REPORTS_PER_ROLE`, `DASHBOARDS_PER_ROLE`, `DASHBOARD_MIN_REPORTS`) |
 | Generator side — `compileDashboards`, then one `DashboardSpec` per directive | `packages/generator/src/reports/index.ts`, `pipeline/parse-model.ts`, `reporting/pack.ts` (`deriveAuthoredDashboards`) |
 
 - **"A role can run a report" is a table question.** `canRun` in the checker reads the
@@ -1798,7 +1798,7 @@ did, which is how it surfaced. Held by
 
 **When changing language semantics:** edit `appwithai-language.json` first, then spec docs, grammar, parser, composer, rag. If adding a diagnostic, add its code to `AUTO_FIXABLE_CODES` in `checker.ts`, the fixer's dispatch table, and `diagnostics.autoFixable` in the JSON — all three.
 
-**Example models are checked in twice** — `language/examples/*.eml.mmd` and `html/models/*.eml.mmd` must be byte-identical (CI asserts this).
+**Example models are checked in twice** — `common/language/examples/*.eml.mmd` and `html/models/*.eml.mmd` must be byte-identical (CI asserts this).
 
 ---
 
@@ -1806,7 +1806,7 @@ did, which is how it surfaced. Held by
 
 ### Unit tests
 Effective config: `packages/web/vitest.config.ts`. Its `include` reaches into
-`../core`, `../generator` and `../ai` — and **nowhere else**. `language/**` has
+`../core`, `../generator` and `../ai` — and **nowhere else**. `common/language/**` has
 no unit tests and is not covered by `bun run test`; what holds it is
 `bun run type-check:language`, `bun run test:language-tools` (the published
 `checker.js`/`fixer.js` still agree with the CLI) and `bun run test:llmtext`.
@@ -1838,7 +1838,7 @@ suite signs in as.
 | `02-project-authorization` | Enumerates the project-scoped routes and drives each as nobody, a signed-in stranger, and the owner. **Found three endpoints serving unauthenticated callers on its first run**, and two more when `/workflows` was added to the list |
 | `02b-unauthenticated-surface` | Every route file, its verbs read off the source, driven with no session. Keeps no list — which is the only version of this check that stays true |
 | `03-projects` | The container: create, list, read, rename, delete; the fields a client may not set; search that does not reach another owner's projects |
-| `04-model-and-versions` | Validate a document, save it, keep every save as a version, restore one, download it back. Also asserts the fixtures themselves pass `language/checker` |
+| `04-model-and-versions` | Validate a document, save it, keep every save as a version, restore one, download it back. Also asserts the fixtures themselves pass `common/language/checker` |
 | `05-automations` | The builder's own serialiser over HTTP: stored byte for byte, parsed back to the same automation, accepted by the checker |
 | `06-rules-and-workflow-runs` | The decision-table store and the run log — including that neither answers a caller with no session |
 | `07-sharing` | Read-only, read-write, upgraded and revoked shares. Every case is a pair: what the permission allows, and what it does not |
@@ -1962,10 +1962,10 @@ than committed: `bun run vendor:pglite` and `bun run build:stack-templates`.
 | `packages/web/src/lib/project-access.ts` | ⭐ Project authorization |
 | `packages/web/src/lib/require-user.ts` | ⭐ The same shape, for routes that are not about one project |
 | `packages/web/vite.config.ts` | Vite config, root-.env loading, start-api-routes shim |
-| `language/appwithai-language.json` | ⭐ EML canonical definition |
-| `language/composer.ts` | ⭐ The only writer of complete EML documents |
+| `common/language/appwithai-language.json` | ⭐ EML canonical definition |
+| `common/language/composer.ts` | ⭐ The only writer of complete EML documents |
 | `website/llmtext/llms.txt` | ⭐ The one protocol document for language models: write a model, or change one |
-| `language/sections.ts` | ⭐ The one reading of `%%section` — checker, fixer and generator |
+| `common/language/sections.ts` | ⭐ The one reading of `%%section` — checker, fixer and generator |
 | `packages/generator/src/viewers/view-model.ts` | ⭐ One reading of a model for the viewers — composed, never re-derived |
 | `website/viewers/` | ⭐ The published model viewers. `eml-model.js` is built; the rest is hand-written |
 | `scripts/ci/llmtext-claims.ts` | ⭐ Holds both specs, and their claims about the viewers, to the real code — run by CI |
@@ -1993,7 +1993,7 @@ Add once in `GenerationSettings` in `generate-application.ts`. Do NOT add at cal
 ### Change the browser runtime (`--standalone`)
 1. Edit `packages/generator/templates/wasm/`
 2. `bun run build:wasm-runtime` **from repo root**
-3. Generate and test: `bun run wasm generate -i language/examples/crm.eml.mmd -o /tmp/x --standalone --force`
+3. Generate and test: `bun run wasm generate -i common/language/examples/crm.eml.mmd -o /tmp/x --standalone --force`
 4. `bun run test:wasm` before pushing
 
 ### Add or change a `%%action` type
@@ -2004,7 +2004,7 @@ Add once in `GenerationSettings` in `generate-application.ts`. Do NOT add at cal
 3. Assert the compiled row against the runtime's union in
    `src/rules/__tests__/action-vocabulary.test.ts` — never against the
    compiler's own output
-4. `language/appwithai-language.json` if the EML spelling changes
+4. `common/language/appwithai-language.json` if the EML spelling changes
 
 ### Add a directive parser
 1. Anchor the pattern at `^%%+<keyword>\b` — never a bare `.includes()`, or
@@ -2026,7 +2026,7 @@ Add once in `GenerationSettings` in `generate-application.ts`. Do NOT add at cal
 3. Verify with `bun run db:setup` (not `bun run migrate`)
 
 ### Extend the EML language
-1. Edit `language/appwithai-language.json` first
+1. Edit `common/language/appwithai-language.json` first
 2. Update grammar, spec docs, parsers, composer, rag
 3. Add diagnostic to all three places if auto-fixable
 4. Run `bun run type-check:language`

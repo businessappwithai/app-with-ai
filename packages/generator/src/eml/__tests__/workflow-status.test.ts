@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { emitWorkflowSection, extractWorkflowSections } from "../../../../../language/composer";
-import { checkSource } from "../../../../../language/checker";
+import { emitWorkflowSection, extractWorkflowSections } from "../../../../../common/language/composer";
+import { checkSource } from "../../../../../common/language/checker";
 
 const MACHINE = [
   "stateDiagram-v2",

@@ -724,7 +724,7 @@ export function refTableFor(
      asking for a uuid. */
   if (isPersonRoleColumn(columnName)) {
     /* The person entity is the first of User, Staff, Employee the model declares —
-       the same order the checker uses (language/checker.ts, personEntityName). A
+       the same order the checker uses (common/language/checker.ts, personEntityName). A
        model with only Staff (a car wash, a clinic) must still get its lookup. */
     for (const name of ["User", "Staff", "Employee"]) {
       const person = entities.find(

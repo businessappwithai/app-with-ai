@@ -2,7 +2,7 @@
  * `%%report` directives → the reports a generated application ships with.
  *
  * `%%report` was the one directive this repository parsed and then dropped. The
- * checker read it (`language/cli/src/parser.ts`), held it to its shape and put
+ * checker read it (`common/language/cli/src/parser.ts`), held it to its shape and put
  * it in `model.reports`; the *generator's* parser had no case for it at all, so
  * a model carrying a hundred and thirty-six reports generated an application
  * with none — byte for byte the same application it would have generated with

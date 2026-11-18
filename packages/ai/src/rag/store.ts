@@ -22,7 +22,7 @@ export const SPEC_PROJECT_ID = "__eml_spec__";
 
 export const MODEL_CONTEXT_INDEX = "model_context";
 
-/** The shape `language/rag.ts` produces. Repeated structurally to avoid the import. */
+/** The shape `common/language/rag.ts` produces. Repeated structurally to avoid the import. */
 export interface StoredChunk {
   id: string;
   kind: string;

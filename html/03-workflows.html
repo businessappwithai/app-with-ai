@@ -33,7 +33,7 @@
     <li><a href="08-reference.html"><span class="nav-num">08</span> Reference</a></li>
     <li><a href="run-in-browser.html"><span class="nav-num">09</span> Run it here</a></li>
   </ul>
-  <div class="sidebar-foot">Every screenshot is from the CRM built in this guide, running locally.<br><br>Model: <code>language/examples/crm.eml.mmd</code></div>
+  <div class="sidebar-foot">Every screenshot is from the CRM built in this guide, running locally.<br><br>Model: <code>common/language/examples/crm.eml.mmd</code></div>
 </aside>
 
 <main class="main">
@@ -68,7 +68,7 @@
 </p>
 
 <div class="code">
-  <div class="code-head"><span class="tag">eml</span><span>language/examples/crm.eml.mmd · Section 10</span></div>
+  <div class="code-head"><span class="tag">eml</span><span>common/language/examples/crm.eml.mmd · Section 10</span></div>
 <pre><code><span class="c-dir">%%meta</span> name: Lead Lifecycle
 <span class="c-dir">%%meta</span> kind: workflow
 <span class="c-dir">%%workflow</span> LeadLifecycle entity: Lead kind: state
@@ -116,7 +116,7 @@
 </p>
 
 <div class="code">
-  <div class="code-head"><span class="tag">eml</span><span>language/examples/crm.eml.mmd · the lead's moves</span></div>
+  <div class="code-head"><span class="tag">eml</span><span>common/language/examples/crm.eml.mmd · the lead's moves</span></div>
 <pre><code><span class="c-dir">%%rule</span> leadStateProgress on Lead event: beforeUpdate priority: 90
 <span class="c-kw">flowchart TD</span>
     A([Lead updated]) --&gt; B{Is the time of a move recorded?}
@@ -152,7 +152,7 @@
 </p>
 
 <div class="code">
-  <div class="code-head"><span class="tag">eml</span><span>language/examples/crm.eml.mmd · Section 16</span></div>
+  <div class="code-head"><span class="tag">eml</span><span>common/language/examples/crm.eml.mmd · Section 16</span></div>
 <pre><code><span class="c-dir">%%meta</span> name: Contact Hygiene
 <span class="c-dir">%%meta</span> kind: workflow
 <span class="c-dir">%%workflow</span> ContactHygiene entity: Contact kind: hook
@@ -220,7 +220,7 @@
 </p>
 
 <div class="code">
-  <div class="code-head"><span class="tag">eml</span><span>language/examples/crm.eml.mmd · Section 22 — lead conversion</span></div>
+  <div class="code-head"><span class="tag">eml</span><span>common/language/examples/crm.eml.mmd · Section 22 — lead conversion</span></div>
 <pre><code><span class="c-dir">%%workflow</span> LeadConversion entity: Lead kind: saga trigger: rule
 <span class="c-kw">flowchart TD</span>
     A([Lead qualified]) --&gt; B{Size the account}

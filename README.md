@@ -45,12 +45,12 @@ bun install
 # The real stack, with a docker-compose.yml that brings up Postgres,
 # the API and the web front end.
 bun packages/generator/src/cli/generate.ts generate \
-  --input language/examples/crm.eml.mmd \
+  --input common/language/examples/crm.eml.mmd \
   --output ./crm --name "Acme CRM" --force --no-setup
 cd crm && cp .env.example .env && docker compose up --build
 
 # Or the browser build — no install, no database server.
-bun run wasm generate -i language/examples/crm.eml.mmd \
+bun run wasm generate -i common/language/examples/crm.eml.mmd \
   -o ./crm-browser --standalone --force --vendor-pglite
 bun run wasm serve ./crm-browser        # http://localhost:4000
 ```
@@ -102,14 +102,14 @@ erDiagram
 Every EML document is valid, renderable Mermaid — the generator's semantics ride
 on `%%` comments that renderers ignore, so a model opens in any Mermaid viewer.
 
-`language/appwithai-language.json` is the canonical definition. The full
+`common/language/appwithai-language.json` is the canonical definition. The full
 specification, written for language models, is `website/llmtext/llms.txt`.
 
 ### Validating a model
 
 ```bash
-bun language/checker.ts language/examples/crm.eml.mmd   # 0 errors · 0 warnings
-bun language/fixer.ts   language/examples/crm.eml.mmd.error
+bun common/language/checker.ts common/language/examples/crm.eml.mmd   # 0 errors · 0 warnings
+bun common/language/fixer.ts   common/language/examples/crm.eml.mmd.error
 ```
 
 The checker writes its verdict to a `.error` file beside the model whether or not
@@ -151,7 +151,7 @@ database/              migrations for the modelling tool's own database
 
 ```bash
 bun run type-check           # the root tsconfig, with bun check
-bun run type-check:language  # language/** has its own config
+bun run type-check:language  # common/language/** has its own config
 bun run test                 # Vitest
 bun run test:playwright      # the modelling tool, in Chromium
 bun run test:wasm            # the browser stack, end to end, in Chromium

@@ -2,7 +2,7 @@
  * Field logic — Compiere's Display Logic, Read Only Logic and Mandatory Logic,
  * for the browser application.
  *
- * The JavaScript twin of language/field-logic.ts, which is the one reading of
+ * The JavaScript twin of common/language/field-logic.ts, which is the one reading of
  * the syntax (`@column@=value`, `!` for not equal, `>`, `<`, `>=`, `<=`, joined
  * by `&` and `|` and read left to right). This runtime is plain JavaScript with
  * no build step, so it carries its own copy; `browser-runtime-field-logic.test.ts`

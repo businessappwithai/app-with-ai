@@ -7,8 +7,8 @@ checker → clean. One line per step, with the counts before and after.
 > nineteen-entity session and keep their original figures (19 entities, 11 machines, 68 `%%rbac`,
 > 40 reports). The log for the current 25-entity model is the last section.
 
-Engine: `bun language/checker.ts` from the checkout, which is
-`language/checker.ts` itself — the same engine `appwithai.org/guide/checker.js`
+Engine: `bun common/language/checker.ts` from the checkout, which is
+`common/language/checker.ts` itself — the same engine `appwithai.org/guide/checker.js`
 is built from. The published runner and the site's scorer were then run over the
 delivered bytes as an independent confirmation.
 

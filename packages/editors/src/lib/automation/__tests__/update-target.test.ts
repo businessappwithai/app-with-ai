@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { checkSource } from "../../../../../../language/checker";
+import { checkSource } from "../../../../../../common/language/checker";
 import {
   type Automation,
   emptyAutomation,

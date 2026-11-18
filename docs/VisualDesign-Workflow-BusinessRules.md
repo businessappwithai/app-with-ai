@@ -24,7 +24,7 @@ are separate transactions, and a failure in the second never loses the first.
 Every generated table carries a `doc_status` column (the phase: `draft`, `active`,
 `final`, `error`) and, when the model declares a state machine, a **state field**
 (`status`, `state`, or `stage` — first match wins, from `STATE_FIELD_CANDIDATES`
-in `language/state-field.ts`).
+in `common/language/state-field.ts`).
 
 ### Save Modes
 
@@ -387,7 +387,7 @@ TransitionService.move()
 
 | File | Purpose |
 |------|---------|
-| `language/state-field.ts` | Lifecycle names, `moveLabel`, `STATE_FIELD_CANDIDATES`, terminal detection |
+| `common/language/state-field.ts` | Lifecycle names, `moveLabel`, `STATE_FIELD_CANDIDATES`, terminal detection |
 | `packages/generator/src/generators/tanstack-start-nestjs/lifecycle-module.ts` | Generates `lifecycle.ts` for both stacks, `saveMode`, `afterDraft`, `lifecycleTable` |
 | `packages/generator/src/workflows/steps.ts` | Step types, contracts, `buildSagaBpmn`, `sagaOperation` (ENTER: compilation) |
 | `packages/generator/src/rules/index.ts` | `%%action` → decision-table rows, vocabulary translation |
@@ -529,7 +529,7 @@ workflows, and its rules all work together.
 #### Step 1: Verify the Model
 
 ```bash
-bun language/checker.ts path/to/model.eml.mmd
+bun common/language/checker.ts path/to/model.eml.mmd
 # Must pass with 0 errors
 # Check: EML243 (status must be drawn), EML244 (only update may start),
 # EML245 (some arrow must lead into state)

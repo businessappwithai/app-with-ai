@@ -15,8 +15,8 @@
  * loop that makes the repair trustworthy.
  *
  * Nothing here re-implements a rule. Both entry points inject the inlined
- * language definition and re-export the pure functions from `language/checker.ts`
- * and `language/fixer.ts` — the same engines the CLIs run.
+ * language definition and re-export the pure functions from `common/language/checker.ts`
+ * and `common/language/fixer.ts` — the same engines the CLIs run.
  *
  *   bun run build:language-tools
  *   bun run build:language-tools --check    # fail if the checked-in copies are stale
@@ -35,22 +35,22 @@ process.chdir(ROOT);
 
 const TOOLS = [
   {
-    entry: "language/browser/checker.entry.ts",
+    entry: "common/language/browser/checker.entry.ts",
     target: "html/checker.js",
     global: "EMLChecker",
     what: "the EML checker",
     blurb:
-      "// Every diagnostic `bun language/checker.ts` prints, as a function:\n" +
+      "// Every diagnostic `bun common/language/checker.ts` prints, as a function:\n" +
       "//   import { check, formatReport } from './checker.js';\n" +
       "//   const report = check(source);   // { ok, counts, issues, languageVersion }\n",
   },
   {
-    entry: "language/browser/fixer.entry.ts",
+    entry: "common/language/browser/fixer.entry.ts",
     target: "html/fixer.js",
     global: "EMLFixer",
     what: "the EML fixer",
     blurb:
-      "// The five repairs `bun language/fixer.ts` applies, plus the check-fix-recheck\n" +
+      "// The five repairs `bun common/language/fixer.ts` applies, plus the check-fix-recheck\n" +
       "// loop that makes them trustworthy:\n" +
       "//   import { checkAndFix } from './fixer.js';\n" +
       "//   const { source, ok, remaining } = checkAndFix(model);\n",
@@ -61,7 +61,7 @@ const TOOLS = [
  * Stubs for the Node builtins the CLI halves still name.
  *
  * `checker.ts` and `fixer.ts` read files and write `.error` reports when they
- * are commands; `language/index.ts` resolves the definition off disk. The entry
+ * are commands; `common/language/index.ts` resolves the definition off disk. The entry
  * points inject the definition and call only the pure functions, so none of
  * these ever run — but the imports must still resolve for the bundle to build.
  *

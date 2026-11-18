@@ -74,7 +74,7 @@ jobs:
           head -n 40 model.mmd
 
       - name: Validate the model
-        run: bun language/cli/eml.ts validate -i model.mmd
+        run: bun common/language/cli/eml.ts validate -i model.mmd
 
       - name: Generate and publish the application
         env:
@@ -84,7 +84,7 @@ jobs:
             echo "::error::EML_PUBLISH_TOKEN secret is not set (needs repo + workflow scopes)."
             exit 1
           fi
-          bun language/cli/eml.ts generate \
+          bun common/language/cli/eml.ts generate \
             -i model.mmd \
             -o generated-app \
             --name "${{ inputs.app_name }}" \

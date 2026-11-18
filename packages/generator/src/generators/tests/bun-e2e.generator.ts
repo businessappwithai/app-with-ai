@@ -29,7 +29,7 @@ import type { CompiledRbac } from "../../rbac";
 import { deriveAccess } from "../../rbac/roles";
 import type { CompiledReport } from "../../reports";
 import type { ReportingPack } from "../../reporting/pack";
-import { stateFieldOf } from "../../../../../language/state-field";
+import { stateFieldOf } from "../../../../../common/language/state-field";
 import type { CompiledRule } from "../../rules";
 import type { CompiledWorkflow } from "../../workflows";
 import { BaseGenerator } from "../base.generator";

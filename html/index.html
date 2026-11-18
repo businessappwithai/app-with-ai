@@ -39,7 +39,7 @@
 
   <div class="sidebar-foot">
     Every screenshot is from the CRM built in this guide, running locally.<br><br>
-    Model: <code>language/examples/crm.eml.mmd</code>
+    Model: <code>common/language/examples/crm.eml.mmd</code>
   </div>
 </aside>
 
@@ -284,11 +284,11 @@
 <div class="code">
   <div class="code-head"><span class="tag">shell</span><span>from the repository root</span></div>
 <pre><code><span class="c-com"># 1. check the model — the generator runs this for you, but it is fast and it is honest</span>
-bun language/checker.ts language/examples/crm.eml.mmd
+bun common/language/checker.ts common/language/examples/crm.eml.mmd
 
 <span class="c-com"># 2. generate the application</span>
 bun packages/generator/src/cli/generate.ts generate \
-  --input language/examples/crm.eml.mmd \
+  --input common/language/examples/crm.eml.mmd \
   --output generated-projects/crm \
   --name crm --records-per-entity 25 --force --no-setup
 

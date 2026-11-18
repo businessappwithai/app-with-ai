@@ -7,8 +7,8 @@
  * not a model at all, rather than discovering it on the design page with an
  * empty canvas and no explanation.
  *
- * It also runs the checker — `language/checker.ts`, the engine behind
- * `bun language/checker.ts` and the published `checker.js` — without repairing
+ * It also runs the checker — `common/language/checker.ts`, the engine behind
+ * `bun common/language/checker.ts` and the published `checker.js` — without repairing
  * anything, so the Design page's Validate reports the same errors, warnings and
  * notes generation will. `ok` stays about whether the document is a model at all:
  * generation repairs the auto-fixable errors itself, so they do not block an import.
