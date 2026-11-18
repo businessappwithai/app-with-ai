@@ -91,7 +91,7 @@ var appwithai_language_default = {
     version: "1.2.0",
     basedOn: "mermaid",
     mermaidCompatibility: "All EML documents are valid, renderable Mermaid. EML is a semantic superset that assigns generator meaning to standard Mermaid constructs (erDiagram, flowchart, stateDiagram-v2) and to `%%`-prefixed directive comments.",
-    description: "A single, standalone, Mermaid-based language for describing an application's Entity Relationship Diagram (ERD), its business rules, and its business workflows in one place. EML is the source language read by the APPWITHAI generator to produce full-stack applications (TanStack Start + NestJS, or OpenUI5 + OData V4).",
+    description: "A single, standalone, Mermaid-based language for describing an application's Entity Relationship Diagram (ERD), its business rules, and its business workflows in one place. EML is the source language read by the APPWITHAI generator to produce full-stack applications (TanStack Start + NestJS, or OpenUI5 + OData V4), and by the enterprise-reporting target to produce entities for the enterprise_reporting_tanstack analytics platform. See generatorContract.targets: the targets differ in what they write, never in what they understand.",
     fileExtensions: [".eml.mmd", ".erd.mmd", ".flow.mmd", ".rules.mmd", ".mmd"],
     encoding: "utf-8",
     caseSensitivity: {
@@ -1576,6 +1576,55 @@ var appwithai_language_default = {
   },
   generatorContract: {
     description: "How each section feeds the generator pipeline.",
+    targets: {
+      description: "The `eml` CLI's --stack values. They differ in what they write, never in what they understand: all three consume the same parsed model, so a directive that changes meaning changes it for all of them. A target that does not compile a construct still validates it, because the model is one document and the other target does compile it.",
+      list: [
+        {
+          id: "node-rest",
+          default: true,
+          emits: "A dependency-free node:http application over a JSON-file datastore. Runnable with no install.",
+          generator: "common/language/cli/src/generate/app.ts",
+          standalone: true,
+          compiles: ["core", "rules (as GoRules JDM under rules/)"],
+          doesNotCompile: ["workflows", "access", "help"]
+        },
+        {
+          id: "tanstack-nestjs",
+          emits: "The whole application: a NestJS + Fastify + Kysely backend and a TanStack Start front end, with migrations, seeds, the Application Dictionary and manual.html. Around 356 files.",
+          generator: "common/language/cli/src/generate/tanstack.ts, which drives packages/generator/src/generators/orchestrator.ts",
+          standalone: true,
+          compiles: ["core", "rules", "workflows", "access", "help"],
+          doesNotCompile: []
+        },
+        {
+          id: "enterprise-reporting",
+          emits: "TanStack Start server functions, list and detail routes, a Kysely PostgreSQL migration and a Database-interface snippet, shaped to drop into an enterprise_reporting_tanstack checkout.",
+          generator: "common/language/cli/src/generate/enterprise-reporting.ts",
+          standalone: false,
+          standaloneNote: "It generates less on purpose. That repository already holds auth, two-layer RBAC, the encrypted data-source connection manager, the NL-query pipeline, the Trigger.dev job runner and the UI shell; a generated copy of any of them would be a fork of a moving part. The target emits only what a new entity needs, and its README names the integration steps.",
+          compiles: [
+            "core",
+            "rules (as GoRules JDM under rules/, not wired up)",
+            "help (as field labels)"
+          ],
+          doesNotCompile: ["workflows", "access"],
+          accessNote: "Every generated handler calls requireAuth(), which establishes who is calling. It does not call requirePermission(), because %%rbac is not compiled here - deciding what a role may do is an explicit integration step, and a generated guess at it would be an access-control decision nobody made.",
+          conventions: {
+            inputValidator: "createServerFn(...).inputValidator(), never .validator(). The TanStack Start v1 Vite plugin preserves unknown method names verbatim in the client bundle, so .validator() type-checks, builds, and crashes at runtime.",
+            dataWrapper: "A client call passes { data: input } whenever the server function declares an input validator.",
+            pagination: "Every list applies LIMIT/OFFSET at the database. Server-side pagination is mandatory in that codebase.",
+            dialect: "PostgreSQL DDL with double-quoted identifiers: TIMESTAMPTZ, BOOLEAN, JSONB, NUMERIC(10,2), gen_random_uuid(). The config database is Postgres only, whatever the older files under that repository's docs/ still say about MariaDB or SQLite. Postgres has no ON UPDATE CURRENT_TIMESTAMP, so updated_at is set by the update handler rather than by the column.",
+            foreignKeys: "An attribute marked FK is emitted as UUID, matching the primary keys this target generates. Left as VARCHAR it accepts the value and then refuses the foreign-key constraint.",
+            routePaths: "_authed is a pathless layout route: createFileRoute is keyed by the file path (/_authed/orders/$id) while a Link addresses the URL (/orders/$id). Putting _authed in the link is the mistake to not make."
+          },
+          imports: {
+            db: "getDb from @/lib/db/config",
+            auth: "requireAuth from @/lib/auth/middleware",
+            permissions: "requirePermission from @/lib/permissions/permissions (yours to add)"
+          }
+        }
+      ]
+    },
     reportingApplication: {
       description: "One model generates two applications. The second is the Enterprise Reporting platform (businessappwithai/enterprise_reporting_tanstack): its own server, database, users and sign-in, loaded with a reporting pack derived from the model. Nothing in the pack is written by hand. packages/generator/src/reporting/pack.ts (buildReportingPack) in app-with-ai-tanstack is the single derivation, and every surface that serves reports reads its output, so the surfaces cannot disagree about what reports a model has.",
       derivation: "packages/generator/src/reporting/pack.ts -> buildReportingPack(parsedModel, { projectName, databaseName, ... }). Pure: no filesystem, no clock, no database.",
