@@ -26,7 +26,7 @@ import { existsSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..");
-const MODEL_DIRS = ["../../common/language/examples", "examples"];
+const MODEL_DIRS = ["../../common/language/examples", "../../examples", "examples"];
 
 function models(dir: string): string[] {
   const abs = path.join(ROOT, dir);
@@ -76,12 +76,16 @@ for (const model of all) {
 // --- 2. The two copies of the shared examples agree ---------------------------
 for (const published of models("html/models")) {
   const name = path.basename(published);
-  const source = [`../../common/language/examples/${name}`, `examples/${name}`].find((p) =>
+  const source = [
+    `../../common/language/examples/${name}`,
+    `../../examples/${name}`,
+    `examples/${name}`,
+  ].find((p) =>
     existsSync(path.join(ROOT, p))
   );
   if (!source) {
     failed++;
-    console.error(`  FAIL  ${published} has no counterpart in common/language/examples or examples`);
+    console.error(`  FAIL  ${published} has no counterpart in common/language/examples, the root examples or examples`);
     continue;
   }
   const a = Bun.file(path.join(ROOT, published));

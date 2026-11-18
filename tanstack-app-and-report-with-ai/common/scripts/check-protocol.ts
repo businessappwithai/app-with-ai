@@ -1,28 +1,25 @@
 #!/usr/bin/env bun
 /**
- * Hold the protocol document to upstream's, byte for byte.
+ * Hold the protocol documents to one copy each.
  *
- * `common/website/llmtext/llms.txt` is a copy of `app-with-ai-tanstack`'s
- * `website/llmtext/llms.txt` — the pinned checkout, so a local tree and a runner
- * compare against the same commit. Nothing else checks one against the other, and
- * an unchecked copy drifts: the site's copy once documented an exit code upstream's
- * had dropped, and neither repository noticed.
+ * `llms.txt` and its five chunks live once, in the product's `website/llmtext/` at the root of this tree. This repository used to carry a byte
+ * copy of each and compare it to upstream's; the copies are gone, so there is
+ * nothing left to drift. What stays here is what is genuinely this repository's:
+ * `llms-reporting.txt`, a separate document about the reporting platform, and
+ * `checker-rules.txt`, which carries this repository's own diagnostics note.
  *
- * `llms.txt` is a short controller and the protocol's detail lives in six chunks
- * it names, which a model fetches only when a step needs them; all seven are
- * copies. It also holds the directory to what it should contain: those seven plus
- * `llms-reporting.txt`, a separate document about the reporting platform. (GitHub
- * Pages types `.md` as text/markdown, which ChatGPT's reader refuses, so there is
- * no `llms.md`.) Nothing else belongs there.
+ * This script checks that upstream's controller and chunks are present, and that
+ * this directory holds those two files and nothing else — a returning copy of a
+ * chunk is the mistake it exists to catch.
  */
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const COMMON = path.resolve(import.meta.dir, "..");
-const REPO = path.resolve(COMMON, "..");
+const MONOREPO = path.resolve(COMMON, "..", "..");
 const ours = path.join(COMMON, "website", "llmtext");
-const upstreamDir = path.join(REPO, "app-with-ai-tanstack", "website", "llmtext");
+const upstreamDir = path.join(MONOREPO, "website", "llmtext");
 const CHUNKS = [
   "llms.txt",
   "working-session.txt",
@@ -32,6 +29,7 @@ const CHUNKS = [
   "checker-rules.txt",
   "enhancement-examples.txt",
 ];
+const OWN = ["checker-rules.txt", "llms-reporting.txt"];
 
 let failed = 0;
 const ok = (label: string) => console.log(`  ok    ${label}`);
@@ -41,25 +39,18 @@ const fail = (label: string, why: string) => {
 };
 
 for (const name of CHUNKS) {
-  const theirs = path.join(upstreamDir, name);
-  if (!existsSync(theirs)) {
-    fail(`upstream's ${name} is present`, `${theirs} is missing — run ./deps.sh --install first, or move the pin in deps.json to a commit that carries it`);
-    continue;
-  }
-  readFileSync(path.join(ours, name), "utf-8") === readFileSync(theirs, "utf-8")
-    ? ok(`${name} is a byte copy of the pinned upstream's`)
+  existsSync(path.join(upstreamDir, name))
+    ? ok(`upstream's ${name} is present`)
     : fail(
-        `${name} is a byte copy of the pinned upstream's`,
-        `common/website/llmtext/${name} differs from app-with-ai-tanstack/website/llmtext/${name} — ` +
-          "copy upstream's over it, or move the pin in deps.json to a commit that carries yours"
+        `upstream's ${name} is present`,
+        `${path.join(upstreamDir, name)} is missing — run ./deps.sh --install first, or move the pin in deps.json to a commit that carries it`
       );
 }
 
 const files = readdirSync(ours).sort();
-const expected = [...CHUNKS, "llms-reporting.txt"].sort();
-JSON.stringify(files) === JSON.stringify(expected)
-  ? ok("website/llmtext holds the llms.txt controller, its chunks and llms-reporting.txt, and nothing else")
-  : fail("website/llmtext holds the llms.txt controller, its chunks and llms-reporting.txt, and nothing else", `found: ${files.join(", ")}`);
+JSON.stringify(files) === JSON.stringify([...OWN].sort())
+  ? ok("website/llmtext holds checker-rules.txt and llms-reporting.txt, and no copy of upstream's chunks")
+  : fail("website/llmtext holds checker-rules.txt and llms-reporting.txt, and no copy of upstream's chunks", `found: ${files.join(", ")}`);
 
-console.log(failed === 0 ? "\nThe protocol document matches upstream." : `\n${failed} check(s) failed.`);
+console.log(failed === 0 ? "\nThe protocol documents are held once." : `\n${failed} check(s) failed.`);
 process.exit(failed === 0 ? 0 : 1);
