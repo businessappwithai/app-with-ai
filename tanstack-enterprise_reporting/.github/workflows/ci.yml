@@ -1,0 +1,134 @@
+# Enterprise Reporting — its own CI.
+#
+# This repository had no workflows at all until now. Nothing on GitHub checked a
+# pull request, so `bun run precommit` passing was only ever true of whichever
+# tree someone happened to run it in. The orchestrator
+# (businessappwithai/app-and-report-with-ai-tanstack) does pin a commit of this
+# repository and build it, but only as a Docker build context for its `report`
+# and `seeder` services — it never runs this project's type-check or build, so
+# a regression in either would reach that pin unnoticed.
+#
+# ── The three jobs ──────────────────────────────────────────────────────────
+#
+#   checks   `bun run typecheck`, which is `bun check` — Bun's own type
+#            checker, reading tsconfig.json and reporting what tsc
+#            does. `bun run lint` runs the same `bun check`: Biome was removed, so
+#            the type-checker is the whole static check.
+#   test     The unit tests, `bun run test` (`bun test src`). No database and
+#            no secrets: they stub what they touch, and bunfig.toml preloads a
+#            throwaway AUTH_SECRET. They were not run here at all until three
+#            of them had been red for a while without anyone noticing.
+#   build    The production build, and then an assertion that it left the tree
+#            unchanged.
+#
+# ── Why the build must leave the tree clean ─────────────────────────────────
+#
+# `src/routeTree.gen.ts` is written by the TanStack router generator on every
+# `vite build`. Its output is deterministic and committed, so a build must
+# leave the tree unchanged; a diff there means either a route was added without
+# regenerating, or someone edited the generated file by hand.
+#
+# ── What this deliberately does not run ─────────────────────────────────────
+#
+# The Playwright suite under `e2e/`. It needs a dev server on port 4050, a
+# PostgreSQL config database, and a signed-in session cached by
+# `e2e/global-setup.ts` — its `webServer` config is commented out, so it does
+# not start anything itself. That is a larger job than this one and worth doing
+# separately; leaving it out is a decision, not an oversight.
+#
+# There is no `paths:` filter on purpose. `tsconfig.json` includes `**/*.ts`, so
+# typecheck already covers `language/`, `scripts/`, `e2e/` and `tests/` as well
+# as `src/` — any filter narrow enough to be useful would leave one of them
+# unguarded. A path-filtered run that is skipped also reports no status at all,
+# which makes these awkward to require later.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# The version these steps were verified against, including the
+# `--frozen-lockfile` install. package.json asks for `>=1.4.4`; CI pins an exact
+# one so a runner and a developer's tree agree. The Dockerfiles pin the same.
+env:
+  BUN_VERSION: "1.4.4"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  checks:
+    name: Types
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      # --frozen-lockfile so a lockfile that has drifted from package.json fails
+      # here rather than being silently resolved into something CI never saw.
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Type-check
+        run: bun run typecheck
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # `bun run test`, not `bun test`: a bare `bun test` also collects the Playwright specs under
+      # e2e/, which error under Bun's runner. The script scopes it to src/.
+      - name: Unit tests
+        run: bun run test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun --bun vite build
+
+      # The check this job exists for. See the header.
+      - name: Build leaves no uncommitted changes
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "The build modified tracked files:"
+            git status --porcelain
+            git diff
+            exit 1
+          fi

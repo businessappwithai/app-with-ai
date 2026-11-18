@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Y5Z3WM5G1F"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-Y5Z3WM5G1F');
+</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="What this site measures with Google Analytics, what it does not, and how to turn it off. Your model file, the application generated from it and the database it fills never leave your browser.">
+  <meta name="keywords" content="AppWithAI, privacy, analytics, Google Analytics, Google tag, cookies, opt out">
+  <title>Privacy — What AppWithAI Measures, and How to Turn It Off</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="48x48">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/dark-theme.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-container">
+      <a href="index.html" class="logo" aria-label="AppWithAI — home" title="AppWithAI — home">
+        <span class="logo-mark" aria-hidden="true">A</span>
+        <span class="logo-word">App<span class="logo-word-dim">With</span><span class="logo-word-ai">AI</span></span>
+      </a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="nav" id="mainNav">
+        <ul class="nav-list">
+          <li><a href="justification.html" class="nav-link">Why AppWithAI</a></li>
+          <li><a href="try-it-yourself.html" class="nav-link active">Try It Yourself</a></li>
+          <li><a href="features.html" class="nav-link">Features</a></li>
+          <li><a href="how-it-works.html" class="nav-link">How It Works</a></li>
+          <li><a href="technology.html" class="nav-link">Technology</a></li>
+          <li><a href="guide/index.html" class="nav-link">Guide</a></li>
+          <li><a href="pricing.html" class="nav-link">Pricing</a></li>
+          <li><a href="guide/run-in-browser.html" class="btn btn-accent" style="margin-right: var(--spacing-sm);">Live Demo</a></li>
+          <li><a href="contact.html" class="btn btn-primary">Get Started</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="section" style="background: linear-gradient(135deg, var(--primary-700) 0%, var(--secondary-700) 100%); color: white; padding: var(--spacing-3xl) 0;">
+    <div class="container container-narrow">
+      <h1 style="color: white;">Privacy</h1>
+      <p class="hero-subtitle" style="color: rgba(255,255,255,0.9);">
+        Your model file, the application generated from it, and the database it fills never leave your
+        browser. What does leave is ordinary page-visit data, sent to Google Analytics. This page says
+        exactly what, and how to stop it.
+      </p>
+    </div>
+  </section>
+
+  <section class="section section-white">
+    <div class="container container-narrow">
+      <h2>The short version</h2>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>What never leaves your browser</h3>
+          <ul>
+            <li>The <code>.mmd</code> model you upload or paste &mdash; its contents are read in the tab and are never uploaded. <strong>The one exception is the <a href="assistant.html">Model Assistant</a></strong>, whose whole purpose is to send your model to a provider you choose; that page is covered on its own below.</li>
+            <li>The application generated from it: every one of its files is assembled in the tab.</li>
+            <li>The database that application fills. It is PostgreSQL compiled to WebAssembly, living in your browser&rsquo;s IndexedDB.</li>
+            <li>Anything you type into the running application &mdash; records, passwords, the lot.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>What does leave</h3>
+          <ul>
+            <li>Page-visit measurement by Google Analytics: which pages are opened, and roughly by whom and from where.</li>
+            <li>The usual web request data your browser sends anywhere &mdash; page URL, referrer, browser, device and operating system, language, and a coarse location derived from the IP address.</li>
+            <li>A Google cookie that tells one visit from another (see <a href="#cookies">Cookies</a> below).</li>
+          </ul>
+        </div>
+      </div>
+      <p class="text-muted text-sm mt-3">
+        Measurement is by <a href="https://marketingplatform.google.com/about/analytics/" target="_blank" rel="noopener noreferrer">Google Analytics</a>,
+        loaded through Google&rsquo;s tag (<code>googletagmanager.com</code>) on every page of this site.
+        Google processes that data under <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">its own privacy policy</a>.
+        The tag is given no part of your model, your generated application, your database or your API
+        key &mdash; but it is third-party script running on the page, and it sees what any analytics
+        script on a page sees, so the page URL and referrer go to Google.
+        <strong>This site does not use any other analytics service and records no sessions.</strong>
+      </p>
+    </div>
+  </section>
+
+  <section class="section section-gray">
+    <div class="container container-narrow">
+      <h2>What Google Analytics collects</h2>
+      <p>
+        We add the standard Google tag and nothing more: this site does not define custom events, and
+        no line of code here passes Google a model name, a checker result, a file, a field or a
+        prompt. What Google Analytics itself records, with its default configuration, is:
+      </p>
+      <ul>
+        <li>Which pages are viewed, when, for how long, and how you arrived (the referrer).</li>
+        <li>Your browser, device type, operating system and language.</li>
+        <li>An approximate location (country, region or city) derived from your IP address.</li>
+        <li>An identifier stored in a cookie, so two page views in one visit count as one visit.</li>
+        <li>Depending on how the Google Analytics property is set up, simple interactions such as
+            scrolling, outbound link clicks and file downloads.</li>
+      </ul>
+      <p class="text-sm text-muted mt-3">
+        Google decides what its product collects, so that list can change without this site changing.
+        This site does <strong>not</strong> make session recordings, and the pages where you paste or
+        load a model do not send Google what you paste or load. The tag does see the address and
+        title of the page you are on.
+      </p>
+    </div>
+  </section>
+
+  <section class="section section-gray">
+    <div class="container container-narrow">
+      <h2>Turning it off</h2>
+      <p>
+        Be aware of what changed: this site&rsquo;s earlier analytics honoured Global Privacy Control,
+        Do Not Track and a <code>?analytics=off</code> switch. <strong>Google&rsquo;s tag does not read
+        any of those here</strong>, so they no longer switch anything off on this site. What does:
+      </p>
+      <div class="grid grid-3">
+        <div class="card">
+          <div class="card-icon">1</div>
+          <h3>Block the tag</h3>
+          <p class="text-sm">An ad or tracker blocker, or your browser&rsquo;s tracking protection, stops <code>googletagmanager.com</code> from loading. Nothing on this site depends on it.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">2</div>
+          <h3>Google&rsquo;s opt-out add-on</h3>
+          <p class="text-sm">Google publishes a <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener noreferrer">browser add-on</a> that stops Google Analytics from receiving data from any site you visit.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">3</div>
+          <h3>Clear the cookie</h3>
+          <p class="text-sm">Deleting this site&rsquo;s cookies (they begin <code>_ga</code>) resets the identifier. It will be set again on your next visit unless you did one of the above.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-white">
+    <div class="container container-narrow">
+      <h2 id="assistant">The Model Assistant, and your API key</h2>
+      <p>
+        <a href="assistant.html">assistant.html</a> is the only page on this site that sends
+        anything you wrote to another company, and it does it because that is what you asked it
+        to do. It is worth being exact about what happens.
+      </p>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>What we never receive</h3>
+          <ul>
+            <li><strong>Your API key.</strong> It is held in your browser and attached to a request
+                that goes straight to <code>api.anthropic.com</code> or <code>api.openai.com</code>.
+                This site is static &mdash; there is no server here to receive it, so it does not
+                pass through anything of ours, is not logged, and is not recoverable by us.</li>
+            <li><strong>Your model, or your instruction.</strong> Both go to the provider and nowhere
+                else. Nothing on this page hands a line of a model, an entity name, or a word of what you typed to any analytics service.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>What leaves, and to whom</h3>
+          <ul>
+            <li>Your model, your instruction and the published enhancement protocol go
+                <strong>to the provider you picked</strong>, under your key and their terms and
+                retention policy &mdash; not ours.</li>
+            <li>Nothing about the request is sent to Google. The Google tag is on this page like every
+                other, so Google sees that the page was visited &mdash; not the key, the model or
+                the instruction.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="text-muted text-sm mt-3">
+        <strong>Storing the key is your choice and it is off unless you tick it.</strong> Ticked, it
+        goes in this browser&rsquo;s <code>localStorage</code> under one origin, and
+        <em>Forget it</em> deletes it. A key in a web page is exposed to anything able to run script
+        on that page, which is why the page says so above the field rather than in a footnote, and
+        why it points at the chat-window route for anyone who would rather not. Use a key you can
+        revoke and give it a spending limit.
+      </p>
+
+      <h2>The rest of it</h2>
+      <h3 id="cookies">Cookies</h3>
+      <p>
+        Google Analytics sets first-party cookies in this browser (their names begin <code>_ga</code>)
+        holding an anonymous identifier, so that two page views in one visit count as one visit
+        rather than two. Beyond that, this site sets none of its own for tracking. Whether Google
+        uses the data for advertising purposes is governed by the settings of the Google Analytics
+        property and by Google&rsquo;s policy; we run no advertising and sell no data.
+        Deleting the cookies removes the identifier.
+      </p>
+      <h3>The contact form</h3>
+      <p>
+        <a href="contact.html">The contact form</a> posts what you write in it to a mail relay
+        (<a href="https://formsubmit.co/" target="_blank" rel="noopener noreferrer">FormSubmit</a>),
+        which forwards it to us by email. Only what you typed is sent, and it is used to answer you.
+      </p>
+      <h3>The videos on the home page</h3>
+      <p>
+        The two videos are hosted on YouTube, and their players are <strong>not</strong> embedded until
+        you press play. Until then the page holds a picture of a play button drawn in CSS and asks
+        YouTube for nothing &mdash; no player script, no fonts, no cookies. Pressing play loads the
+        player from <code>youtube-nocookie.com</code>, at which point YouTube sees the request and
+        applies its own terms; the section says as much next to the buttons. Not pressing play is a
+        complete opt-out, and needs no setting.
+      </p>
+      <h3>Hosting</h3>
+      <p>
+        The site is served by GitHub Pages, which keeps its own request logs. The guide&rsquo;s chapter 10
+        downloads its runtime from StackBlitz and its packages from npm when you run it. That, the
+        video players above and Google&rsquo;s analytics tag are the only things on this site that reach a
+        host other than this one. The first two say so where they are; the tag is on every page.
+      </p>
+      <h3>Questions</h3>
+      <p>
+        Ask on <a href="https://github.com/businessappwithai/businessappwithai.github.io/issues" target="_blank" rel="noopener noreferrer">GitHub</a>
+        or through <a href="contact.html">the contact page</a>. This page is versioned with the site, so
+        its history is the change log.
+      </p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h3>AppWithAI</h3>
+          <p>Open source AI-powered generator for production-ready business applications. Licensed under the Apache License 2.0.</p>
+          <p class="mt-2"><a href="https://github.com/businessappwithai/app-with-ai-tanstack" target="_blank" rel="noopener noreferrer">Source on GitHub &rarr;</a></p>
+        </div>
+        <div>
+          <h3>Product</h3>
+          <ul class="footer-links">
+            <li><a href="justification.html">Why AppWithAI</a></li>
+            <li><a href="try-it-yourself.html">Try It Yourself</a></li>
+            <li><a href="viewers/index.html">Model Viewer</a></li>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="how-it-works.html">How It Works</a></li>
+            <li><a href="technology.html">Technology</a></li>
+            <li><a href="guide/index.html">Build a CRM Guide</a></li>
+            <li><a href="todo.html">Todo</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Company</h3>
+          <ul class="footer-links">
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Legal</h3>
+          <ul class="footer-links">
+            <li><a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">Apache License 2.0</a></li>
+            <li><a href="privacy.html">Privacy Policy</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 AppWithAI Contributors. Open Source — <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer" style="color: var(--primary-400);">Apache License 2.0</a>. Powered by Claude, OpenAI, and Ollama.</p>
+        <p class="mt-2"><a href="guide/run-in-browser.html" style="color: var(--primary-400);">Run the CRM demo in your browser →</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

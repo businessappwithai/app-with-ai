@@ -1,0 +1,376 @@
+# The generated application and the reporting platform, on one origin.
+#
+#   http://localhost/app      the application generated from an EML model
+#   http://localhost/report   the reporting platform, already loaded with that
+#                             application's schema, reports, charts and dashboard
+#
+# Bring it up with ./start.sh, which generates the application and derives the
+# reporting pack first — this file cannot do either, and expects both to exist
+# under common/.runtime/. Down again with ./stop.sh.
+#
+# ── The two profiles ────────────────────────────────────────────────────────
+#
+#   demo (default)  one PostgreSQL 16 with Apache AGE, holding three databases:
+#                   the application's, the platform's enterprise_config, and its
+#                   ers_knowledge graph. One container, one image to pull.
+#
+#   prod            two servers, each the image its application actually asks
+#                   for: pgvector on PostgreSQL 18 for the generated
+#                   application, Apache AGE on 16 for the reporting platform.
+#
+# Either way the reporting platform's configuration never shares a database with
+# the application it reports on. Regenerating the application drops and
+# recreates its tables; the reports have to survive that.
+#
+# ── Why nothing declares depends_on for a database ──────────────────────────
+#
+# A `depends_on` naming a service that is not in the active profile makes
+# compose refuse to start at all, so a service that must run under both profiles
+# cannot name either database. Each waits for its own instead: the generated
+# backend migrates on start and is restarted until that succeeds, the reporting
+# platform bootstraps its schema on first request, and the seeder waits
+# explicitly for both — including for the application's bus_ tables to exist,
+# since an empty database means "not migrated yet" rather than "nothing to
+# report on".
+
+name: app-and-report
+
+x-app-db-url: &app-db-url
+  postgres://${DB_USER:-app}:${DB_PASSWORD:-app}@${APP_DB_HOST:-postgres}:5432/${APP_DB_NAME:-appdb}
+
+services:
+  # ── demo: one server, three databases ────────────────────────────────────
+  postgres:
+    profiles: ["demo"]
+    # pgvector rather than Apache AGE, and the choice is forced.
+    #
+    # One server has to satisfy both applications here, and no published image
+    # carries both extensions: `apache/age` has no pgvector, `pgvector/pgvector`
+    # has no AGE. pgvector is the one that is not optional — the generated
+    # application's model-context assistant indexes embeddings — while AGE
+    # serves the reporting platform's knowledge-graph NL feature, which is lazy:
+    # its config database, reports, charts and dashboards all boot without it.
+    #
+    # So the demo profile trades that one feature for a single stock image, and
+    # the prod profile, which runs a server per application, keeps AGE for the
+    # reporting side.
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-app}
+      POSTGRES_DB: ${APP_DB_NAME:-appdb}
+    volumes:
+      - demo_pg:/var/lib/postgresql/data
+      - ./common/docker/pg-init:/docker-entrypoint-initdb.d:ro
+    # Electric follows the write-ahead log, which it can only do when the log
+    # carries row data.
+    command: ["postgres", "-c", "wal_level=logical"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-app} -d ${APP_DB_NAME:-appdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── prod: each application on the server it asks for ─────────────────────
+  postgres-app:
+    profiles: ["prod"]
+    image: pgvector/pgvector:pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-app}
+      POSTGRES_DB: ${APP_DB_NAME:-appdb}
+    volumes:
+      # PostgreSQL 18 wants the mount at /var/lib/postgresql and keeps its data
+      # in a subdirectory; mounting the old path directly makes it refuse to
+      # start.
+      - prod_pg_app:/var/lib/postgresql
+    command: ["postgres", "-c", "wal_level=logical"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-app} -d ${APP_DB_NAME:-appdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres-report:
+    profiles: ["prod"]
+    # `apache/age:PG16` does not exist on Docker Hub — the tags are
+    # `release_PG<major>_<version>`. Pinned to a real one, which is what
+    # `docker compose up` discovered the first time it was actually run.
+    image: apache/age:release_PG16_1.6.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${REPORT_DB_USER:-enterprise}
+      POSTGRES_PASSWORD: ${REPORT_DB_PASSWORD:-enterprise_pass}
+      POSTGRES_DB: enterprise_config
+    volumes:
+      - prod_pg_report:/var/lib/postgresql/data
+      - ./common/docker/pg-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${REPORT_DB_USER:-enterprise} -d enterprise_config"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── The generated application ─────────────────────────────────────────────
+  #
+  # Built from common/.runtime/app, which ./start.sh generates from the model
+  # and then puts on /app with the subpath overlay. The build context is the
+  # whole generated project, not ./backend or ./frontend: the root manifest is a
+  # workspace root naming backend, frontend *and* tests, so an install that
+  # cannot see all three fails with `Workspace not found "tests"`.
+  electric:
+    image: electricsql/electric:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: *app-db-url
+      ELECTRIC_INSECURE: "true"
+    expose:
+      - "3000"
+
+  app-backend:
+    build:
+      context: ./common/.runtime/app
+      dockerfile: ./backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: *app-db-url
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-in-production}
+      # The browser reaches the application through nginx on port 80, so that
+      # is the origin the API must accept a sign-in from — not the port the
+      # front end happens to listen on inside its container.
+      CORS_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost}
+      # The chat assistant (./start.sh --with-chat). Empty without it, and the
+      # application then never applies chat-only mode, whatever its switch says.
+      CHAT_BRIDGE_SECRET: ${CHAT_BRIDGE_SECRET:-}
+      # The bootstrap administrator, admin@admin.com, is seeded on first start with
+      # this password. ./start.sh writes it into common/.runtime/.env: the published
+      # default for the demo profile, a random one for prod. Unset here means the
+      # application generates a random one and prints it once; under 8 characters
+      # is ignored the same way. No default is given on purpose.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      PORT: "4001"
+      ELECTRIC_URL: http://electric:3000
+      AI_BASE_URL: ${AI_BASE_URL:-http://host.docker.internal:8000/v1}
+      AI_API_KEY: ${AI_API_KEY:-local}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-bge-small-en-v1.5}
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-384}
+      ENABLE_MODEL_CONTEXT: ${ENABLE_MODEL_CONTEXT:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "4001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4001/api/me/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
+  app-frontend:
+    build:
+      context: ./common/.runtime/app
+      dockerfile: ./frontend/Dockerfile
+      args:
+        # Empty: the client calls /api on whatever origin served the page, and
+        # the front end forwards it to the API itself. A base URL compiled into
+        # the bundle is an address the image can never be run under any other
+        # name.
+        VITE_API_URL: ""
+        VITE_APP_URL: ${PUBLIC_ORIGIN:-http://localhost}/app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      BACKEND_URL: http://app-backend:4001
+    expose:
+      - "4000"
+    depends_on:
+      app-backend:
+        condition: service_healthy
+
+  # ── The reporting platform ────────────────────────────────────────────────
+  report:
+    build:
+      context: ./enterprise_reporting_tanstack
+      dockerfile: ../common/docker/reporting.Dockerfile
+      # The overlay and the seeder live in common/, which is not the build
+      # context. Naming it as an extra context keeps the context itself small —
+      # the alternative is building from the repository root and carrying both
+      # products plus their node_modules into every build.
+      additional_contexts:
+        common: ./common
+      args:
+        BASE_PATH: /report
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgresql://${REPORT_DB_USER:-app}:${REPORT_DB_PASSWORD:-app}@${REPORT_DB_HOST:-postgres}:5432/enterprise_config
+      GRAPH_DATABASE_URL: postgresql://${REPORT_DB_USER:-app}:${REPORT_DB_PASSWORD:-app}@${REPORT_DB_HOST:-postgres}:5432/ers_knowledge
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required — ./start.sh writes one into .env}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required — ./start.sh writes one into .env}
+      MASTRA_URL: ${MASTRA_URL:-}
+      LLAMA_REASONING_URL: ${LLAMA_REASONING_URL:-}
+      LLAMA_EMBEDDING_URL: ${LLAMA_EMBEDDING_URL:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Tracing: empty exports nothing. Point it at an OTLP/HTTP collector to get one span per
+      # API request, with the same trace and span ids on the platform's log lines.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-enterprise-reporting}
+      # The chat assistant (./start.sh --with-chat). All three are empty without
+      # it, and the platform then neither accepts delegated sign-ins nor allows
+      # itself to be framed.
+      CHAT_BRIDGE_SECRET: ${CHAT_BRIDGE_SECRET:-}
+      CHAT_EMBED: ${CHAT_EMBED:-}
+      CHAT_SWITCHES_URL: ${CHAT_SWITCHES_URL:-}
+      CHAT_URL: /chat/
+      # The platform's own admin@admin.com, seeded on first request, with the same
+      # password as the application's administrator (still two separate accounts).
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "3000"
+
+  # ── Loading the application into the platform ─────────────────────────────
+  #
+  # One shot. Registers the application's database as a data source, caches its
+  # introspected schema, and writes the reporting pack. Idempotent, so it runs
+  # on every `up` rather than only the first.
+  seeder:
+    build:
+      context: ./enterprise_reporting_tanstack
+      dockerfile: ../common/docker/seeder.Dockerfile
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://${REPORT_DB_USER:-app}:${REPORT_DB_PASSWORD:-app}@${REPORT_DB_HOST:-postgres}:5432/enterprise_config
+      APP_DATABASE_URL: *app-db-url
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required — ./start.sh writes one into .env}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required — ./start.sh writes one into .env}
+      REPORTING_PACK: /pack/reporting-pack.json
+    volumes:
+      - ./common/.runtime/pack:/pack:ro
+    depends_on:
+      report:
+        condition: service_started
+
+  # ── The chat assistant (optional) ─────────────────────────────────────────
+  #
+  # A chat workspace through which a signed-in person reaches both applications
+  # by asking, built on the open-source CopilotKit packages. Behind the `chat`
+  # profile: `./start.sh --with-chat` starts it, and without that nginx answers
+  # /chat with 502 and neither application knows it exists.
+  #
+  # It signs nobody in itself and holds no roles. It forwards the person's own
+  # application session to the application, and asks the reporting platform for
+  # a session for the same person with CHAT_BRIDGE_SECRET. See intelligence/README.md.
+  #
+  # No depends_on, for the reason nothing else here has one on a database: it
+  # answers "could not check" while the application is still starting, and
+  # creates its own audit database on first use.
+  assistant:
+    profiles: ["chat"]
+    build:
+      context: ./intelligence
+      args:
+        CHAT_BASE_PATH: /chat
+    restart: unless-stopped
+    environment:
+      PORT: "4200"
+      CHAT_BASE_PATH: /chat
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost}
+      APP_API_URL: http://app-backend:4001
+      APP_BASE_PATH: /app
+      REPORT_URL: http://report:3000
+      REPORT_BASE_PATH: /report
+      CHAT_BRIDGE_SECRET: ${CHAT_BRIDGE_SECRET:-}
+      # On the reporting platform's server, so it survives the application being regenerated.
+      CHAT_DATABASE_URL: postgresql://${REPORT_DB_USER:-app}:${REPORT_DB_PASSWORD:-app}@${REPORT_DB_HOST:-postgres}:5432/chatdb
+      # Any OpenAI-compatible endpoint whose model supports tool calling.
+      AI_BASE_URL: ${AI_BASE_URL:-http://host.docker.internal:8000/v1}
+      AI_API_KEY: ${AI_API_KEY:-local}
+      AI_MODEL: ${AI_MODEL:-qwen3.6:27b-mlx}
+      # The generated application's skills (how each record type is named, its form,
+      # its buttons, its reports), written by the generator beside its manual.
+      CHAT_SKILLS_DIR: /skills
+      # Threads, run history and memory, on the Buzz relay below through the
+      # Intelligence interface (intelligence/intelligence.md). The relay is
+      # addressed by the host its RELAY_URL names, which is how it binds a request
+      # to its community. Without these the assistant keeps them in memory.
+      BUZZ_RELAY_URL: http://buzz-relay:3000
+      BUZZ_OPERATOR_SECRET: ${BUZZ_OPERATOR_SECRET:-}
+      BUZZ_BOT_SECRET: ${BUZZ_BOT_SECRET:-}
+      KEY_ENCRYPTION_KEY: ${KEY_ENCRYPTION_KEY:-}
+    volumes:
+      - ./common/.runtime/app/assistant-skills:/skills:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "4200"
+
+  # ── Buzz: where the assistant keeps threads, run history and memory ────────
+  # The relay from the pinned checkout (deps.json `buzz`), built by our own
+  # Dockerfile with cargo. Membership is required: only the keys the assistant
+  # admits (the operator, the assistant, and one custodial key per person) can
+  # read or write, and every read is made with the reader's own key, so the
+  # relay's channel membership is what keeps one person out of another's threads.
+  # Its database sits on the reporting platform's server, beside chatdb, and the
+  # entrypoint creates it on a volume that predates it. No S3: the git
+  # conformance probe is off, and neither git hosting nor media is used.
+  buzz-relay:
+    profiles: ["chat"]
+    build:
+      context: ./intelligence/docker
+      dockerfile: buzz-relay.Dockerfile
+      additional_contexts:
+        buzz: ./intelligence/.checkouts/buzz
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${REPORT_DB_USER:-app}:${REPORT_DB_PASSWORD:-app}@${REPORT_DB_HOST:-postgres}:5432/buzzdb
+      REDIS_URL: redis://buzz-redis:6379
+      BUZZ_BIND_ADDR: 0.0.0.0:3000
+      RELAY_URL: ws://buzz-relay:3000
+      RELAY_OWNER_PUBKEY: ${RELAY_OWNER_PUBKEY:-}
+      BUZZ_RELAY_PRIVATE_KEY: ${BUZZ_RELAY_PRIVATE_KEY:-}
+      BUZZ_AUTO_MIGRATE: "true"
+      BUZZ_REQUIRE_RELAY_MEMBERSHIP: "true"
+      BUZZ_GIT_CONFORMANCE_PROBE: "false"
+      RUST_LOG: warn
+    expose:
+      - "3000"
+
+  buzz-redis:
+    profiles: ["chat"]
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    expose:
+      - "6379"
+
+  # ── The front door ────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "${PUBLIC_PORT:-80}:80"
+    volumes:
+      - ./common/docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      # The front door's own page, written by common/build/landing.ts from the
+      # reporting pack — so the accounts it lists are this model's. Read-only,
+      # and the config falls back to redirecting at /app when it is absent.
+      - ./common/.runtime/landing:/usr/share/nginx/landing:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  demo_pg:
+  prod_pg_app:
+  prod_pg_report:
