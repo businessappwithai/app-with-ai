@@ -240,10 +240,10 @@ the same cause: **unresolved git merge-conflict markers committed to
 ```
 CLAUDE.md
 scripts/ci/llmtext-claims.ts
-website/llmtext/llmdetailed.txt
-website/llmtext/llmdetailedenhancement.txt
-website/llmtext/llms-full.txt
-website/llmtext/llmtextenhancement.txt
+common/website/llmtext/llmdetailed.txt
+common/website/llmtext/llmdetailedenhancement.txt
+common/website/llmtext/llms-full.txt
+common/website/llmtext/llmtextenhancement.txt
 ```
 
 Counts are identical with this branch's changes stashed and applied, so they are

@@ -129,7 +129,7 @@ jobs:
       - name: The viewer bundle is current
         run: bun run build:viewers --check
 
-      # website/llmtext/ is what a language model reads instead of this repository. Its
+      # common/website/llmtext/ is what a language model reads instead of this repository. Its
       # claims about the checker are prose, so they rot in the one direction
       # nobody notices: a renamed diagnostic, a repair that stopped being
       # automatic, a moved section. The reader gets no error, just a confident
@@ -421,7 +421,7 @@ jobs:
         # smaller table.
         run: |
           bun packages/generator/src/cli/generate.ts generate \
-            --input examples/drug-discovery.eml.mmd \
+            --input common/language/examples/drug-discovery.eml.mmd \
             --output "$APP_DIR" \
             --name ci-generated \
             --port "$BACKEND_PORT" \

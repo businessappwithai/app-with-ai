@@ -60,7 +60,7 @@ except as a smaller number:
 
 Four scripts, model-agnostic, written during the walkthrough because the checker
 does not do what they do. Each reads the same `ViewModel` the published viewers
-draw from — `website/viewers/eml-model.js`, the generator's own parser and
+draw from — `common/website/viewers/eml-model.js`, the generator's own parser and
 compilers — so none of them knows anything the site does not.
 
 ```bash

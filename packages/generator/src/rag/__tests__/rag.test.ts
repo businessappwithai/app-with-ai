@@ -11,7 +11,7 @@ import { chunkMarkdown, chunkModel, extractEnums, type RagModel } from "../index
  */
 
 const ROOT = join(import.meta.dirname, "../../../../..");
-const EML = readFileSync(join(ROOT, "examples/drug-discovery.eml.mmd"), "utf-8");
+const EML = readFileSync(join(ROOT, "common/language/examples/drug-discovery.eml.mmd"), "utf-8");
 
 function drugDiscovery(): RagModel {
   const parsed = parseModel(EML);

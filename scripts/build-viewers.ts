@@ -2,12 +2,12 @@
 /**
  * Bundle the model reader for the viewer page.
  *
- * `website/viewers/` is the visual half of what a language model writes: a
- * reader walked through `website/llmtext/llms.txt` builds a `.eml.mmd` a gate
+ * `common/website/viewers/` is the visual half of what a language model writes: a
+ * reader walked through `common/website/llmtext/llms.txt` builds a `.eml.mmd` a gate
  * at a time, and the viewers show the entities, the state machines and the
  * decision flows as they appear. Everything drawn there has to be the
  * generator's own reading of the document, or the picture is of an application
- * nobody will get — so `website/viewers/eml-model.js` is this repository's
+ * nobody will get — so `common/website/viewers/eml-model.js` is this repository's
  * parser, its rule and workflow compilers, its RBAC derivation and its checker,
  * bundled for a tab. The rendering beside it is hand-written and dependency
  * free; the reading is never re-implemented.
@@ -31,7 +31,7 @@ const ROOT = resolve(import.meta.dir, "..");
 process.chdir(ROOT);
 
 const ENTRY = "packages/generator/src/browser/viewers.ts";
-const TARGET = "website/viewers/eml-model.js";
+const TARGET = "common/website/viewers/eml-model.js";
 
 /**
  * Stubs for the Node builtins the reader still names.

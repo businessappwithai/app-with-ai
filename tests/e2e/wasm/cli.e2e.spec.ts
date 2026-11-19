@@ -143,7 +143,7 @@ test.describe("@cli the standalone browser application", () => {
     const { code } = await cli([
       "generate",
       "-i",
-      join(ROOT, "examples/drug-discovery.eml.mmd"),
+      join(ROOT, "common/language/examples/drug-discovery.eml.mmd"),
       "-o",
       other,
       "--name",

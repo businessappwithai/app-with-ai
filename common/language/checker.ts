@@ -4246,7 +4246,7 @@ ${c.bold("EXAMPLES")}
   bun language/checker.ts examples/crm.eml.mmd
   bun language/checker.ts examples/crm.eml.mmd --strict
   bun language/checker.ts examples/ --json
-  bun language/checker.ts examples/drug-discovery.eml.mmd --no-hint
+  bun language/checker.ts common/language/examples/drug-discovery.eml.mmd --no-hint
 
 ${c.bold("EXIT CODES")}
   0  No errors (warnings allowed unless --strict)

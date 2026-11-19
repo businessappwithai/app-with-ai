@@ -20,7 +20,7 @@ The `vendor/pglite` copy is required offline: the page looks for `/vendor/pglite
 
 ## Full stack
 
-`bun run wasm generate … ` without `--standalone` writes the ~413-file NestJS + TanStack project (frontend 4000, backend 4001). CI generates `examples/drug-discovery.eml.mmd` with `--records-per-entity 25`, builds backend and frontend, type-checks the generated `tests/`, and runs them with `node run.ts --no-server` against Postgres with pgvector. `docker compose up --build` uses the split Dockerfiles — see the CLAUDE.md section on its three must-holds (`COPY . .` before install, `run-app.sh` migrates, health checks probe `127.0.0.1`).
+`bun run wasm generate … ` without `--standalone` writes the ~413-file NestJS + TanStack project (frontend 4000, backend 4001). CI generates `common/language/examples/drug-discovery.eml.mmd` with `--records-per-entity 25`, builds backend and frontend, type-checks the generated `tests/`, and runs them with `node run.ts --no-server` against Postgres with pgvector. `docker compose up --build` uses the split Dockerfiles — see the CLAUDE.md section on its three must-holds (`COPY . .` before install, `run-app.sh` migrates, health checks probe `127.0.0.1`).
 
 ## If you touched the generator
 

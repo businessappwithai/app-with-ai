@@ -17,7 +17,7 @@ import { deriveAccess } from "../../rbac/roles";
 import { manualDictionary } from "../index";
 import { renderSkills, skillFileName } from "../skills";
 
-const EXAMPLES = join(import.meta.dirname, "../../../../../examples");
+const EXAMPLES = join(import.meta.dirname, "../../../../../common/language/examples");
 const shippingModel = () =>
   parseModel(readFileSync(join(EXAMPLES, "shipping-management-system.eml.mmd"), "utf-8"));
 

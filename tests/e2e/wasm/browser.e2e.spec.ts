@@ -546,7 +546,7 @@ test.describe
       await page
         .locator("#file")
         .setInputFiles(
-          new URL("../../../examples/drug-discovery.eml.mmd", import.meta.url).pathname
+          new URL("../../../common/language/examples/drug-discovery.eml.mmd", import.meta.url).pathname
         );
       await expect(page.locator("#model-summary")).toContainText("drug-discovery.eml.mmd");
       await expect(page.locator("#app-name")).toHaveValue("Drug Discovery");

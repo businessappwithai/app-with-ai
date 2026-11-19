@@ -8,7 +8,7 @@
   },
   "scripts": {
     "check:all": "bun run check:models && bun run check:protocol && bun run check:overlay && bun run type-check && bun run check:language-tools && bun run check:stacks && bun run check:clis && bun run check:pack",
-    "check:models": "bun scripts/check-models.ts",
+    "check:models": "bun ../../scripts/sync-common.ts && bun scripts/check-models.ts",
     "check:protocol": "bun scripts/check-protocol.ts",
     "check:overlay": "bun scripts/check-overlay.ts",
     "check:stacks": "bun scripts/check-stacks.ts",
