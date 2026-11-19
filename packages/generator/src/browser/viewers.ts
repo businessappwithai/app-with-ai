@@ -1,7 +1,7 @@
 /**
  * The model reader, as it runs in a browser.
  *
- * Bundled to `website/viewers/eml-model.js` by `scripts/build-viewers.ts` and
+ * Bundled to `common/website/viewers/eml-model.js` by `scripts/build-viewers.ts` and
  * imported by the viewer page, so a model drawn on the site is read by exactly
  * the code that would generate it. This is the same arrangement — and the same
  * reason — as `browser/index.ts`, which bundles the generator itself; it is a

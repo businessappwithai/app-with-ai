@@ -120,8 +120,8 @@ Use `/browse` for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
 | `bun run build:fullstack-browser` | Rebuild `html/assets/appwithai-fullstack.js` |
 | `bun run build:language-tools` | Rebuild `html/checker.js` + `html/fixer.js` |
 | `bun run test:language-tools` | The published `checker.js`/`fixer.js` still agree with the CLI |
-| `bun run build:viewers` | Rebuild `website/viewers/eml-model.js` (the model viewers' reader) |
-| `bun run test:llmtext` | Hold `website/llmtext/llms.txt` to what the checker, the fixer and the dictionary actually do, its examples to 0 errors and 0 warnings, and `website/llmtext/` to holding the controller and its named chunks and nothing else |
+| `bun run build:viewers` | Rebuild `common/website/viewers/eml-model.js` (the model viewers' reader) |
+| `bun run test:llmtext` | Hold `common/website/llmtext/llms.txt` to what the checker, the fixer and the dictionary actually do, its examples to 0 errors and 0 warnings, and `common/website/llmtext/` to holding the controller and its named chunks and nothing else |
 | `bun run vendor:pglite` | Put PGlite beside `html/` (the wasm E2E job needs it) |
 | `bun run build:stack-templates` | Put the stack templates beside `run-real-stack.html` |
 
@@ -156,7 +156,7 @@ have both passed, which is a long way to walk to find out.
 | `build:wasm-browser` | `html/assets/appwithai-wasm.js`, `html/wasm-app/sw.js` | the standalone generator, or the service worker |
 | `build:fullstack-browser` | `html/assets/appwithai-fullstack.js` | **anything the real pipeline reaches** — `packages/generator/src/{rules,hooks,workflows,templates,parsers,rbac}/**` included |
 | `build:language-tools` | `html/checker.js`, `html/fixer.js` | `common/language/**` |
-| `build:viewers` | `website/viewers/eml-model.js` | `common/language/**`, and the parser, compilers, RBAC and `viewers/` under `packages/generator/src` |
+| `build:viewers` | `common/website/viewers/eml-model.js` | `common/language/**`, and the parser, compilers, RBAC and `viewers/` under `packages/generator/src` |
 
 `build:fullstack-browser` is the one that catches people out: it inlines the
 whole NestJS + TanStack pipeline over a memory filesystem, so a change anywhere
@@ -1428,7 +1428,7 @@ version, install it beside those programs and `bun check` them against the real 
 
 ---
 
-## One protocol document — `website/llmtext/llms.txt`
+## One protocol document — `common/website/llmtext/llms.txt`
 
 `llms.txt` is the document a language model is pointed at to **write a model or
 change one**, published at `https://www.appwithai.org/llms.txt`. It replaced four —
@@ -1438,7 +1438,7 @@ model is given can lead to a second account of the language.
 
 **The protocol is a short controller, `llms.txt`, plus six lazy-loaded chunks (`working-session`, `eml-syntax`, `eml-dictionary`, `eml-reporting`, `checker-rules`, `enhancement-examples`, each `.txt`) — and nothing else.** The controller (about 1,000 tokens, budgeted in `llmtext-claims.ts`) holds the MUST rules, the load order, the validate commands, the stop conditions and the output contract, and names each chunk by its full published URL; a model fetches a chunk only when the step needs it. GitHub Pages types `.md` as `text/markdown`,
 which ChatGPT's web reader refuses (`400 Unsupported content-type`), so there is no `llms.txt`: the document
-is `website/llmtext/llms.txt`, served as `text/plain`. Edit it there; the orchestrator and the site carry
+is `common/website/llmtext/llms.txt`, served as `text/plain`. Edit it there; the orchestrator and the site carry
 byte copies of the same files. `bun run test:llmtext` holds the chunks to one another as a single document (section references, status tables, wording rules) and each chunk to its own examples and host spelling.
 
 **New or enhance is decided by one fact: did the user give a `.mmd`?** §1 is one
@@ -1464,7 +1464,7 @@ cites exists, every auto-fixable code is tabulated and counted right, every
 fenced `mermaid` example parses to its entities and checks with no help or layout
 gaps, the nine dictionary-completeness codes match `DICTIONARY_COMPLETENESS`, the
 mode and enhancement rules are present by their wording, the host is written in
-full, and `website/llmtext/` holds the controller and its named chunks and nothing else. Every fenced `mermaid`
+full, and `common/website/llmtext/` holds the controller and its named chunks and nothing else. Every fenced `mermaid`
 example in it must check 0 errors, 0 warnings — **including `%%section` layout on
 every entity**.
 
@@ -1549,7 +1549,7 @@ this run's counts and this run's first line, they are instructions.
 
 **Editing either entry stales two artifacts, not one**: `build:language-tools`
 (`html/checker.js`, `html/fixer.js`) and `build:viewers`
-(`website/viewers/eml-model.js`, which bundles the same checker entry). Rebuild
+(`common/website/viewers/eml-model.js`, which bundles the same checker entry). Rebuild
 both, and re-vendor all three to the website.
 
 **`formatIssue` is unchanged and still one line.** The block form is
@@ -1631,7 +1631,7 @@ from the reporting pack.
 
 ## The published host is written in full — `https://www.appwithai.org`
 
-Every mention of the host in `website/llmtext/llms.txt`
+Every mention of the host in `common/website/llmtext/llms.txt`
 is the absolute URL — scheme and `www.` included — and each document carries a
 rule saying so. **`www` is canonical and the apex serves the same files**; both
 carry a certificate. That was not true for part of this project's life: `www`
@@ -1737,7 +1737,7 @@ role: <role> reports: <a>, <b>, … [help: <why>]` groups a role's own `%%report
 directives into a named dashboard, and **every declared `%%rbac` role needs at least
 50 charted `%%report` directives it can run (one is a report and a chart) and at
 least 10 dashboards of at least 3 reports each**. The same numbers are stated in
-`website/llmtext/eml-reporting.txt` §7.2, rule M12 of the controller, and the
+`common/website/llmtext/eml-reporting.txt` §7.2, rule M12 of the controller, and the
 language definition; change all of them or none.
 
 | Reader | Where |
@@ -1780,7 +1780,7 @@ language definition; change all of them or none.
   Administration → Analysis Scope in the SonarCloud project, in each of the three repositories that
   vendor these files, as wildcard patterns (plain paths did not take effect):
   `**/html/checker.js, **/html/fixer.js, **/html/assets/appwithai-wasm.js,
-  **/html/assets/appwithai-fullstack.js, **/website/viewers/eml-model.js, **/*.generated.ts`.
+  **/html/assets/appwithai-fullstack.js, **/common/website/viewers/eml-model.js, **/*.generated.ts`.
 
 ### The browser schema types a foreign key the way the NestJS one does
 
@@ -1964,10 +1964,10 @@ than committed: `bun run vendor:pglite` and `bun run build:stack-templates`.
 | `packages/web/vite.config.ts` | Vite config, root-.env loading, start-api-routes shim |
 | `common/language/appwithai-language.json` | ⭐ EML canonical definition |
 | `common/language/composer.ts` | ⭐ The only writer of complete EML documents |
-| `website/llmtext/llms.txt` | ⭐ The one protocol document for language models: write a model, or change one |
+| `common/website/llmtext/llms.txt` | ⭐ The one protocol document for language models: write a model, or change one |
 | `common/language/sections.ts` | ⭐ The one reading of `%%section` — checker, fixer and generator |
 | `packages/generator/src/viewers/view-model.ts` | ⭐ One reading of a model for the viewers — composed, never re-derived |
-| `website/viewers/` | ⭐ The published model viewers. `eml-model.js` is built; the rest is hand-written |
+| `common/website/viewers/` | ⭐ The published model viewers. `eml-model.js` is built; the rest is hand-written |
 | `scripts/ci/llmtext-claims.ts` | ⭐ Holds both specs, and their claims about the viewers, to the real code — run by CI |
 
 ---

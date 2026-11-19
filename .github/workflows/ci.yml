@@ -129,7 +129,7 @@ jobs:
       - name: The viewer bundle is current
         run: bun run build:viewers --check
 
-      # website/llmtext/ is what a language model reads instead of this repository. Its
+      # common/website/llmtext/ is what a language model reads instead of this repository. Its
       # claims about the checker are prose, so they rot in the one direction
       # nobody notices: a renamed diagnostic, a repair that stopped being
       # automatic, a moved section. The reader gets no error, just a confident

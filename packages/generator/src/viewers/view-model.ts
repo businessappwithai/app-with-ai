@@ -1,7 +1,7 @@
 /**
  * One reading of a model, for the viewers to draw.
  *
- * `website/viewers/` renders an `.eml.mmd` while a language model is still
+ * `common/website/viewers/` renders an `.eml.mmd` while a language model is still
  * writing it: the entities and their links, the state machines, the sagas and
  * the decision flows. What it must never do is read the document its own way.
  * A viewer with its own parser is a viewer that shows an application nobody is
@@ -16,7 +16,7 @@
  * the flowchart it came from, resolving which column a state machine drives,
  * counting. Nothing is re-derived.
  *
- * It is bundled to `website/viewers/eml-model.js` by `scripts/build-viewers.ts`,
+ * It is bundled to `common/website/viewers/eml-model.js` by `scripts/build-viewers.ts`,
  * which is why it may not touch the filesystem — see `parse-model.ts` for the
  * same constraint and the same reason.
  */

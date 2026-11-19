@@ -4,7 +4,7 @@
    column of that row is undefined at evaluation — and a comparison against
    undefined is false, so the rule never fires and never says so. */
 import { readFileSync } from "node:fs";
-import { readModel } from "../../../../website/viewers/eml-model.js";
+import { readModel } from "../../../../common/website/viewers/eml-model.js";
 
 const src = readFileSync(process.argv[2], "utf8");
 const m = readModel(src);
