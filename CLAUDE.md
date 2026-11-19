@@ -327,6 +327,18 @@ app-with-ai-tanstack/
 └── examples/       # Sample .eml.mmd files
 ```
 
+### Shared files live in `common/` and are synced, not copied
+
+`common/language/` (the language, checker, fixer, CLI and the example models), `common/guide/`
+(the guide's screenshots and shared stylesheet and scripts) and `common/website/` (the llmtext
+chunks and the model viewers) are the **only** copies. The trees that serve them — `html/`, the
+orchestrator's `common/html/`, and the website's `guide/`, `viewers/` and root — need the files
+on disk, so `scripts/sync-common.ts` (`bun run sync:common`) writes them and rewrites a managed
+block of `.gitignore`; `-- --check` fails if one differs. `bun run test` and `bun run test:wasm`
+run it first. Edit the file under `common/`, never the synced copy — a change to the copy is
+overwritten and, because the copy is ignored, never reaches a commit. A new shared file is added
+to the lists at the top of the script.
+
 ### Package Aliases
 
 | Alias | Resolves to |
@@ -1798,7 +1810,7 @@ did, which is how it surfaced. Held by
 
 **When changing language semantics:** edit `appwithai-language.json` first, then spec docs, grammar, parser, composer, rag. If adding a diagnostic, add its code to `AUTO_FIXABLE_CODES` in `checker.ts`, the fixer's dispatch table, and `diagnostics.autoFixable` in the JSON — all three.
 
-**Example models are checked in twice** — `common/language/examples/*.eml.mmd` and `html/models/*.eml.mmd` must be byte-identical (CI asserts this).
+**Example models live once** — `common/language/examples/*.eml.mmd`. `html/models/`, the orchestrator's `common/html/models/` and the website's `guide/models/` carry copies the pages load, but those copies are written by `bun run sync:common` and git-ignored, never committed.
 
 ---
 
