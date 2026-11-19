@@ -2,7 +2,7 @@
 /**
  * Hold the protocol documents to one copy each.
  *
- * `llms.txt` and its five chunks live once, in the product's `common/website/llmtext/` at the root of this tree. This repository used to carry a byte
+ * `llms.txt` and its five chunks live once, in the product's `website/llmtext/` at the root of this tree. This repository used to carry a byte
  * copy of each and compare it to upstream's; the copies are gone, so there is
  * nothing left to drift. What stays here is what is genuinely this repository's:
  * `llms-reporting.txt`, a separate document about the reporting platform, and
@@ -17,7 +17,7 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const COMMON = path.resolve(import.meta.dir, "..");
-const MONOREPO = path.resolve(COMMON, "..", "..");
+const MONOREPO = path.resolve(COMMON, "..", "..", "..");
 const ours = path.join(COMMON, "website", "llmtext");
 const upstreamDir = path.join(MONOREPO, "website", "llmtext");
 const CHUNKS = [

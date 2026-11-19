@@ -225,7 +225,7 @@ Use the `run-modelling-tool` skill:
   - Add the codes to the docs table.
 - **`move-facts.ts`:** EML512 must not retire a `status:`-bound saga. Add a guard and a test case.
 - **Example:** add one `status:`-bound process to `tests/test-data/dance-studio-workflows.eml.mmd`, the fixture that carries every behaviour construct.
-- **Docs:** update `common/website/llmtext/` (`eml-syntax.txt`, `checker-rules.txt`), then copy the changes to the orchestrator and the website (noted in the PR as follow-up for the other repositories).
+- **Docs:** update `website/llmtext/` (`eml-syntax.txt`, `checker-rules.txt`), then copy the changes to the orchestrator and the website (noted in the PR as follow-up for the other repositories).
 
 ### 2. Editors package (`packages/editors/src`)
 - **`lib/automation/model.ts`:**

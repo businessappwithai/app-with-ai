@@ -112,7 +112,7 @@ docker/ca-certificates/*.crt
 
 # PGlite vendored beside the guide by `bun run vendor:pglite` — 17MB of
 # WebAssembly, put there by that script rather than committed. Never a CDN.
-html/assets/vendor/
+website/html/assets/vendor/
 
 # The WASM stack's inlined assets are generated, and are committed anyway.
 # They are what the generator actually reads — a browser has no `fs.readFile` —
@@ -138,7 +138,7 @@ pics/wasm-e2e/
 # The NestJS stack's templates, copied beside the hosted page by
 # `bun run build:stack-templates`. A second copy of files already in this
 # repository — regenerate it rather than commit it.
-html/assets/stack-templates.json
+website/html/assets/stack-templates.json
 pics/
 
 # Tool and build output that was committed once and should not be again.
@@ -289,59 +289,7 @@ scripts/e2e-rules-workflows/screenshots/
 /common/app_and_report/common/html/models/crm.eml.mmd
 /common/app_and_report/common/html/models/drug-discovery.eml.mmd
 /common/app_and_report/common/html/models/investment-planning-wealth-management-system.eml.mmd
-/html/assets/guide.css
-/html/assets/guide.js
-/html/assets/run-in-browser.css
-/html/assets/run-real-stack.css
-/html/assets/run-real-stack.js
-/html/img/01-generator-login.png
-/html/img/02-generator-dashboard.png
-/html/img/03-generator-import-model.png
-/html/img/04-generator-crm-design.png
-/html/img/05-generator-validate.png
-/html/img/06-generator-validate-error.png
-/html/img/07-crm-login.png
-/html/img/08-crm-dashboard.png
-/html/img/09-crm-lead-list.png
-/html/img/10-crm-lead-new-form.png
-/html/img/11-crm-lead-created.png
-/html/img/12-crm-business-rules.png
-/html/img/13-crm-workflow-designer-top.png
-/html/img/13-crm-workflow-designer.png
-/html/img/14-crm-automations-rule-tables.png
-/html/img/15-crm-windows-tabs-fields.png
-/html/img/16-crm-window-detail-tabs.png
-/html/img/17-crm-window-tab-fields.png
-/html/img/18-crm-tab-fields.png
-/html/img/19-crm-help-entity.png
-/html/img/20-crm-help-business-rules.png
-/html/img/21-crm-help-workflow-designer.png
-/html/img/22-crm-help-window-tab-field.png
-/html/img/23-crm-help-table-column.png
-/html/img/24-crm-help-audit-log.png
-/html/img/25-crm-opportunity-list-references.png
-/html/img/26-crm-reference-lookups.png
-/html/img/27-crm-lead-converted.png
-/html/img/28-crm-account-created-by-saga.png
-/html/img/29-crm-rule-editor-leadqualification.png
-/html/img/30-crm-workflow-editor-leadconversion.png
-/html/img/31-crm-workflow-editor-steps.png
-/html/img/32-crm-enum-dropdowns.png
-/html/img/33-crm-workflow-view-renewalplaybook.png
-/html/img/34-crm-tab-reference-resolved.png
-/html/img/41-crm-accounts.png
-/html/img/42-crm-opportunities.png
-/html/img/43-crm-contacts.png
-/html/img/44-crm-support-cases.png
-/html/img/45-crm-quotes.png
-/html/img/46-crm-contracts.png
-/html/img/47-crm-campaigns.png
-/html/img/48-crm-products.png
-/html/img/49-crm-activities.png
-/html/img/50-crm-audit-log.png
-/html/img/51-crm-roles.png
-/html/img/52-crm-tables-columns.png
-/html/models/crm.eml.mmd
-/html/models/drug-discovery.eml.mmd
-/html/models/investment-planning-wealth-management-system.eml.mmd
+/website/html/models/crm.eml.mmd
+/website/html/models/drug-discovery.eml.mmd
+/website/html/models/investment-planning-wealth-management-system.eml.mmd
 # <<< sync-common

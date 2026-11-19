@@ -159,7 +159,7 @@ All of these paths are under `packages/generator/templates/tanstack-start-nestjs
 - `generated-spec.ts`: emit `errors` filtered by surface, and also write `catalogue.ts`.
 - Register the new template files wherever `common/` files are copied today (the same mechanism `ttl-cache.ts` uses). No migration is needed: nothing is stored.
 - `.env.example` template: document `LOG_LEVEL`, `LOG_LEVEL_<CHANNEL>`, `LOG_PRETTY`, `VITE_LOG_LEVEL`, `HTTP_SLOW_REQUEST_MS` and `DB_SLOW_QUERY_MS`.
-- **Stale bundles**: anything under `packages/generator/src` stales `html/assets/appwithai-fullstack.js` (and possibly `viewers/eml-model.js`). Rebuild on Bun 1.4.4 on linux-x64, in Docker if the local platform differs, and run all five `--check`s.
+- **Stale bundles**: anything under `packages/generator/src` stales `website/html/assets/appwithai-fullstack.js` (and possibly `viewers/eml-model.js`). Rebuild on Bun 1.4.4 on linux-x64, in Docker if the local platform differs, and run all five `--check`s.
 - Check that the WASM overlay footprint (9 files changed, 6 added) is unchanged. New backend files are copied untouched.
 
 ## 3. Enterprise Reporting

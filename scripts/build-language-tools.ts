@@ -2,10 +2,10 @@
 /**
  * Bundle the EML checker and fixer as two standalone files for the web.
  *
- * `html/checker.js` and `html/fixer.js` are what an author — or a model writing
+ * `website/html/checker.js` and `website/html/fixer.js` are what an author — or a model writing
  * a model — validates a `.eml.mmd` against without a checkout, a Bun install or
  * a terminal. They sit at the site root rather than under `assets/` because
- * their URL is the interface: `common/website/llmtext/llms.txt` tells a language model to
+ * their URL is the interface: `website/llmtext/llms.txt` tells a language model to
  * run its output past appwithai.org/checker.js, and a path that reads like an
  * implementation detail invites being moved.
  *
@@ -36,7 +36,7 @@ process.chdir(ROOT);
 const TOOLS = [
   {
     entry: "common/language/browser/checker.entry.ts",
-    target: "html/checker.js",
+    target: "website/html/checker.js",
     global: "EMLChecker",
     what: "the EML checker",
     blurb:
@@ -46,7 +46,7 @@ const TOOLS = [
   },
   {
     entry: "common/language/browser/fixer.entry.ts",
-    target: "html/fixer.js",
+    target: "website/html/fixer.js",
     global: "EMLFixer",
     what: "the EML fixer",
     blurb:
@@ -159,7 +159,7 @@ for (const tool of TOOLS) {
       console.log(`✓ ${tool.target} is up to date`);
     }
   } else {
-    await mkdir(join(ROOT, "html"), { recursive: true });
+    await mkdir(join(ROOT, "website", "html"), { recursive: true });
     await writeFile(target, bundle, "utf-8");
     console.log(
       `✓ bundled ${tool.what} to ${relative(ROOT, target)} (${(bundle.length / 1024).toFixed(0)}KB)`

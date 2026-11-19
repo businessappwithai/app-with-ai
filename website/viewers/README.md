@@ -55,7 +55,7 @@ root rather than this directory:
 
 ```bash
 python3 -m http.server 8099
-# http://127.0.0.1:8099/common/website/viewers/
+# http://127.0.0.1:8099/website/viewers/
 ```
 
 The published site serves the same files from `/viewers/`; only `index.html`

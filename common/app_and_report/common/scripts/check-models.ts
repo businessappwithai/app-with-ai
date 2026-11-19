@@ -26,7 +26,7 @@ import { existsSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..");
-const MODEL_DIRS = ["../../language/examples", "../../../examples", "examples"];
+const MODEL_DIRS = ["../../language/examples", "../../../website/examples", "examples"];
 
 function models(dir: string): string[] {
   const abs = path.join(ROOT, dir);
@@ -78,7 +78,7 @@ for (const published of models("html/models")) {
   const name = path.basename(published);
   const source = [
     `../../language/examples/${name}`,
-    `../../../examples/${name}`,
+    `../../../website/examples/${name}`,
     `examples/${name}`,
   ].find((p) =>
     existsSync(path.join(ROOT, p))

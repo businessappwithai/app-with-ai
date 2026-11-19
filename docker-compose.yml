@@ -72,7 +72,7 @@ services:
       # Your own models, read-only — the container has no business editing them.
       # These appear in the import dialog's dropdown alongside the examples the
       # image already carries, and are listed first so yours win a name clash.
-      - ./examples:/models:ro
+      - ./common/language/examples:/models:ro
       # Generated applications outlive the container that wrote them.
       - generated_projects:/app/generated-projects
       # How the deploy step builds an image: the host's daemon, not one of ours.

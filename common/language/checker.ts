@@ -200,7 +200,7 @@ export const MANAGED_COLUMN_NAMES = new Set([
 /*                                                                             */
 /*  These mirror packages/generator/src/workflows/steps.ts, which does the same  */
 /*  translation for the compiler. They are duplicated rather than imported       */
-/*  because language/ is bundled standalone into html/checker.js and cannot      */
+/*  because language/ is bundled standalone into website/html/checker.js and cannot      */
 /*  reach into packages/ — the same reason PROP_SPLIT exists three times. If      */
 /*  one changes, change the others: a checker and a compiler that disagree       */
 /*  about a directive is worse than either being wrong alone.                    */

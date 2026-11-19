@@ -17,7 +17,7 @@ describe("AppWithAI package integration", () => {
   ]) {
     it(`matches canonical entity extraction for local ${filename}`, async () => {
       const source = await readFile(
-        path.resolve(process.cwd(), "../../html/models", filename),
+        path.resolve(process.cwd(), "../../website/html/models", filename),
         "utf8"
       );
       const canonical = parseModel(source);

@@ -16,7 +16,7 @@
  * GENERATED_APP_URL pointing at it, and stops both whatever happens.
  *
  * --from-zip builds the application the way the downloadable archive is built
- * instead of with the CLI: the published bundle (`html/assets/appwithai-fullstack.js`,
+ * instead of with the CLI: the published bundle (`website/html/assets/appwithai-fullstack.js`,
  * `generateFullStack({ overlay: false })`) over the vendored stack templates, every
  * file written into a real .zip, and the .zip extracted where the app then runs —
  * on the ports its own `.env` files name (4001/4000), untouched.
@@ -164,9 +164,9 @@ function installHandlers(modelPath: string, appDir: string): void {
  * published browser bundle, zipped, and extracted into `out`.
  */
 async function generateFromZip(out: string): Promise<void> {
-  console.log("\n▸ Building the archive with html/assets/appwithai-fullstack.js");
+  console.log("\n▸ Building the archive with website/html/assets/appwithai-fullstack.js");
   await run(["bun", "run", "build:stack-templates"], ROOT);
-  const bundle = path.join(ROOT, "html/assets/appwithai-fullstack.js");
+  const bundle = path.join(ROOT, "website/html/assets/appwithai-fullstack.js");
   const { generateFullStack } = (await import(bundle)) as {
     generateFullStack: (options: {
       source: string;
@@ -176,7 +176,7 @@ async function generateFromZip(out: string): Promise<void> {
     }) => Promise<{ files: Record<string, string> }>;
   };
   const templates = JSON.parse(
-    readFileSync(path.join(ROOT, "html/assets/stack-templates.json"), "utf8")
+    readFileSync(path.join(ROOT, "website/html/assets/stack-templates.json"), "utf8")
   ) as Record<string, string>;
   const { files } = await generateFullStack({
     source: readFileSync(model, "utf8"),

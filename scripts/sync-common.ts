@@ -2,14 +2,14 @@
 /**
  * Put the shared files beside the trees that serve them.
  *
- * `common/` holds the one copy of what several trees need byte for byte: the guide's
- * screenshots and shared assets (`common/guide/`), the example models
- * (`common/language/examples/`), and the viewers and llmtext chunks
- * (`common/website/`). The trees that *serve* them — `html/`, the orchestrator's
- * `common/html/` and the website's `guide/`, `viewers/` and root — need the files
- * on disk, because a static server cannot reach into another directory. So they are
- * written by this script and git-ignored, never committed. A second tracked copy is
- * how these drifted apart in the first place.
+ * The website (`website/`) holds the one copy of what several trees need byte for
+ * byte: the guide's screenshots and shared assets (`website/html/img`,
+ * `website/html/assets`), the viewers and the llmtext chunks. The example models live
+ * once in `common/language/examples/`. The trees that *serve* them — the guide's
+ * `models/`, the orchestrator's `common/html/` and the published site's `guide/`,
+ * `viewers/` and root — need the files on disk, because a static server cannot reach
+ * into another directory. So they are written by this script and git-ignored, never
+ * committed. A second tracked copy is how these drifted apart in the first place.
  *
  *   bun run sync:common            copy, and rewrite the managed block of .gitignore
  *   bun run sync:common -- --check fail if a target is missing or differs
@@ -24,10 +24,10 @@ import path from "node:path";
 const ROOT = path.resolve(import.meta.dir, "..");
 const CHECK = process.argv.includes("--check");
 
-const GUIDE = "common/guide";
+const GUIDE = "website/html";
 const EXAMPLES = "common/language/examples";
-const VIEWERS = "common/website/viewers";
-const LLMTEXT = "common/website/llmtext";
+const VIEWERS = "website/viewers";
+const LLMTEXT = "website/llmtext";
 
 /** The guide's shared stylesheet and scripts (the pages own everything else in assets/). */
 const GUIDE_ASSETS = [
@@ -79,11 +79,12 @@ interface Copy {
 const copies: Copy[] = [];
 const img = readdirSync(path.join(ROOT, GUIDE, "img")).sort();
 
-for (const tree of ["html", "common/app_and_report/common/html"]) {
-  for (const f of img) copies.push({ from: `${GUIDE}/img/${f}`, to: `${tree}/img/${f}` });
-  for (const f of GUIDE_ASSETS) copies.push({ from: `${GUIDE}/assets/${f}`, to: `${tree}/assets/${f}` });
-  for (const f of GUIDE_MODELS) copies.push({ from: `${EXAMPLES}/${f}`, to: `${tree}/models/${f}` });
-}
+// The website's own guide holds the screenshots and assets itself; it only needs its models.
+for (const f of GUIDE_MODELS) copies.push({ from: `${EXAMPLES}/${f}`, to: `${GUIDE}/models/${f}` });
+const orchestrator = "common/app_and_report/common/html";
+for (const f of img) copies.push({ from: `${GUIDE}/img/${f}`, to: `${orchestrator}/img/${f}` });
+for (const f of GUIDE_ASSETS) copies.push({ from: `${GUIDE}/assets/${f}`, to: `${orchestrator}/assets/${f}` });
+for (const f of GUIDE_MODELS) copies.push({ from: `${EXAMPLES}/${f}`, to: `${orchestrator}/models/${f}` });
 const site = "businessappwithai.github.io";
 for (const f of img) copies.push({ from: `${GUIDE}/img/${f}`, to: `${site}/guide/img/${f}` });
 for (const f of SITE_MODELS) copies.push({ from: `${EXAMPLES}/${f}`, to: `${site}/guide/models/${f}` });
@@ -132,4 +133,4 @@ const current = readFileSync(ignorePath, "utf-8");
 const re = new RegExp(`${BEGIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s\\S]*?${END}`);
 const next = re.test(current) ? current.replace(re, block) : `${current.replace(/\n*$/, "\n")}\n${block}\n`;
 if (next !== current) writeFileSync(ignorePath, next);
-console.log(`✓ ${copies.length} files written beside html/, the orchestrator's html/ and the website`);
+console.log(`✓ ${copies.length} files written beside the website guide, the orchestrator's html/ and the published site`);

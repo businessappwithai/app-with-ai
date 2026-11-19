@@ -50,7 +50,7 @@ export default defineConfig({
     // The generator's own static server, not a third-party one: it is what sets
     // `Service-Worker-Allowed` and deliberately omits COEP, and a test that used
     // a different server would not be testing the thing that ships.
-    command: `bun packages/generator/src/cli-wasm/generate.ts serve html --port ${WASM_TEST_PORT}`,
+    command: `bun packages/generator/src/cli-wasm/generate.ts serve website/html --port ${WASM_TEST_PORT}`,
     url: `http://localhost:${WASM_TEST_PORT}/run-in-browser.html`,
     cwd: new URL("../../../", import.meta.url).pathname,
     reuseExistingServer: !process.env.CI,

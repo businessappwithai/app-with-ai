@@ -1,7 +1,7 @@
 /**
  * The generator, as it runs in a browser.
  *
- * This is the entry point bundled into `html/assets/appwithai-wasm.js`, and it
+ * This is the entry point bundled into `website/html/assets/appwithai-wasm.js`, and it
  * is deliberately thin: the parsing, compiling and assembling it exposes are
  * the same functions the CLI calls, imported from the same files. There is no
  * browser edition of the compiler, which is the only way the page can promise

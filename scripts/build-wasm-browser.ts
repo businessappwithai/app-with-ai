@@ -2,7 +2,7 @@
 /**
  * Bundle the generator for the browser.
  *
- * Output goes to `html/assets/appwithai-wasm.js`, which the upload page imports
+ * Output goes to `website/html/assets/appwithai-wasm.js`, which the upload page imports
  * as a module. Everything the bundle needs is already pure — the runtime was
  * inlined by build-wasm-runtime.ts, and parse-model.ts touches no filesystem —
  * so this is a plain esbuild pass with no shims and no polyfills.
@@ -17,7 +17,7 @@ import { bundlerEnvNotice, VERBATIM_NOTICE } from "./lib/build-env.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
 const ENTRY = join(ROOT, "packages/generator/src/browser/index.ts");
-const TARGET = join(ROOT, "html/assets/appwithai-wasm.js");
+const TARGET = join(ROOT, "website/html/assets/appwithai-wasm.js");
 
 /**
  * Stubs for the Node builtins the parser still names.
@@ -106,28 +106,28 @@ const bundle = banner + (await artifact.text());
 if (process.argv.includes("--check")) {
   const existing = await readFile(TARGET, "utf-8").catch(() => "");
   if (existing !== bundle) {
-    console.error("html/assets/appwithai-wasm.js is out of date.\nRun: bun run build:wasm-browser");
+    console.error("website/html/assets/appwithai-wasm.js is out of date.\nRun: bun run build:wasm-browser");
     console.error(bundlerEnvNotice(ROOT));
     process.exit(1);
   }
-  const worker = await readFile(join(ROOT, "html/wasm-app/sw.js"), "utf-8").catch(() => "");
+  const worker = await readFile(join(ROOT, "website/html/wasm-app/sw.js"), "utf-8").catch(() => "");
   const source = await readFile(join(ROOT, "packages/generator/templates/wasm/sw.js"), "utf-8");
   if (worker !== source) {
-    console.error("html/wasm-app/sw.js is out of date.\nRun: bun run build:wasm-browser");
+    console.error("website/html/wasm-app/sw.js is out of date.\nRun: bun run build:wasm-browser");
     console.error(VERBATIM_NOTICE);
     process.exit(1);
   }
-  console.log("✓ html/assets/appwithai-wasm.js and html/wasm-app/sw.js are up to date");
+  console.log("✓ website/html/assets/appwithai-wasm.js and website/html/wasm-app/sw.js are up to date");
 } else {
-  await mkdir(join(ROOT, "html/assets"), { recursive: true });
+  await mkdir(join(ROOT, "website/html/assets"), { recursive: true });
   await writeFile(TARGET, bundle, "utf-8");
 
   // The page's Service Worker has to be a real file at a real path — a worker
   // script is the one request a Service Worker does not get to answer, so it
   // cannot be served out of the bundle it serves everything else from.
-  await mkdir(join(ROOT, "html/wasm-app"), { recursive: true });
+  await mkdir(join(ROOT, "website/html/wasm-app"), { recursive: true });
   await writeFile(
-    join(ROOT, "html/wasm-app/sw.js"),
+    join(ROOT, "website/html/wasm-app/sw.js"),
     await readFile(join(ROOT, "packages/generator/templates/wasm/sw.js"), "utf-8"),
     "utf-8"
   );

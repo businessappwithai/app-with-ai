@@ -15,7 +15,7 @@ an application in your own browser tab without installing anything.
 > **This is an early version.** The generator works and is exercised end to end
 > by CI on every commit, but the project is young: interfaces move, the language
 > is still gaining directives, and some surfaces are further along than others
-> (`html/run-real-stack.html`'s boot path, for one, has never been watched
+> (`website/html/run-real-stack.html`'s boot path, for one, has never been watched
 > working from here). Treat generated applications as a starting point you own
 > and edit, not as something to put in front of customers unreviewed. Issues and
 > pull requests are welcome.
@@ -103,7 +103,7 @@ Every EML document is valid, renderable Mermaid — the generator's semantics ri
 on `%%` comments that renderers ignore, so a model opens in any Mermaid viewer.
 
 `common/language/appwithai-language.json` is the canonical definition. The full
-specification, written for language models, is `common/website/llmtext/llms.txt`.
+specification, written for language models, is `website/llmtext/llms.txt`.
 
 ### Validating a model
 

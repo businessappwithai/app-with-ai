@@ -2,7 +2,7 @@
    knows: an UpdateEntity to any declared state (the guard refuses a move with
    no edge from where the record stands), a CreateEntity to the initial one. */
 import { readFileSync } from "node:fs";
-import { readModel } from "../../../../common/website/viewers/eml-model.js";
+import { readModel } from "../../../../website/viewers/eml-model.js";
 
 const m = readModel(readFileSync(process.argv[2], "utf8"));
 const machines = new Map();

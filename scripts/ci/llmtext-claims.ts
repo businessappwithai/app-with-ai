@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Hold `common/website/llmtext/llms.txt` to the claims it makes about the checker, the
+ * Hold `website/llmtext/llms.txt` to the claims it makes about the checker, the
  * language and the Application Dictionary.
  *
  * The document tells a language model which diagnostics exist, which of them
@@ -53,7 +53,7 @@ const CHUNKS = [
   "enhancement-examples.txt",
 ] as const;
 const readChunk = (name: string): string =>
-  readFileSync(join(ROOT, "common", "website", "llmtext", name), "utf-8");
+  readFileSync(join(ROOT, "website", "llmtext", name), "utf-8");
 const ALL = CHUNKS.map(readChunk).join("\n");
 const DOCUMENTS = ["llms.txt (all chunks)"] as const;
 const checkerSource = readFileSync(join(ROOT, "common/language/checker.ts"), "utf-8");
@@ -445,15 +445,15 @@ held(
   unified.includes("https://www.appwithai.org/viewers/"),
   "llms.txt: names the viewers by their published URL"
 );
-held(existsSync(join(ROOT, "common", "website", "viewers", "index.html")), "common/website/viewers/index.html exists");
+held(existsSync(join(ROOT, "website", "viewers", "index.html")), "website/viewers/index.html exists");
 
 /* `llms.txt` is the only protocol document: the four older files and `llms.md`
    are gone, so a model is never pointed at a second, staler account of the
    language, and no URL ends in .md (Pages types it text/markdown, which some
    readers refuse). The directory must hold nothing else. */
 held(
-  readdirSync(join(ROOT, "common", "website", "llmtext")).sort().join(",") === [...CHUNKS].sort().join(","),
-  "common/website/llmtext holds llms.txt and its named chunks and nothing else"
+  readdirSync(join(ROOT, "website", "llmtext")).sort().join(",") === [...CHUNKS].sort().join(","),
+  "website/llmtext holds llms.txt and its named chunks and nothing else"
 );
 
 /* The record lifecycle — Draft, the flow, Final — and its action buttons, said

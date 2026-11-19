@@ -26,7 +26,7 @@ import { bundlerEnvNotice } from "./lib/build-env.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
 const ENTRY = join(ROOT, "packages/generator/src/browser/full-stack.ts");
-const TARGET = join(ROOT, "html/assets/appwithai-fullstack.js");
+const TARGET = join(ROOT, "website/html/assets/appwithai-fullstack.js");
 const MEMORY_FS = join(ROOT, "packages/generator/src/browser/memory-fs.ts");
 
 /**

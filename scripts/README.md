@@ -16,9 +16,9 @@ tests` job fails after everything else in it has passed. Each takes `--check`.
 | Script | Rebuilds |
 |---|---|
 | `build-wasm-runtime.ts` | `runtime-assets.generated.ts`, `overlay-assets.generated.ts` |
-| `build-fullstack-browser.ts` | `html/assets/appwithai-fullstack.js` |
-| `build-wasm-browser.ts` | `html/assets/appwithai-wasm.js`, `html/wasm-app/sw.js` |
-| `build-language-tools.ts` | `html/checker.js`, `html/fixer.js` |
+| `build-fullstack-browser.ts` | `website/html/assets/appwithai-fullstack.js` |
+| `build-wasm-browser.ts` | `website/html/assets/appwithai-wasm.js`, `website/html/wasm-app/sw.js` |
+| `build-language-tools.ts` | `website/html/checker.js`, `website/html/fixer.js` |
 | `build-stack-templates.ts` | The templates beside `run-real-stack.html` — generated, not committed |
 | `vendor-pglite.ts` | PGlite beside `html/`, so the wasm E2E does not depend on a CDN |
 
@@ -38,7 +38,7 @@ platform match CI's, because `Bun.build` output depends on both.
 
 | Script | Asserts |
 |---|---|
-| `llmtext-claims.ts` | `common/website/llmtext/*.txt` still describes what the checker really does |
+| `llmtext-claims.ts` | `website/llmtext/*.txt` still describes what the checker really does |
 | `language-tools-smoke.ts` | The published `checker.js`/`fixer.js` agree with the CLI |
 | `wasm-smoke.ts` | A generated WebAssembly-Postgres backend answers over HTTP |
 | `neon-db.ts` | Neon database provisioning for the branch workflows |

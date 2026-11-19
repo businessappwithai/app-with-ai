@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 /**
- * Put a copy of PGlite beside the guide, so `html/run-in-browser.html` runs
+ * Put a copy of PGlite beside the guide, so `website/html/run-in-browser.html` runs
  * with the network off.
  *
  * Not checked in: it is ~17MB of WebAssembly, most of it one `.wasm` and one
@@ -18,7 +18,7 @@ import { dirname, join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
 const FROM = join(ROOT, "node_modules/@electric-sql/pglite/dist");
-const TO = join(ROOT, "html/assets/vendor/pglite");
+const TO = join(ROOT, "website/html/assets/vendor/pglite");
 
 /** What the browser build loads at runtime. The maps and contribs are not it. */
 const FILES = [
@@ -61,6 +61,6 @@ for (const name of FILES) {
 }
 
 console.log(
-  `\u2713 vendored ${copied} PGlite files (${(bytes / 1024 / 1024).toFixed(1)}MB) into html/assets/vendor/pglite`
+  `\u2713 vendored ${copied} PGlite files (${(bytes / 1024 / 1024).toFixed(1)}MB) into website/html/assets/vendor/pglite`
 );
-console.log("  html/run-in-browser.html will find it automatically. It is gitignored.");
+console.log("  website/html/run-in-browser.html will find it automatically. It is gitignored.");
