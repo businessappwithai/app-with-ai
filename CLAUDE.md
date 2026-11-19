@@ -1810,7 +1810,7 @@ did, which is how it surfaced. Held by
 
 **When changing language semantics:** edit `appwithai-language.json` first, then spec docs, grammar, parser, composer, rag. If adding a diagnostic, add its code to `AUTO_FIXABLE_CODES` in `checker.ts`, the fixer's dispatch table, and `diagnostics.autoFixable` in the JSON — all three.
 
-**Example models live once** — `common/language/examples/*.eml.mmd`. `html/models/`, the orchestrator's `common/html/models/` and the website's `guide/models/` carry copies the pages load, but those copies are written by `bun run sync:common` and git-ignored, never committed.
+**Example models live once** — `common/language/examples/*.eml.mmd`. `html/models/`, the orchestrator's `common/app_and_report/common/html/models/` and the website's `guide/models/` carry copies the pages load, but those copies are written by `bun run sync:common` and git-ignored, never committed.
 
 ---
 

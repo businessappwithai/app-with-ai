@@ -79,7 +79,7 @@ interface Copy {
 const copies: Copy[] = [];
 const img = readdirSync(path.join(ROOT, GUIDE, "img")).sort();
 
-for (const tree of ["html", "tanstack-app-and-report-with-ai/common/html"]) {
+for (const tree of ["html", "common/app_and_report/common/html"]) {
   for (const f of img) copies.push({ from: `${GUIDE}/img/${f}`, to: `${tree}/img/${f}` });
   for (const f of GUIDE_ASSETS) copies.push({ from: `${GUIDE}/assets/${f}`, to: `${tree}/assets/${f}` });
   for (const f of GUIDE_MODELS) copies.push({ from: `${EXAMPLES}/${f}`, to: `${tree}/models/${f}` });
