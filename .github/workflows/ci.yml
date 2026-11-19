@@ -421,7 +421,7 @@ jobs:
         # smaller table.
         run: |
           bun packages/generator/src/cli/generate.ts generate \
-            --input examples/drug-discovery.eml.mmd \
+            --input common/language/examples/drug-discovery.eml.mmd \
             --output "$APP_DIR" \
             --name ci-generated \
             --port "$BACKEND_PORT" \

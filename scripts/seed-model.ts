@@ -22,7 +22,7 @@
  * restarts run this again.
  *
  * Usage:
- *   bun scripts/seed-model.ts --file examples/drug-discovery.eml.mmd
+ *   bun scripts/seed-model.ts --file common/language/examples/drug-discovery.eml.mmd
  *   bun scripts/seed-model.ts --from-database "$NEON_URL" --name inventory
  */
 

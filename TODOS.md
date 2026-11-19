@@ -352,7 +352,7 @@ container while writing 1000 records across nine entities. It is the suite
 
 ## Found by /qa on `claude/shipping-management-qa-08b4e1`, 2026-10-30 — RESOLVED
 
-Generated from `examples/shipping-management-system.eml.mmd` (NestJS + TanStack). All six
+Generated from `common/language/examples/shipping-management-system.eml.mmd` (NestJS + TanStack). All six
 findings fixed on the branch, each with a regression test under
 `packages/generator/src/templates/__tests__/` and rechecked in a regenerated app:
 

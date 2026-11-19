@@ -197,7 +197,7 @@ nothing about whether a generated one compiles.
 | **Generate an application and build it** | Builds the generated backend **and** frontend, type-checks the generated `tests/`, then runs that suite against real Postgres (pgvector) with `node run.ts --no-server` |
 
 Two details of the last job worth copying locally when reproducing a failure: it
-generates from `examples/drug-discovery.eml.mmd` with `--records-per-entity 25`,
+generates from `common/language/examples/drug-discovery.eml.mmd` with `--records-per-entity 25`,
 and it runs the suite via the generator's own `run.ts`, never `bun test` — the
 suites are ordered and stateful, and running them in one parallel process makes
 failures move around between runs.

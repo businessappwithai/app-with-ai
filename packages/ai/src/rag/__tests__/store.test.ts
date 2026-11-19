@@ -17,7 +17,7 @@ import { clearProject, MODEL_CONTEXT_INDEX, retrieve } from "../store";
  */
 
 const ROOT = join(import.meta.dirname, "../../../../..");
-const EML = readFileSync(join(ROOT, "examples/drug-discovery.eml.mmd"), "utf-8");
+const EML = readFileSync(join(ROOT, "common/language/examples/drug-discovery.eml.mmd"), "utf-8");
 const PROJECT = "vitest-model-context";
 const embed = hashEmbedder();
 

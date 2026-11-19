@@ -2,7 +2,7 @@
  * Volume QA over the drug-discovery model.
  *
  * Builds 200 automations and 200 rule tables against the seventeen entities in
- * `examples/drug-discovery.eml.mmd` and pushes each one through the whole
+ * `common/language/examples/drug-discovery.eml.mmd` and pushes each one through the whole
  * model: validate, serialise, reopen, re-serialise.
  *
  * The point is not that 200 is a magic number — it is that the shapes are

@@ -241,7 +241,7 @@ nothing about whether a generated one compiles.
 | **Generate an application and build it** | Builds the generated backend **and** frontend, type-checks the generated `tests/`, then runs that suite against real Postgres (pgvector) with `node run.ts --no-server` |
 
 Two details of the last job worth copying locally when reproducing a failure: it
-generates from `examples/drug-discovery.eml.mmd` with `--records-per-entity 25`,
+generates from `common/language/examples/drug-discovery.eml.mmd` with `--records-per-entity 25`,
 and it runs the suite via the generator's own `run.ts`, never `bun test` — the
 suites are ordered and stateful, and running them in one parallel process makes
 failures move around between runs.
@@ -406,7 +406,7 @@ Held by `templates/__tests__/seed-unresolved-fk.test.ts` and the last block of `
 `%%entity CargoItem parent: Shipment` beside `%%entity DangerousGoods parent: CargoItem`
 checks clean — the checker has no rule against a chain — and the NestJS dictionary seed then
 named `cargoItemWindowId`, a variable it declares only for top-level entities, so the generated
-backend did not compile (found by generating `examples/shipping-management-system.eml.mmd`).
+backend did not compile (found by generating `common/language/examples/shipping-management-system.eml.mmd`).
 The tab model has two levels: a child's tab is one level inside a top-level entity's window,
 and `use-bus-entity-level.ts` lists a window's level-1 tabs for the open record. So
 `attachParents` in `parsers/mermaid.parser.ts` (`flattenNestedLineItems`) drops `parent:` from

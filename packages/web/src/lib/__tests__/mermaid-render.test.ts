@@ -3,14 +3,14 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { toRenderableMermaid } from "../mermaid-render";
 
-// Regression: ISSUE-003 — examples/drug-discovery.eml.mmd rendered as
+// Regression: ISSUE-003 — common/language/examples/drug-discovery.eml.mmd rendered as
 // "No entities defined yet" in the design page's Live Preview because the raw
 // EML document was handed straight to mermaid.render(), which rejects EML's
 // %% directives, trailing rule/workflow diagrams, and OPTIONAL modifier.
 // Found by /qa on 2026-07-30
 // Report: .gstack/qa-reports/qa-report-localhost-3000-2026-07-30.md
 
-const EXAMPLE_PATH = path.resolve(__dirname, "../../../../../examples/drug-discovery.eml.mmd");
+const EXAMPLE_PATH = path.resolve(__dirname, "../../../../../common/language/examples/drug-discovery.eml.mmd");
 
 describe("toRenderableMermaid", () => {
   it("strips the %% banner so output starts at erDiagram", () => {
