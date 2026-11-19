@@ -1,0 +1,97 @@
+# Builds the website (website/) with Docusaurus and deploys it to GitHub Pages.
+#
+# The pages are the HTML documents in website/; website/plugins/site-pages.mjs gives each
+# its route at the path it has always had, publishes website/html/ at /guide/ and
+# website/llmtext/ at the site root, and copies every other published file unchanged.
+#
+# Some of what the site serves is written, not committed: the guide's example models and
+# the two generator bundles are copies of files that live in common/language/examples and
+# website/html/assets. `bun run sync:common` writes them, so it runs before the build.
+name: Deploy the website to GitHub Pages
+
+on:
+  # Only what the site is made of; a change elsewhere in the repository does not redeploy it.
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "common/language/**"
+      - "scripts/sync-common.ts"
+      - ".github/workflows/website-pages.yml"
+
+  # Allows a run from the Actions tab.
+  workflow_dispatch:
+
+# The token reads the repository and nothing else by default. Only the deploy job, which
+# runs no code from the repository, may write to GitHub Pages; the build job installs
+# packages and runs the build, and holds no write access.
+permissions:
+  contents: read
+
+# One deployment at a time. A run in progress is allowed to finish: these are production
+# deployments, and only the newest queued run follows it.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  BUN_VERSION: "1.4.4"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read # configure-pages reads the site's Pages settings
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Writes the guide's models and the site's generator bundles. Plain Bun, no install.
+      - name: Write the shared files beside the site
+        run: bun scripts/sync-common.ts
+
+      - name: Install the site
+        working-directory: website
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Build
+        working-directory: website
+        run: bun run build
+
+      # Every page at its own path with its body unchanged, and every other published file
+      # byte for byte — including /guide/ and the llms.txt chunks at the root.
+      - name: The build serves the site unchanged
+        run: node website/scripts/check-build.mjs
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/build
+
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

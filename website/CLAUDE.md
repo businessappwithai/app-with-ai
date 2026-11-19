@@ -17,7 +17,12 @@
 >   checker, fixer, models and chunks are edited where they live and published from here.
 >   `html/checker.js`, `html/fixer.js` and `viewers/eml-model.js` are built by the root's
 >   `build:language-tools` and `build:viewers`.
-> - `.github/workflows/` here only runs if this folder is used as a repository root.
+> - **Deployment is `.github/workflows/website-pages.yml` at the repository root.** It runs
+>   `bun scripts/sync-common.ts`, builds this folder with Docusaurus, checks the build with
+>   `scripts/check-build.mjs`, and deploys `website/build` to GitHub Pages on a push to `main`
+>   that touches `website/`, `common/language/` or the sync script. `static.yml` here is gone.
+>   `.github/workflows/tests.yml` in this folder only runs if it is used as a repository root;
+>   the root `ci.yml` has a "Check the website" job that runs the same checks.
 
 ## Project Overview
 
