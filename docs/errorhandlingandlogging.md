@@ -17,7 +17,7 @@ The gaps:
 - `http-exception.filter.ts.hbs` maps database SQLSTATEs well but logs through a second logger. Nothing logs by category.
 - The front end's `lib/api-client.ts` has its own `console`-based `Logger` with no levels the operator controls, and browser errors are never reported to the server.
 
-**Enterprise Reporting** (`tanstack-enterprise_reporting/src/`) is weaker:
+**Enterprise Reporting** (`reporting/tanstack-enterprise_reporting/src/`) is weaker:
 - `lib/logging/logger.ts` always uses the `pino-pretty` transport (wrong in production) and has no redaction.
 - It writes to the `logs` table through an unbounded queue, one `INSERT` per line, re-queues on failure, and registers its own `SIGTERM`/`SIGINT` handlers that call `process.exit`.
 - Only 4 files import it. There are **530 `console.*` calls in 158 files**.
@@ -164,7 +164,7 @@ All of these paths are under `packages/generator/templates/tanstack-start-nestjs
 
 ## 3. Enterprise Reporting
 
-All of these paths are under `tanstack-enterprise_reporting/src/`.
+All of these paths are under `reporting/tanstack-enterprise_reporting/src/`.
 
 1. **Logger core** (`lib/logging/`):
    - `log-spec.json` (new), with this product's own channels: `http`, `auth`, `db`, `datasource`, `nlquery`, `sql`, `jobs`, `report`, `email`, `graph`, `voice`, `client`, `app`. It follows the same shape as the generator's spec, and the levels and redaction lists match.
