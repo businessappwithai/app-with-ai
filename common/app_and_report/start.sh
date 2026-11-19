@@ -29,7 +29,7 @@ readonly PACK_DIR="${RUNTIME}/pack"
 readonly LANDING_DIR="${RUNTIME}/landing"
 readonly ENV_FILE="${RUNTIME}/.env"
 
-readonly DEFAULT_MODEL="../common/language/examples/crm.eml.mmd"
+readonly DEFAULT_MODEL="../language/examples/crm.eml.mmd"
 
 MODEL=""
 PROFILE="demo"
@@ -131,7 +131,7 @@ say "1/7  Checking the model"
 # interface. Removed again unless it was already tracked.
 HAD_ERROR_FILE=""
 [[ -f "${MODEL}.error" ]] && HAD_ERROR_FILE="1"
-if ! (cd "$COMMON" && bun ../../common/language/checker.ts "../${MODEL}"); then
+if ! (cd "$COMMON" && bun ../../language/checker.ts "../${MODEL}"); then
   [[ -n "$HAD_ERROR_FILE" ]] || rm -f "${MODEL}.error"
   die "The model has errors. Nothing downstream can be trusted until they are fixed."
 fi
@@ -143,7 +143,7 @@ if [[ -n "$KEEP_APP" && -d "$APP_DIR" ]]; then
   echo "  --keep-app: reusing the application already in ${APP_DIR}"
 else
   rm -rf "$APP_DIR"
-  (cd "$COMMON" && bun ../../common/language/cli/eml.ts generate \
+  (cd "$COMMON" && bun ../../language/cli/eml.ts generate \
       -i "../${MODEL}" -o "../${APP_DIR}" -n "$APP_NAME" \
       --stack tanstack-nestjs --force)
 fi

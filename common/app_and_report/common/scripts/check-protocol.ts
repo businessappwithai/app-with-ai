@@ -19,7 +19,7 @@ import path from "node:path";
 const COMMON = path.resolve(import.meta.dir, "..");
 const MONOREPO = path.resolve(COMMON, "..", "..");
 const ours = path.join(COMMON, "website", "llmtext");
-const upstreamDir = path.join(MONOREPO, "common", "website", "llmtext");
+const upstreamDir = path.join(MONOREPO, "website", "llmtext");
 const CHUNKS = [
   "llms.txt",
   "working-session.txt",

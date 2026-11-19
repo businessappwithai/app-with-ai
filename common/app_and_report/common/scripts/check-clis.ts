@@ -39,7 +39,7 @@ import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..");
 const APP_REPO = path.resolve(ROOT, "..", "app-with-ai-tanstack");
-const MODEL = process.env.CHECK_CLIS_MODEL ?? "../../common/language/examples/crm.eml.mmd";
+const MODEL = process.env.CHECK_CLIS_MODEL ?? "../../language/examples/crm.eml.mmd";
 
 /** `--only <name>` runs one CLI. CI uses it to give each its own bun. */
 const onlyIndex = process.argv.indexOf("--only");

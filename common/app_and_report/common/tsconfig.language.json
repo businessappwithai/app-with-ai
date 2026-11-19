@@ -35,11 +35,11 @@
     }
   },
   "include": [
-    "../../common/language/**/*.ts",
+    "../../language/**/*.ts",
     "build/**/*.ts",
     "scripts/**/*.ts"
   ],
   "exclude": [
-    "../../common/language/cli/runtime"
+    "../../language/cli/runtime"
   ]
 }

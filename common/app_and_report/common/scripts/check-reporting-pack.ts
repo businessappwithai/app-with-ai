@@ -35,7 +35,7 @@ import path from "node:path";
 import { buildPack } from "../build/reporting-pack.ts";
 
 const ROOT = path.resolve(import.meta.dir, "..");
-const MODELS = ["../../common/language/examples", "../../examples", "examples"];
+const MODELS = ["../../language/examples", "../../../examples", "examples"];
 
 const PG = {
   host: process.env.PGHOST ?? "/var/run/postgresql",
@@ -128,7 +128,7 @@ function main(): number {
       const gen = spawnSync(
         "bun",
         [
-          "../../common/language/cli/eml.ts",
+          "../../language/cli/eml.ts",
           "generate",
           "-i",
           model,

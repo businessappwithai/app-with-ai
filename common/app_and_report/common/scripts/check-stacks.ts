@@ -33,7 +33,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..");
-const MODEL = process.env.CHECK_STACKS_MODEL ?? "../../common/language/examples/helpdesk.eml.mmd";
+const MODEL = process.env.CHECK_STACKS_MODEL ?? "../../language/examples/helpdesk.eml.mmd";
 const skipHeavy = process.argv.includes("--skip-heavy");
 
 /** Each target, and the fewest files a run of it may legitimately write. */
@@ -151,7 +151,7 @@ for (const { stack, minFiles, heavy } of TARGETS) {
   const out = mkdtempSync(path.join(tmpdir(), `eml-${stack}-`));
   const run = spawnSync(
     "bun",
-    ["../../common/language/cli/eml.ts", "generate", "-i", MODEL, "-o", out, "--stack", stack, "--force"],
+    ["../../language/cli/eml.ts", "generate", "-i", MODEL, "-o", out, "--stack", stack, "--force"],
     { cwd: ROOT, encoding: "utf8" }
   );
 

@@ -26,7 +26,7 @@ import { existsSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..");
-const MODEL_DIRS = ["../../common/language/examples", "../../examples", "examples"];
+const MODEL_DIRS = ["../../language/examples", "../../../examples", "examples"];
 
 function models(dir: string): string[] {
   const abs = path.join(ROOT, dir);
@@ -55,7 +55,7 @@ for (const model of all) {
   const errorFile = path.join(ROOT, `${model}.error`);
   const preexisting = existsSync(errorFile) && tracked(`${model}.error`);
 
-  const run = spawnSync("bun", ["../../common/language/checker.ts", model], {
+  const run = spawnSync("bun", ["../../language/checker.ts", model], {
     cwd: ROOT,
     encoding: "utf8",
   });
@@ -77,8 +77,8 @@ for (const model of all) {
 for (const published of models("html/models")) {
   const name = path.basename(published);
   const source = [
-    `../../common/language/examples/${name}`,
-    `../../examples/${name}`,
+    `../../language/examples/${name}`,
+    `../../../examples/${name}`,
     `examples/${name}`,
   ].find((p) =>
     existsSync(path.join(ROOT, p))
