@@ -17,7 +17,13 @@
 >   checker, fixer, models and chunks are edited where they live and published from here.
 >   `html/checker.js`, `html/fixer.js` and `viewers/eml-model.js` are built by the root's
 >   `build:language-tools` and `build:viewers`.
-> - `.github/workflows/` here only runs if this folder is used as a repository root.
+> - **Deployment is `.github/workflows/website-pages.yml` at the repository root.** It runs
+>   `bun scripts/sync-common.ts`, builds this folder with Docusaurus, checks the build with
+>   `scripts/check-build.mjs`, and deploys `website/build` to GitHub Pages on a push to `main`
+>   that touches `website/` — and only then (or by hand, for a change to a shared file the site
+>   gets through sync, such as an example model). `static.yml` here is gone.
+>   `.github/workflows/tests.yml` in this folder only runs if it is used as a repository root;
+>   the root `ci.yml` has a "Check the website" job that runs the same checks.
 
 ## Project Overview
 
@@ -79,7 +85,7 @@ own path; see **Docusaurus** below. Beside them sit the build's own files: `pack
 businessappwithai.github.io/
 ├── .github/
 │   └── workflows/
-│       └── static.yml        # GitHub Actions: auto-deploy to GitHub Pages on push to main
+│       └── tests.yml         # Only runs if this folder is a repository root (see the note at the top)
 ├── assets/
 │   ├── css/
 │   │   ├── assistant.css     # Scoped styles for assistant.html (`.aia-` prefix)
@@ -1616,7 +1622,7 @@ stripped of its reports.
 
 ## CI/CD Pipeline
 
-Two workflows. `tests.yml` gates a pull request; `static.yml` deploys `main`.
+Two workflows. `tests.yml` gates a pull request when this folder is a repository root (the root `ci.yml` runs the same checks here); `.github/workflows/website-pages.yml` at the repository root deploys `main`.
 
 ### `.github/workflows/tests.yml` — the checks
 
@@ -1692,17 +1698,18 @@ and wealth-management cards each overstated by one until the test was written.
 Run it locally with `node scripts/website-e2e.mjs`, or `--verbose` to print
 every assertion rather than only failures.
 
-### `.github/workflows/static.yml` — the deploy
+### `.github/workflows/website-pages.yml` (repository root) — the deploy
 
 ```yaml
-# .github/workflows/static.yml
-Trigger: push to main (or manual dispatch)
+# .github/workflows/website-pages.yml
+Trigger: push to main touching website/ only (or manual dispatch)
 Runner:  ubuntu-latest
 Steps:
-  1. actions/checkout@v4
-  2. actions/configure-pages@v5
-  3. actions/upload-pages-artifact@v3  (uploads entire repo)
-  4. actions/deploy-pages@v4
+  1. actions/checkout@v4, Bun 1.4.4, Node 22
+  2. bun scripts/sync-common.ts            (the guide's models and the generator bundles)
+  3. bun install + bun run build in website/, then scripts/check-build.mjs
+  4. actions/configure-pages@v5, actions/upload-pages-artifact@v3  (uploads website/build)
+  5. actions/deploy-pages@v4
 ```
 
 Concurrency is `group: pages` with **`cancel-in-progress: false`** — a running deploy

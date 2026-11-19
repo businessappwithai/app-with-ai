@@ -124,7 +124,7 @@ Several files are built upstream in `app-with-ai-tanstack` and copied here. Do n
 Two workflows:
 
 - **`tests.yml`** — gates pull requests: verifies `llms.txt` examples, runs checker and audit on all eight published models, checks vendored source pages, runs `scripts/website-e2e.mjs`
-- **`static.yml`** — deploys `main` to GitHub Pages automatically
+- **`.github/workflows/website-pages.yml`** (at the repository root) — deploys `main` to GitHub Pages automatically
 
 Run the full test suite locally (no install needed):
 
