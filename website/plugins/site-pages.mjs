@@ -32,6 +32,10 @@ export const NOT_PUBLISHED = new Set([
   "bun.lock",
   "docusaurus.config.mjs",
   "package.json",
+  // Symlink for local Live Server preview: guide → html. The html/ → guide/
+  // mapping in PUBLISHED_AS already handles the Docusaurus build; this entry
+  // prevents the symlink from being double-published.
+  "guide",
 ]);
 
 // Where a source folder is published. The guide is `html/` in the repository and
