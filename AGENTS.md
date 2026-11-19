@@ -245,15 +245,18 @@ app-with-ai-tanstack/
 │   ├── generator/  # Code generation engine, CLI, Handlebars templates
 │   ├── ai/         # Mastra.ai agents, workflows, converter, RAG
 │   └── web/        # TanStack Start app (Vite 8 + React 19)
-├── language/       # EML modeling language + `eml` CLI
+├── common/
+│   ├── language/   # EML modeling language + `eml` CLI, and the example models
+│   └── app_and_report/  # The orchestrator: the app and its reporting platform, composed
+├── reporting/      # tanstack-enterprise_reporting, the reporting platform
 ├── database/       # Migrations (001–010)
-├── html/           # Static guide + run-in-browser.html + run-real-stack.html
-├── website/        # What businessappwithai.github.io publishes from here
-│   ├── llmtext/    #   llms.txt — the ~1k-token controller, plus the chunks
+├── website/        # The published site (appwithai.org): pages, assets, demo, specifications
+│   ├── html/       #   The guide, published at /guide/ (the site plugin maps html → guide)
+│   ├── llmtext/    #   llms.txt — the ~1k-token controller, plus the chunks (served at the site root)
 │                   #   it names and a model loads lazily
-│   └── viewers/    #   The model viewers — served at appwithai.org/viewers
-├── tests/          # Playwright E2E suites
-└── examples/       # Sample .eml.mmd files
+│   ├── viewers/    #   The model viewers — served at appwithai.org/viewers
+│   └── examples/   #   Legacy `.mmd` samples (the `.eml.mmd` models live in common/language)
+└── tests/          # Playwright E2E suites
 ```
 
 ### Package Aliases
@@ -659,10 +662,9 @@ whole file, and prove nothing was lost with a before-and-after table.
 
 **It is authored, not derived.** It began as the site's language-only
 `llms-full.txt` with §1 and §3.7 rewritten; the language reference after §1 is
-that text. Edit it in place. The same file is published by the website and
-carried by the orchestrator — copy it, byte for byte, to
-`businessappwithai.github.io/llms.txt` and
-`app-and-report-with-ai-tanstack/website/llmtext/llms.txt`.
+that text. Edit it in place. The website publishes this same file at its root
+(`/llms.txt`) straight from `website/llmtext/`, and the orchestrator reads it from there
+too — there is no second copy to keep in step.
 
 **`bun run test:llmtext` holds it** (`scripts/ci/llmtext-claims.ts`): every code it
 cites exists, every auto-fixable code is tabulated and counted right, every
@@ -929,7 +931,7 @@ did, which is how it surfaced. Held by
 
 **When changing language semantics:** edit `appwithai-language.json` first, then spec docs, grammar, parser, composer, rag. If adding a diagnostic, add its code to `AUTO_FIXABLE_CODES` in `checker.ts`, the fixer's dispatch table, and `diagnostics.autoFixable` in the JSON — all three.
 
-**Example models are checked in twice** — `common/language/examples/*.eml.mmd` and `website/html/models/*.eml.mmd` must be byte-identical (CI asserts this).
+**Example models live once** — `common/language/examples/*.eml.mmd`. `website/html/models/` (the published `/guide/models/`) and the orchestrator's `common/app_and_report/common/html/models/` carry copies the pages load, but those copies are written by `bun run sync:common` and git-ignored, never committed.
 
 ---
 
