@@ -162,10 +162,12 @@ jobs:
         run: bun run sync:common
 
       - name: Install the site
-        run: bun install --cwd website --frozen-lockfile --ignore-scripts
+        working-directory: website
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Build the site
-        run: bun --cwd website run build
+        working-directory: website
+        run: bun run build
 
       - name: The build serves the site unchanged
         run: node website/scripts/check-build.mjs
