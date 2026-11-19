@@ -61,7 +61,7 @@ describe("the browser stack loads nothing from a CDN", () => {
   it("in the templates, or on the guide pages that run them", () => {
     const sources = [
       ...files(path.join(REPO, "packages/generator/templates"), (name) => !name.endsWith(".map")),
-      ...files(path.join(REPO, "html"), (name) => /\.(html|css|js)$/.test(name)).filter(
+      ...files(path.join(REPO, "website", "html"), (name) => /\.(html|css|js)$/.test(name)).filter(
         // Built bundles of this repository's own source, held to it by --check.
         (file) => !/html\/assets\/appwithai-[a-z]+\.js$/.test(file)
       ),

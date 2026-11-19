@@ -23,12 +23,12 @@ const PUBLISHED = [
   "common/language/examples/airport-management-system.eml.mmd",
   "common/language/examples/shipping-management-system.eml.mmd",
   "common/language/examples/investment-planning-wealth-management-system.eml.mmd",
-  "examples/hospital-management-system.mmd",
+  "common/language/examples/hospital-management-system.eml.mmd",
   "docs/eml-sessions/education-management-system/education-management-system.mmd",
-  "html/models/education-management-system.mmd",
-  "html/models/sales.mmd",
-  "html/models/service-management.mmd",
-  "html/models/construction-enterprise-management.mmd",
+  "common/language/examples/unified-education-management-system.eml.mmd",
+  "common/language/examples/enterprise-sales-crm.eml.mmd",
+  "common/language/examples/enterprise-service-management-system.eml.mmd",
+  "common/language/examples/construction-enterprise-management.eml.mmd",
 ];
 
 describe("the published models' reporting packs", () => {

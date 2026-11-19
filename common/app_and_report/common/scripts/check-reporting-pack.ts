@@ -35,7 +35,7 @@ import path from "node:path";
 import { buildPack } from "../build/reporting-pack.ts";
 
 const ROOT = path.resolve(import.meta.dir, "..");
-const MODELS = ["../../language/examples", "../../../examples", "examples"];
+const MODELS = ["../../language/examples", "../../../website/examples", "examples"];
 
 const PG = {
   host: process.env.PGHOST ?? "/var/run/postgresql",

@@ -5,14 +5,14 @@
  * They are not all the same kind of thing, and that is the whole point of this
  * module:
  *
- *   bundler output    html/checker.js, html/fixer.js, html/assets/*.js
+ *   bundler output    website/html/checker.js, website/html/fixer.js, website/html/assets/*.js
  *                     Produced by `Bun.build`, whose output depends on the bun
  *                     version *and* the platform — the full-stack bundle is
  *                     807407 bytes built on macOS and 807697 on Linux, same
  *                     bun version, same frozen lockfile.
  *
  *   verbatim copies   runtime-assets.generated.ts, overlay-assets.generated.ts,
- *                     html/wasm-app/sw.js
+ *                     website/html/wasm-app/sw.js
  *                     Files read and re-emitted as JSON string literals. Byte
  *                     identical everywhere.
  *

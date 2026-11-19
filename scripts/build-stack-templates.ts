@@ -22,7 +22,7 @@ import { join, relative, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
 const TEMPLATES = join(ROOT, "packages/generator/templates");
-const TARGET = join(ROOT, "html/assets/stack-templates.json");
+const TARGET = join(ROOT, "website/html/assets/stack-templates.json");
 
 /** What a generated application needs. `wasm/` is inlined elsewhere. */
 const INCLUDE = ["tanstack-start-nestjs", "common", "wasm-overlay"];

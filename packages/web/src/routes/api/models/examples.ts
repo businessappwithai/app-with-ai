@@ -31,7 +31,7 @@ function searchPaths(): string[] {
     // `/models` is where the compose file mounts them, and it is read-only
     // there — offering it is safe even when it is somebody else's directory.
     "/models",
-    path.join(cwd, "examples"),
+    path.join(cwd, "website", "examples"),
     path.join(cwd, "common", "language", "examples"),
   ];
 }

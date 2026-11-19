@@ -37,7 +37,7 @@
     "build:wasm-browser": "bun scripts/build-wasm-browser.ts",
     "vendor:pglite": "bun scripts/vendor-pglite.ts",
     "vendor:webcontainer": "bun scripts/vendor-webcontainer.ts",
-    "test:wasm": "bun scripts/sync-common.ts && playwright test --config tests/e2e/wasm/playwright.config.ts",
+    "test:wasm": "bun scripts/sync-common.ts && (cd website && bun install --frozen-lockfile --ignore-scripts && bun run build) && playwright test --config tests/e2e/wasm/playwright.config.ts",
     "test:wasm:cli": "playwright test --config tests/e2e/wasm/playwright.config.ts --grep @cli",
     "test:wasm:browser": "playwright test --config tests/e2e/wasm/playwright.config.ts --grep @browser",
     "vendor:editors": "bun scripts/vendor-editors.ts",

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Prove `html/checker.js` and `html/fixer.js` still say what the CLI says.
+ * Prove `website/html/checker.js` and `website/html/fixer.js` still say what the CLI says.
  *
  * `--check` on the build script proves the bundles are not stale. It does not
  * prove they *run* — the Node builtins they are bundled against are stubs, and a
@@ -22,8 +22,8 @@ import { checkSource } from "../../common/language/checker";
 
 const ROOT = resolve(import.meta.dir, "../..");
 
-const bundleChecker = await import(join(ROOT, "html/checker.js"));
-const bundleFixer = await import(join(ROOT, "html/fixer.js"));
+const bundleChecker = await import(join(ROOT, "website/html/checker.js"));
+const bundleFixer = await import(join(ROOT, "website/html/fixer.js"));
 
 const dir = join(ROOT, "common/language/examples");
 const models = (await readdir(dir)).filter((name) => name.endsWith(".mmd"));
@@ -179,4 +179,4 @@ if (failed > 0) {
   console.error(`\n${failed} disagreement(s). Run: bun run build:language-tools`);
   process.exit(1);
 }
-console.log(`\n✓ html/checker.js and html/fixer.js agree with the CLI on ${models.length} models`);
+console.log(`\n✓ website/html/checker.js and website/html/fixer.js agree with the CLI on ${models.length} models`);

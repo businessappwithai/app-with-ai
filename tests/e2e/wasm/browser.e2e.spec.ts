@@ -52,6 +52,9 @@ const IGNORED_CONSOLE = [
   // The guide ships no favicon. Adding a binary file to quiet a test would be a
   // worse trade than saying so here.
   /favicon\.ico/,
+  // The published guide carries the site's Google tag. It is a third-party script the
+  // page is not responsible for, and it fails to load wherever that host is blocked.
+  /googletagmanager\.com/,
 ];
 
 function watchConsole(page: Page): string[] {
@@ -156,7 +159,7 @@ test.describe
     });
 
     test("the page opens on the CRM example", async () => {
-      await page.goto("/run-in-browser.html");
+      await page.goto("/guide/run-in-browser.html");
       await expect(page.locator("#choice-crm")).toHaveAttribute("aria-pressed", "true");
       await expect(page.locator("#model-summary")).toContainText("crm.eml.mmd");
       await expect(page.locator("#app-name")).toHaveValue("Acme CRM");
@@ -180,6 +183,10 @@ test.describe
     });
 
     test("generating compiles the whole model", async () => {
+      // The tests below start from an application whose business tables are empty (a
+      // User has to be created before an Account has an owner), and the published
+      // page defaults to ten sample rows per entity.
+      await page.locator("#sample-records").selectOption("0");
       await page.locator("#generate").click();
       await expect(page.locator("#result.is-shown .tally")).toBeVisible({ timeout: 120_000 });
 
@@ -199,7 +206,7 @@ test.describe
       // 72: the CRM model declares a `%%rbac … .read` rule per entity on top of
       // its write restrictions, which is what gives each seeded role its own
       // set of windows, and 48 moves, each the button of the roles it names.
-      // html/models/crm.eml.mmd is the copy this page loads and it must stay identical to
+      // website/html/models/crm.eml.mmd is the copy this page loads and it must stay identical to
       // common/language/examples/crm.eml.mmd — they had drifted, and this number is
       // what noticed.
       expect(tally["Access rules"]).toBe("72");
@@ -535,7 +542,7 @@ test.describe
     });
 
     test("switching to Upload clears the model and offers a drop zone", async () => {
-      await page.goto("/run-in-browser.html");
+      await page.goto("/guide/run-in-browser.html");
       await page.locator("#choice-upload").click();
       await expect(page.locator("#dropzone")).toBeVisible();
       await expect(page.locator("#model-summary")).toBeHidden();
@@ -580,7 +587,7 @@ test.describe
 
 test.describe("@browser the checker refuses a broken model", () => {
   test("shows every finding, with its code and line, and generates nothing", async ({ page }) => {
-    await page.goto("/run-in-browser.html");
+    await page.goto("/guide/run-in-browser.html");
     await page.locator("#choice-upload").click();
 
     await page.locator("#file").setInputFiles({
@@ -624,7 +631,7 @@ test.describe("@browser the checker refuses a broken model", () => {
   });
 
   test("reports a repair rather than making it silently", async ({ page }) => {
-    await page.goto("/run-in-browser.html");
+    await page.goto("/guide/run-in-browser.html");
     await page.locator("#choice-upload").click();
     await page.locator("#file").setInputFiles({
       name: "no-name.eml.mmd",
@@ -651,7 +658,7 @@ test.describe("@browser the checker refuses a broken model", () => {
   });
 
   test("re-checks a corrected model chosen under the same filename", async ({ page }) => {
-    await page.goto("/run-in-browser.html");
+    await page.goto("/guide/run-in-browser.html");
     await page.locator("#choice-upload").click();
 
     /* Help on the entity and the column, because the corrected half of this
@@ -706,7 +713,7 @@ test.describe("@browser assembling the real stack in a tab", () => {
   // isolation, and is not exercised anywhere — the page says so too.
   test("produces the real application, four hundred files of it", async ({ page }) => {
     const problems = watchConsole(page);
-    await page.goto("/run-real-stack.html");
+    await page.goto("/guide/run-real-stack.html");
 
     await expect(page.locator("#model-summary")).toContainText("crm.eml.mmd");
     await page.locator("#generate").click();
@@ -738,7 +745,7 @@ test.describe("@browser assembling the real stack in a tab", () => {
   });
 
   test("refuses a model the checker refuses, before assembling anything", async ({ page }) => {
-    await page.goto("/run-real-stack.html");
+    await page.goto("/guide/run-real-stack.html");
     await page.locator("#choice-upload").click();
     await page.locator("#file").setInputFiles({
       name: "bad-rbac.eml.mmd",
@@ -773,7 +780,7 @@ test.describe("@browser assembling the real stack in a tab", () => {
   });
 
   test("re-checks a corrected model chosen under the same filename", async ({ page }) => {
-    await page.goto("/run-real-stack.html");
+    await page.goto("/guide/run-real-stack.html");
     await page.locator("#choice-upload").click();
 
     /* Help on the entity and the column, because the corrected half of this

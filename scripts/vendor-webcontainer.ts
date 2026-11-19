@@ -2,7 +2,7 @@
 
 /**
  * Put a copy of `@webcontainer/api` beside the guide, for
- * `html/run-real-stack.html`.
+ * `website/html/run-real-stack.html`.
  *
  * The page imports it from `assets/vendor/webcontainer-api/` and nowhere else:
  * no library this repository uses is fetched from a CDN. The package is plain
@@ -22,7 +22,7 @@ import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
 const FROM = join(ROOT, "node_modules/@webcontainer/api/dist");
-const TO = join(ROOT, "html/assets/vendor/webcontainer-api");
+const TO = join(ROOT, "website/html/assets/vendor/webcontainer-api");
 
 if (!existsSync(FROM)) {
   console.error("@webcontainer/api is not installed. Run: bun install");

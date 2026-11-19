@@ -2,14 +2,13 @@
 /**
  * Put the shared files beside the trees that serve them.
  *
- * `common/` holds the one copy of what several trees need byte for byte: the guide's
- * screenshots and shared assets (`common/guide/`), the example models
- * (`common/language/examples/`), and the viewers and llmtext chunks
- * (`common/website/`). The trees that *serve* them — `html/`, the orchestrator's
- * `common/html/` and the website's `guide/`, `viewers/` and root — need the files
- * on disk, because a static server cannot reach into another directory. So they are
- * written by this script and git-ignored, never committed. A second tracked copy is
- * how these drifted apart in the first place.
+ * The website (`website/`) holds the one copy of what several trees need byte for
+ * byte: the guide's screenshots and shared assets (`website/html/img`,
+ * `website/html/assets`). The example models live once in `common/language/examples/`.
+ * The trees that *serve* them — the guide's `models/`, the orchestrator's
+ * `common/html/` and the site's `assets/js/` bundles — need the files on disk, because a static server cannot reach into
+ * another directory. So they are written by this script and git-ignored, never
+ * committed. A second tracked copy is how these drifted apart in the first place.
  *
  *   bun run sync:common            copy, and rewrite the managed block of .gitignore
  *   bun run sync:common -- --check fail if a target is missing or differs
@@ -24,10 +23,8 @@ import path from "node:path";
 const ROOT = path.resolve(import.meta.dir, "..");
 const CHECK = process.argv.includes("--check");
 
-const GUIDE = "common/guide";
+const GUIDE = "website/html";
 const EXAMPLES = "common/language/examples";
-const VIEWERS = "common/website/viewers";
-const LLMTEXT = "common/website/llmtext";
 
 /** The guide's shared stylesheet and scripts (the pages own everything else in assets/). */
 const GUIDE_ASSETS = [
@@ -43,32 +40,20 @@ const GUIDE_MODELS = [
   "drug-discovery.eml.mmd",
   "investment-planning-wealth-management-system.eml.mmd",
 ];
-/** The website's guide publishes more of the examples. */
+/** The twelve models the website's guide publishes at /guide/models/ (the rest are language samples). */
 const SITE_MODELS = [
-  ...GUIDE_MODELS,
   "airport-management-system.eml.mmd",
+  "construction-enterprise-management.eml.mmd",
+  "crm.eml.mmd",
   "dance-studio.eml.mmd",
+  "drug-discovery.eml.mmd",
+  "education-management-system.eml.mmd",
+  "enterprise-sales-crm.eml.mmd",
+  "enterprise-service-management-system.eml.mmd",
+  "hospital-management-system.eml.mmd",
+  "investment-planning-wealth-management-system.eml.mmd",
   "shipping-management-system.eml.mmd",
-];
-/** Viewer files the website serves unchanged (its `index.html` and `eml-model.js` are its own). */
-const SITE_VIEWERS = [
-  "canvas.js",
-  "decision-table.js",
-  "erd-viewer.js",
-  "layout.js",
-  "model-viewer.js",
-  "rules-viewer.js",
-  "viewers.css",
-  "workflow-viewer.js",
-];
-/** llmtext chunks the website serves at its root (`checker-rules.txt` is its own). */
-const SITE_LLMTEXT = [
-  "llms.txt",
-  "working-session.txt",
-  "eml-syntax.txt",
-  "eml-dictionary.txt",
-  "eml-reporting.txt",
-  "enhancement-examples.txt",
+  "unified-education-management-system.eml.mmd",
 ];
 
 interface Copy {
@@ -79,16 +64,18 @@ interface Copy {
 const copies: Copy[] = [];
 const img = readdirSync(path.join(ROOT, GUIDE, "img")).sort();
 
-for (const tree of ["html", "common/app_and_report/common/html"]) {
-  for (const f of img) copies.push({ from: `${GUIDE}/img/${f}`, to: `${tree}/img/${f}` });
-  for (const f of GUIDE_ASSETS) copies.push({ from: `${GUIDE}/assets/${f}`, to: `${tree}/assets/${f}` });
-  for (const f of GUIDE_MODELS) copies.push({ from: `${EXAMPLES}/${f}`, to: `${tree}/models/${f}` });
+// The website's own guide holds the screenshots and assets itself; it only needs its models.
+for (const f of SITE_MODELS) copies.push({ from: `${EXAMPLES}/${f}`, to: `${GUIDE}/models/${f}` });
+const orchestrator = "common/app_and_report/common/html";
+for (const f of img) copies.push({ from: `${GUIDE}/img/${f}`, to: `${orchestrator}/img/${f}` });
+for (const f of GUIDE_ASSETS) copies.push({ from: `${GUIDE}/assets/${f}`, to: `${orchestrator}/assets/${f}` });
+for (const f of GUIDE_MODELS) copies.push({ from: `${EXAMPLES}/${f}`, to: `${orchestrator}/models/${f}` });
+
+// The published site loads the two generator bundles from assets/js/. The build writes them to
+// the guide's assets (build:wasm-browser, build:fullstack-browser); the site gets a copy.
+for (const f of ["appwithai-wasm.js", "appwithai-fullstack.js"]) {
+  copies.push({ from: `${GUIDE}/assets/${f}`, to: `website/assets/js/${f}` });
 }
-const site = "businessappwithai.github.io";
-for (const f of img) copies.push({ from: `${GUIDE}/img/${f}`, to: `${site}/guide/img/${f}` });
-for (const f of SITE_MODELS) copies.push({ from: `${EXAMPLES}/${f}`, to: `${site}/guide/models/${f}` });
-for (const f of SITE_VIEWERS) copies.push({ from: `${VIEWERS}/${f}`, to: `${site}/viewers/${f}` });
-for (const f of SITE_LLMTEXT) copies.push({ from: `${LLMTEXT}/${f}`, to: `${site}/${f}` });
 
 const BEGIN = "# >>> sync-common (generated by scripts/sync-common.ts — do not edit)";
 const END = "# <<< sync-common";
@@ -132,4 +119,4 @@ const current = readFileSync(ignorePath, "utf-8");
 const re = new RegExp(`${BEGIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s\\S]*?${END}`);
 const next = re.test(current) ? current.replace(re, block) : `${current.replace(/\n*$/, "\n")}\n${block}\n`;
 if (next !== current) writeFileSync(ignorePath, next);
-console.log(`✓ ${copies.length} files written beside html/, the orchestrator's html/ and the website`);
+console.log(`✓ ${copies.length} files written beside the website guide, the orchestrator's html/ and the published site`);

@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 import { parseModel } from "../../pipeline/parse-model";
 import { compileReports, parseReportDirective } from "../index";
 
-/** One real line, from `html/models/crm.eml.mmd`. */
+/** One real line, from `website/html/models/crm.eml.mmd`. */
 const CRM_LINE =
   "    %%report rep-stalled-deals title: Deals with no activity in 14 days entity: Opportunity " +
   "chart: bar x: owner y: deals help: The rep's own pipeline hygiene and the manager's Monday " +

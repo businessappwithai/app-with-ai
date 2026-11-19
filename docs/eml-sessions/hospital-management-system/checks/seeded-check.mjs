@@ -1,7 +1,7 @@
 /* The same context check, but against what the generator actually seeded into
    sys_business_rules rather than against the model's own text. */
 import { readFileSync } from "node:fs";
-import { readModel } from "../../../../common/website/viewers/eml-model.js";
+import { readModel } from "../../../../website/viewers/eml-model.js";
 
 const seed = readFileSync(process.argv[3], "utf8");
 const m = readModel(readFileSync(process.argv[2], "utf8"));

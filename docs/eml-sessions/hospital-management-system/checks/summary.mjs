@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { readModel } from "../../../../common/website/viewers/eml-model.js";
+import { readModel } from "../../../../website/viewers/eml-model.js";
 
 const m = readModel(readFileSync(process.argv[2], "utf8"));
 const s = m.stats;

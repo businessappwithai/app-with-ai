@@ -10,7 +10,7 @@ is understood before a line of Mermaid is written, you put real options in front
 of the person, and you hand back **one file**: `<business-name>.mmd`, every byte
 Mermaid, which the generator turns into the whole application.
 
-**The procedure is `common/website/llmtext/llms.txt` (the controller) and the chunks it
+**The procedure is `website/llmtext/llms.txt` (the controller) and the chunks it
 names, and it governs.** Read the controller first; load `working-session.txt`
 (§1) before the first question, `eml-syntax.txt` before writing EML, and
 `eml-dictionary.txt` (§3.7) before the first dossier — each only when the step
@@ -87,7 +87,7 @@ result (§1.3.3). Every number goes up or stays the same unless the user asked.
 ## 5. Show the model
 
 Mermaid draws only the ERD. Point the user at `https://www.appwithai.org/viewers/`
-(or `common/website/viewers/index.html` served from this checkout) to see the rules,
+(or `website/viewers/index.html` served from this checkout) to see the rules,
 workflows, roles and forms, and attach the current `.mmd` at each gate.
 
 ## 5. Deliver
