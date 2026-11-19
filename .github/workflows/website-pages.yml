@@ -10,14 +10,13 @@
 name: Deploy the website to GitHub Pages
 
 on:
-  # Only what the site is made of; a change elsewhere in the repository does not redeploy it.
+  # Only a change under website/ redeploys the site; a change anywhere else in the
+  # repository does not. (Run it by hand to publish a change to a shared file that the site
+  # only receives through sync, such as an example model in common/language/examples.)
   push:
     branches: [main]
     paths:
       - "website/**"
-      - "common/language/**"
-      - "scripts/sync-common.ts"
-      - ".github/workflows/website-pages.yml"
 
   # Allows a run from the Actions tab.
   workflow_dispatch:

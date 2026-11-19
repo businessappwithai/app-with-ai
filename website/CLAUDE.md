@@ -20,7 +20,8 @@
 > - **Deployment is `.github/workflows/website-pages.yml` at the repository root.** It runs
 >   `bun scripts/sync-common.ts`, builds this folder with Docusaurus, checks the build with
 >   `scripts/check-build.mjs`, and deploys `website/build` to GitHub Pages on a push to `main`
->   that touches `website/`, `common/language/` or the sync script. `static.yml` here is gone.
+>   that touches `website/` — and only then (or by hand, for a change to a shared file the site
+>   gets through sync, such as an example model). `static.yml` here is gone.
 >   `.github/workflows/tests.yml` in this folder only runs if it is used as a repository root;
 >   the root `ci.yml` has a "Check the website" job that runs the same checks.
 
@@ -1701,7 +1702,7 @@ every assertion rather than only failures.
 
 ```yaml
 # .github/workflows/website-pages.yml
-Trigger: push to main touching website/, common/language/ or the sync script (or manual dispatch)
+Trigger: push to main touching website/ only (or manual dispatch)
 Runner:  ubuntu-latest
 Steps:
   1. actions/checkout@v4, Bun 1.4.4, Node 22
