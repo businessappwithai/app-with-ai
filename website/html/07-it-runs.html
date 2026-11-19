@@ -1,43 +1,106 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>07 · Watch it run — Build a CRM with APPWITHAI</title>
-<meta name="description" content="Qualify a lead and follow the rule, the action, the saga, the three rows it creates and the run record it leaves behind.">
-<link rel="stylesheet" href="assets/guide.css">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Y5Z3WM5G1F"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-Y5Z3WM5G1F');
+</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Qualify a lead and follow the rule, the action, the saga, the three rows it creates and the run record it leaves behind.">
+  <meta name="keywords" content="AppWithAI, CRM generator, EML, Mermaid model, ERD, business rules, GoRules, BPMN workflow, saga, NestJS, TanStack Start, PostgreSQL, code generation, low-code CRM">
+  <title>07 · Watch it run — Build a CRM with AppWithAI</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="48x48">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="../assets/css/guide.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/dark-theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
 <body>
-<div class="shell">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-container">
+      <a href="../index.html" class="logo" aria-label="AppWithAI — home" title="AppWithAI — home">
+        <span class="logo-mark" aria-hidden="true">A</span>
+        <span class="logo-word">App<span class="logo-word-dim">With</span><span class="logo-word-ai">AI</span></span>
+      </a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="nav" id="mainNav">
+        <ul class="nav-list">
+          <li><a href="../justification.html" class="nav-link">Why AppWithAI</a></li>
+          <li><a href="../try-it-yourself.html" class="nav-link">Try It Yourself</a></li>
+          <li><a href="../features.html" class="nav-link">Features</a></li>
+          <li><a href="../how-it-works.html" class="nav-link">How It Works</a></li>
+          <li><a href="../technology.html" class="nav-link">Technology</a></li>
+          <li><a href="index.html" class="nav-link active">Guide</a></li>
+          <li><a href="../pricing.html" class="nav-link">Pricing</a></li>
+          <li><a href="run-in-browser.html" class="btn btn-accent" style="margin-right: var(--spacing-sm);">Live Demo</a></li>
+          <li><a href="../contact.html" class="btn btn-primary">Get Started</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
 
-<aside class="sidebar">
-  <a class="brand" href="index.html"><span class="brand-mark">E</span><span class="brand-name">APPWITHAI</span></a>
-  <p class="brand-sub">Build a CRM, end to end</p>
-  <div class="nav-heading">Start here</div>
-  <ul class="nav"><li><a href="index.html"><span class="nav-num">00</span> Overview</a></li></ul>
-  <div class="nav-heading">Write the model</div>
-  <ul class="nav">
-    <li><a href="01-data-model.html"><span class="nav-num">01</span> The data model</a></li>
-    <li><a href="02-business-rules.html"><span class="nav-num">02</span> Business rules</a></li>
-    <li><a href="03-workflows.html"><span class="nav-num">03</span> Workflows</a></li>
-  </ul>
-  <div class="nav-heading">Generate and run</div>
-  <ul class="nav">
-    <li><a href="04-generate.html"><span class="nav-num">04</span> Generate the app</a></li>
-    <li><a href="05-application.html"><span class="nav-num">05</span> Tour the app</a></li>
-    <li><a href="06-dictionary.html"><span class="nav-num">06</span> Application Dictionary</a></li>
-  </ul>
-  <div class="nav-heading">Prove it</div>
-  <ul class="nav">
-    <li><a href="07-it-runs.html" aria-current="page"><span class="nav-num">07</span> Watch it run</a></li>
-    <li><a href="08-reference.html"><span class="nav-num">08</span> Reference</a></li>
-    <li><a href="run-in-browser.html"><span class="nav-num">09</span> Run it here</a></li>
-  </ul>
-  <div class="sidebar-foot">Every screenshot is from the CRM built in this guide, running locally.<br><br>Model: <code>common/language/examples/crm.eml.mmd</code></div>
-</aside>
+  <div class="guide-shell">
+    <aside class="guide-sidebar">
+      <div class="guide-eyebrow-label">Hands-on guide</div>
+      <div class="guide-sidebar-title">Build a CRM, end to end</div>
+      <details class="guide-toc" id="guideToc" open>
+        <summary class="guide-toc-summary">
+          <span>Chapters</span>
+          <span class="guide-toc-current">07 · Watch it run</span>
+        </summary>
+        <div class="guide-toc-body">
+          <div class="guide-toc-heading">Start here</div>
+          <ul class="guide-nav">
+            <li><a href="index.html"><span class="guide-num">00</span> Overview</a></li>
+          </ul>
+          <div class="guide-toc-heading">Write the model</div>
+          <ul class="guide-nav">
+            <li><a href="01-data-model.html"><span class="guide-num">01</span> The data model</a></li>
+            <li><a href="02-business-rules.html"><span class="guide-num">02</span> Business rules</a></li>
+            <li><a href="03-workflows.html"><span class="guide-num">03</span> Workflows</a></li>
+          </ul>
+          <div class="guide-toc-heading">Generate and run</div>
+          <ul class="guide-nav">
+            <li><a href="04-generate.html"><span class="guide-num">04</span> Generate the app</a></li>
+            <li><a href="05-application.html"><span class="guide-num">05</span> Tour the app</a></li>
+            <li><a href="06-dictionary.html"><span class="guide-num">06</span> Application Dictionary</a></li>
+          </ul>
+          <div class="guide-toc-heading">Prove it</div>
+          <ul class="guide-nav">
+            <li><a href="07-it-runs.html" aria-current="page"><span class="guide-num">07</span> Watch it run</a></li>
+            <li><a href="08-reference.html"><span class="guide-num">08</span> Reference</a></li>
+            <li><a href="run-in-browser.html"><span class="guide-num">09</span> Run it in your browser</a></li>
+            <li><a href="run-real-stack.html"><span class="guide-num">10</span> Run the real stack</a></li>
+          </ul>
+          <div class="guide-toc-heading">Author your own</div>
+          <ul class="guide-nav">
+            <li><a href="11-check-a-model.html"><span class="guide-num">11</span> Check a model</a></li>
+          </ul>
+          <div class="guide-sidebar-foot">
+            Every screenshot on these pages comes from the CRM built in this guide, running locally.
+            <br><br>
+            Model file: <code>language/examples/crm.eml.mmd</code>
+          </div>
+        </div>
+      </details>
+    </aside>
 
-<main class="main">
-<div class="content">
+    <main class="guide-main">
+      <article class="guide-content">
 
 <span class="eyebrow">Chapter 07</span>
 <h1>Watch the model run</h1>
@@ -85,8 +148,8 @@ select count(*) from bus_opportunity;   <span class="c-com">-- 4</span></code></
       table reads, and an owner, which every created row inherits. Status starts at <code>new</code>.
     </p>
     <figure>
-      <img src="img/10-crm-lead-new-form.png" alt="The New Lead form filled in for Dana Whitfield at Northwind Trading, with employee count 2500 and annual revenue 75,000,000.">
       <figcaption><b>A new lead.</b> Seventeen fields, seven required. The form knows which is which from the model's <code>OPTIONAL</code> modifiers.</figcaption>
+      <img src="img/10-crm-lead-new-form.png" alt="The New Lead form filled in for Dana Whitfield at Northwind Trading, with employee count 2500 and annual revenue 75,000,000.">
     </figure>
   </li>
 
@@ -109,22 +172,22 @@ select status from bus_lead where email = <span class="c-str">'dana.whitfield@no
 </ol>
 
 <figure>
-  <img src="img/28-crm-account-created-by-saga.png" alt="The Accounts list now showing Northwind Trading with account type prospect, tier strategic and industry technology alongside the four seeded accounts.">
   <figcaption>
     <b>The account the saga created.</b> Type <em>prospect</em>, tier <strong>strategic</strong> —
     the decision table's answer for a score of 88 — and the industry carried across from the lead.
     Account Number is blank because a <code>beforeCreate</code> hook mints it, and that hook is yours to
     write.
   </figcaption>
+  <img src="img/28-crm-account-created-by-saga.png" alt="The Accounts list now showing Northwind Trading with account type prospect, tier strategic and industry technology alongside the four seeded accounts.">
 </figure>
 
 <figure>
-  <img src="img/27-crm-lead-converted.png" alt="The lead detail view for Dana Whitfield after conversion.">
   <figcaption>
     <b>And the lead itself.</b> Marked converted by step F, in the same transaction that created the three
     rows. If any step had failed, none of this would exist and the lead would still read
     <em>qualified</em>.
   </figcaption>
+  <img src="img/27-crm-lead-converted.png" alt="The lead detail view for Dana Whitfield after conversion.">
 </figure>
 
 <h2>The receipt</h2>
@@ -183,11 +246,11 @@ select status from bus_lead where email = <span class="c-str">'dana.whitfield@no
 </p>
 
 <figure>
-  <img src="img/33-crm-workflow-view-renewalplaybook.png" alt="The RenewalPlaybook workflow open in the designer, showing its trigger, steps and details.">
   <figcaption>
     <b>Any definition, opened.</b> RenewalPlaybook is the automatic counterpart: it runs on every contract
     update rather than waiting for a rule, and it is the one saga that deletes as well as creates.
   </figcaption>
+  <img src="img/33-crm-workflow-view-renewalplaybook.png" alt="The RenewalPlaybook workflow open in the designer, showing its trigger, steps and details.">
 </figure>
 
 <h2>When the chain does not fire</h2>
@@ -260,9 +323,55 @@ select status from bus_lead where email = <span class="c-str">'dana.whitfield@no
   <a class="next" href="08-reference.html"><span class="dir">Next</span><div class="ttl">08 · Reference →</div></a>
 </nav>
 
-</div>
-</main>
-</div>
-<script src="assets/guide.js"></script>
+      </article>
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h3>AppWithAI</h3>
+          <p>Open source AI-powered generator for production-ready business applications. Licensed under the Apache License 2.0.</p>
+          <p class="mt-2"><a href="https://github.com/businessappwithai/app-with-ai-tanstack" target="_blank" rel="noopener noreferrer">Source on GitHub &rarr;</a></p>
+        </div>
+        <div>
+          <h3>Product</h3>
+          <ul class="footer-links">
+            <li><a href="../justification.html">Why AppWithAI</a></li>
+            <li><a href="../try-it-yourself.html">Try It Yourself</a></li>
+            <li><a href="../viewers/index.html">Model Viewer</a></li>
+            <li><a href="../features.html">Features</a></li>
+            <li><a href="../how-it-works.html">How It Works</a></li>
+            <li><a href="../technology.html">Technology</a></li>
+            <li><a href="index.html">Build a CRM Guide</a></li>
+            <li><a href="../todo.html">Todo</a></li>
+            <li><a href="../pricing.html">Pricing</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Company</h3>
+          <ul class="footer-links">
+            <li><a href="../contact.html">Contact</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Legal</h3>
+          <ul class="footer-links">
+            <li><a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">Apache License 2.0</a></li>
+            <li><a href="../privacy.html">Privacy Policy</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 AppWithAI Contributors. Open Source &mdash; <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer" style="color: var(--primary-400);">Apache License 2.0</a>. Powered by Claude, OpenAI, and Ollama.</p>
+        <p class="mt-2"><a href="run-in-browser.html" style="color: var(--primary-400);">Run the CRM demo in your browser &rarr;</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/guide.js"></script>
 </body>
 </html>

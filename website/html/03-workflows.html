@@ -1,43 +1,106 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>03 · Workflows — Build a CRM with APPWITHAI</title>
-<meta name="description" content="State machines, lifecycle hooks and multi-step sagas: the three ways an EML model describes process.">
-<link rel="stylesheet" href="assets/guide.css">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Y5Z3WM5G1F"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-Y5Z3WM5G1F');
+</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="State machines, lifecycle hooks and multi-step sagas: the three ways an EML model describes process.">
+  <meta name="keywords" content="AppWithAI, CRM generator, EML, Mermaid model, ERD, business rules, GoRules, BPMN workflow, saga, NestJS, TanStack Start, PostgreSQL, code generation, low-code CRM">
+  <title>03 · Workflows — Build a CRM with AppWithAI</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../favicon.ico" sizes="48x48">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="../assets/css/guide.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/dark-theme.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
 <body>
-<div class="shell">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-container">
+      <a href="../index.html" class="logo" aria-label="AppWithAI — home" title="AppWithAI — home">
+        <span class="logo-mark" aria-hidden="true">A</span>
+        <span class="logo-word">App<span class="logo-word-dim">With</span><span class="logo-word-ai">AI</span></span>
+      </a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="nav" id="mainNav">
+        <ul class="nav-list">
+          <li><a href="../justification.html" class="nav-link">Why AppWithAI</a></li>
+          <li><a href="../try-it-yourself.html" class="nav-link">Try It Yourself</a></li>
+          <li><a href="../features.html" class="nav-link">Features</a></li>
+          <li><a href="../how-it-works.html" class="nav-link">How It Works</a></li>
+          <li><a href="../technology.html" class="nav-link">Technology</a></li>
+          <li><a href="index.html" class="nav-link active">Guide</a></li>
+          <li><a href="../pricing.html" class="nav-link">Pricing</a></li>
+          <li><a href="run-in-browser.html" class="btn btn-accent" style="margin-right: var(--spacing-sm);">Live Demo</a></li>
+          <li><a href="../contact.html" class="btn btn-primary">Get Started</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
 
-<aside class="sidebar">
-  <a class="brand" href="index.html"><span class="brand-mark">E</span><span class="brand-name">APPWITHAI</span></a>
-  <p class="brand-sub">Build a CRM, end to end</p>
-  <div class="nav-heading">Start here</div>
-  <ul class="nav"><li><a href="index.html"><span class="nav-num">00</span> Overview</a></li></ul>
-  <div class="nav-heading">Write the model</div>
-  <ul class="nav">
-    <li><a href="01-data-model.html"><span class="nav-num">01</span> The data model</a></li>
-    <li><a href="02-business-rules.html"><span class="nav-num">02</span> Business rules</a></li>
-    <li><a href="03-workflows.html" aria-current="page"><span class="nav-num">03</span> Workflows</a></li>
-  </ul>
-  <div class="nav-heading">Generate and run</div>
-  <ul class="nav">
-    <li><a href="04-generate.html"><span class="nav-num">04</span> Generate the app</a></li>
-    <li><a href="05-application.html"><span class="nav-num">05</span> Tour the app</a></li>
-    <li><a href="06-dictionary.html"><span class="nav-num">06</span> Application Dictionary</a></li>
-  </ul>
-  <div class="nav-heading">Prove it</div>
-  <ul class="nav">
-    <li><a href="07-it-runs.html"><span class="nav-num">07</span> Watch it run</a></li>
-    <li><a href="08-reference.html"><span class="nav-num">08</span> Reference</a></li>
-    <li><a href="run-in-browser.html"><span class="nav-num">09</span> Run it here</a></li>
-  </ul>
-  <div class="sidebar-foot">Every screenshot is from the CRM built in this guide, running locally.<br><br>Model: <code>common/language/examples/crm.eml.mmd</code></div>
-</aside>
+  <div class="guide-shell">
+    <aside class="guide-sidebar">
+      <div class="guide-eyebrow-label">Hands-on guide</div>
+      <div class="guide-sidebar-title">Build a CRM, end to end</div>
+      <details class="guide-toc" id="guideToc" open>
+        <summary class="guide-toc-summary">
+          <span>Chapters</span>
+          <span class="guide-toc-current">03 · Workflows</span>
+        </summary>
+        <div class="guide-toc-body">
+          <div class="guide-toc-heading">Start here</div>
+          <ul class="guide-nav">
+            <li><a href="index.html"><span class="guide-num">00</span> Overview</a></li>
+          </ul>
+          <div class="guide-toc-heading">Write the model</div>
+          <ul class="guide-nav">
+            <li><a href="01-data-model.html"><span class="guide-num">01</span> The data model</a></li>
+            <li><a href="02-business-rules.html"><span class="guide-num">02</span> Business rules</a></li>
+            <li><a href="03-workflows.html" aria-current="page"><span class="guide-num">03</span> Workflows</a></li>
+          </ul>
+          <div class="guide-toc-heading">Generate and run</div>
+          <ul class="guide-nav">
+            <li><a href="04-generate.html"><span class="guide-num">04</span> Generate the app</a></li>
+            <li><a href="05-application.html"><span class="guide-num">05</span> Tour the app</a></li>
+            <li><a href="06-dictionary.html"><span class="guide-num">06</span> Application Dictionary</a></li>
+          </ul>
+          <div class="guide-toc-heading">Prove it</div>
+          <ul class="guide-nav">
+            <li><a href="07-it-runs.html"><span class="guide-num">07</span> Watch it run</a></li>
+            <li><a href="08-reference.html"><span class="guide-num">08</span> Reference</a></li>
+            <li><a href="run-in-browser.html"><span class="guide-num">09</span> Run it in your browser</a></li>
+            <li><a href="run-real-stack.html"><span class="guide-num">10</span> Run the real stack</a></li>
+          </ul>
+          <div class="guide-toc-heading">Author your own</div>
+          <ul class="guide-nav">
+            <li><a href="11-check-a-model.html"><span class="guide-num">11</span> Check a model</a></li>
+          </ul>
+          <div class="guide-sidebar-foot">
+            Every screenshot on these pages comes from the CRM built in this guide, running locally.
+            <br><br>
+            Model file: <code>language/examples/crm.eml.mmd</code>
+          </div>
+        </div>
+      </details>
+    </aside>
 
-<main class="main">
-<div class="content">
+    <main class="guide-main">
+      <article class="guide-content">
 
 <span class="eyebrow">Chapter 03</span>
 <h1>Workflows</h1>
@@ -61,14 +124,17 @@
 <h2>State machines</h2>
 <p>
   Each state is a value of the entity's status column; each transition is a move the application will
-  allow. Everything else is refused. <strong>Nobody moves a record by hand.</strong> The status column is
-  system-managed: a form shows it read-only in the record's header and the list always shows it as a
-  column, and a person's write that changes it is refused with <code>STATE_FIELD_SYSTEM_MANAGED</code> —
-  an administrator's included. Only background workflows write it.
+  allow. Everything else is refused. Every record has one lifecycle: a save puts it in <strong>Draft</strong>
+  and runs its rules and workflows; accepted, it moves to the flow's first status; refused, it goes to
+  <strong>Error</strong> with the reason and stays editable. From there it moves only when someone presses
+  one of its <strong>action buttons</strong> — one per edge the diagram draws out of its current status.
+  Every end state is <strong>Final</strong>: the record is locked, and <strong>Reopen</strong> takes it back
+  to Draft. Nobody types the status: the form shows it read-only in the record's header beside the
+  buttons, and the list always shows it as a column.
 </p>
 
 <div class="code">
-  <div class="code-head"><span class="tag">eml</span><span>common/language/examples/crm.eml.mmd · Section 10</span></div>
+  <div class="code-head"><span class="tag">eml</span><span>language/examples/crm.eml.mmd · Section 10</span></div>
 <pre><code><span class="c-dir">%%meta</span> name: Lead Lifecycle
 <span class="c-dir">%%meta</span> kind: workflow
 <span class="c-dir">%%workflow</span> LeadLifecycle entity: Lead kind: state
@@ -87,6 +153,10 @@
     disqualified --&gt; [*]
 
     <span class="c-dir">%%rbac</span> role:sales_rep|account_executive|sales_manager on Lead.update
+    <span class="c-dir">%%rbac</span> role:sales_rep|account_executive|sales_manager on Lead.qualify
+    <span class="c-dir">%%rbac</span> role:account_executive|sales_manager on Lead.convert
+    <span class="c-dir">%%rbac</span> role:sales_rep|sales_manager on Lead.disqualify
+    <span class="c-dir">%%rbac</span> role:sales_manager on Lead.reopen
     <span class="c-dir">%%trigger</span> webhook:marketing -&gt; ingestInboundLead on Lead
     <span class="c-dir">%%trigger</span> cron:0 7 * * 1 -&gt; recycleStaleLeads on Lead</code></pre>
 </div>
@@ -101,48 +171,59 @@
 </div>
 
 <p>
-  <code>%%rbac … on Lead.update</code> says who may edit a lead; it never grants a transition, and the
-  checker refuses one that tries (<code>EML215</code>). <code>%%trigger</code> declares what else can start
+  <code>%%rbac … on Lead.update</code> says who may edit a lead. <code>%%rbac … on Lead.convert</code> gives
+  the <em>Convert</em> button to those roles and nobody else; an edge with no label is named
+  <code>from-&gt;to</code>, and <code>reopen</code> names Reopen. (The excerpt shows four of the model's
+  nine move lines.) A move no line names is open to anyone who may update the record, and the checker
+  lists those (<code>EML511</code>). <code>%%trigger</code> declares what else can start
   work on the entity: <code>cron:</code>, <code>webhook:</code> or <code>message:</code>. Both are
   renderer-safe comments, so the diagram still draws as a plain state chart.
 </p>
 
 <h3>Who moves the record</h3>
 <p>
-  A person records the fact a move depends on — here, the time a lead was qualified — and a rule turns
-  that fact into the saga that writes the state. One rule per entity, one action per edge, one saga per
-  state it moves into. The checker reports a state no saga writes (<code>EML507</code>) and a saga that
-  writes a state the diagram does not draw (<code>EML508</code>).
+  Whoever holds a move out of the record's current status. A record therefore moves between roles as it
+  moves through its flow — a rep qualifies a lead, an account executive converts it — and each person's
+  list can show just the records <em>waiting for them</em>. When the move is pressed the application stamps
+  the state's <code>_at</code> time, where the model keeps one, and runs the rules and workflows bound to the
+  move in the same transaction; if a rule refuses, nothing moves.
 </p>
-
-<div class="code">
-  <div class="code-head"><span class="tag">eml</span><span>common/language/examples/crm.eml.mmd · the lead's moves</span></div>
-<pre><code><span class="c-dir">%%rule</span> leadStateProgress on Lead event: beforeUpdate priority: 90
-<span class="c-kw">flowchart TD</span>
-    A([Lead updated]) --&gt; B{Is the time of a move recorded?}
-    B --&gt;|Yes| C[Start that move's workflow]
-    B --&gt;|No| E([Nothing to move])
-    C --&gt; E
-
-    <span class="c-dir">%%action</span> moveWorkingToQualified trigger-workflow when: status == "working" and qualified_at != null workflow: LeadQualifiedMove
-
-<span class="c-dir">%%workflow</span> LeadQualifiedMove entity: Lead kind: saga trigger: rule
-<span class="c-kw">flowchart TD</span>
-    A([Move to qualified recorded]) --&gt; B[Set the status to qualified]
-    B --&gt; C[Clear working at for the next move]
-    C --&gt; Z([Qualified])
-
-    <span class="c-dir">%%step</span> B UpdateEntity field: status value: qualified
-    <span class="c-dir">%%step</span> C UpdateEntity field: working_at value: null</code></pre>
-</div>
+<p>
+  Models written before the buttons moved a record with a rule and one saga per state — a person recorded
+  the time of a move and the saga wrote the status. The checker reports that pattern
+  (<code>EML512</code>) and the fixer removes it, keeping the <code>_at</code> columns. A saga may still
+  write the status, but only a state the diagram draws (<code>EML508</code>), and only along a drawn edge.
+</p>
 
 <h3>What the generator does with it</h3>
 <p>
   Each state machine becomes a workflow definition holding BPMN. On <strong>create</strong> the definition
   puts the new record into the machine's starting state — the <code>[*] --&gt; new</code> edge, written to
-  the entity's <code>status</code> column. On <strong>update</strong> it records a run without touching the
-  state: a person's write may not change it, and a saga's write may only cross an edge the diagram drew. The full
+  the entity's <code>status</code> column. Each edge becomes an action button, served to the caller only if
+  one of their roles holds that move; a press needs the version the button was drawn from, so two people
+  cannot move one record twice. A save that tries to change the status directly is refused, and a saga's
+  write may only cross an edge the diagram drew. The full
   machine is stored in the definition's description, which is what the Workflow Designer displays.
+</p>
+<p>
+  A button is named after the status it moves the record into: the edge into <code>closed_won</code> is
+  the button <strong>Closed won</strong>, whatever the edge is called. The edge's event stays the move's
+  name, which is what <code>%%rbac</code>, the API and the record's history use.
+</p>
+
+<h3>A workflow bound to a status</h3>
+<p>
+  A saga or a hook workflow can run when a button moves a record into one particular status —
+  "after update on Contract, when the status becomes To be reviewed". Write <code>status: &lt;state&gt;</code>
+  on a <code>trigger: automatic operation: UPDATE</code> workflow:
+  <code>%%workflow Review entity: Contract kind: saga trigger: automatic operation: UPDATE status: to_be_reviewed</code>.
+  The press is two transactions. The first saves what is on the form and leaves the status where it is;
+  the second runs every workflow bound to the new status and moves the record only if all of them succeed.
+  If one fails, only the second is rolled back: the typed values stay saved, the status does not move, and
+  the reason is shown beside the buttons and kept in Run History. The checker requires the state to be one
+  the diagram draws (<code>EML243</code>), the workflow to be started by an update (<code>EML244</code>),
+  and some arrow to lead into the state (<code>EML245</code>). An entity with no status machine takes no
+  <code>status:</code> — its update workflows already run on the way to Final.
 </p>
 
 <h2>Hook workflows</h2>
@@ -152,7 +233,7 @@
 </p>
 
 <div class="code">
-  <div class="code-head"><span class="tag">eml</span><span>common/language/examples/crm.eml.mmd · Section 16</span></div>
+  <div class="code-head"><span class="tag">eml</span><span>language/examples/crm.eml.mmd · Section 16</span></div>
 <pre><code><span class="c-dir">%%meta</span> name: Contact Hygiene
 <span class="c-dir">%%meta</span> kind: workflow
 <span class="c-dir">%%workflow</span> ContactHygiene entity: Contact kind: hook
@@ -220,7 +301,7 @@
 </p>
 
 <div class="code">
-  <div class="code-head"><span class="tag">eml</span><span>common/language/examples/crm.eml.mmd · Section 22 — lead conversion</span></div>
+  <div class="code-head"><span class="tag">eml</span><span>language/examples/crm.eml.mmd · Section 22 — lead conversion</span></div>
 <pre><code><span class="c-dir">%%workflow</span> LeadConversion entity: Lead kind: saga trigger: rule
 <span class="c-kw">flowchart TD</span>
     A([Lead qualified]) --&gt; B{Size the account}
@@ -291,7 +372,7 @@
 <div class="code">
   <div class="code-head"><span class="tag">eml</span></div>
 <pre><code><span class="c-dir">%%workflow</span> LeadConversion   entity: Lead        kind: saga trigger: rule
-<span class="c-dir">%%workflow</span> ClosedWonHandoff entity: Opportunity kind: saga trigger: automatic operation: UPDATE</code></pre>
+<span class="c-dir">%%workflow</span> RenewalPlaybook  entity: Contract    kind: saga trigger: automatic operation: UPDATE</code></pre>
 </div>
 <p>
   <code>trigger: rule</code> runs only when a rule's <code>trigger-workflow</code> action names it, so the
@@ -303,21 +384,22 @@
 <h2>The workflows in the CRM</h2>
 
 <figure>
-  <img src="img/13-crm-workflow-designer-top.png" alt="The Workflow Designer listing RenewalPlaybook, ClosedWonHandoff, CriticalCaseEscalation, QuoteApprovalEscalation and LeadConversion, each marked FROM THE MODEL with its step chain and trigger mode.">
   <figcaption>
     <b>Five sagas, as the application sees them.</b> Each row prints its step chain and its trigger mode —
     "every write" for the two automatic ones, "when a rule triggers it" for the three the rules gate.
-    <em>From the model</em> means regeneration owns them.
+    <em>From the model</em> means regeneration owns them. (The CRM declares exactly these five. Taken while ClosedWonHandoff was
+    still automatic; the model now starts it from a rule, when a deal reaches closed won.)
   </figcaption>
+  <img src="img/13-crm-workflow-designer-top.png" alt="The Workflow Designer listing RenewalPlaybook, ClosedWonHandoff, CriticalCaseEscalation, QuoteApprovalEscalation and LeadConversion, each marked FROM THE MODEL with its step chain and trigger mode.">
 </figure>
 
 <figure class="fig-tall">
-  <img src="img/13-crm-workflow-designer.png" alt="The full list of 39 workflow definitions covering 17 entities, each described in words.">
   <figcaption>
     <b>Thirty-nine definitions in total.</b> The five sagas plus a create and an update definition for each
     of the seventeen entities. Entities with a state machine describe it in words ("starts in new · ends in
     converted or disqualified"); the rest say plainly that no state machine was declared.
   </figcaption>
+  <img src="img/13-crm-workflow-designer.png" alt="The full list of 39 workflow definitions covering 17 entities, each described in words.">
 </figure>
 
 <h2>Open one</h2>
@@ -328,7 +410,6 @@
 </p>
 
 <figure>
-  <img src="img/30-crm-workflow-editor-leadconversion.png" alt="The LeadConversion workflow open in the editor. A black trigger card reads 'When a Lead record is CREATED · runs when triggered by a rule'. Below it a Rule Gates panel lists bus_lead_validation with nine conditions, leadRouting and leadScoring, each linking to its rule, with an Add another rule button. Then numbered steps: 1 Size the account, 2 Create Record — Open the account, 3 Create Record — Create the primary contact. A Details sidebar shows entity Lead, trigger operation CREATE, run mode Rule-gated, 6 steps, 3 rule gates and the created and updated dates; a Linked Rules panel lists the three rules with a New rule button; and a Recent Runs panel lists two successful runs.">
   <figcaption>
     <b>The workflow editor, opened.</b> The trigger at the top, the three rule gates that must pass before
     anything runs, then the steps in order. The right-hand column is the part that matters: run mode
@@ -336,16 +417,17 @@
     runs it has actually performed. Every value on this screen was derived from <code>%%step</code> and
     <code>%%rule</code> directives; none of it was configured by hand after generation.
   </figcaption>
+  <img src="img/30-crm-workflow-editor-leadconversion.png" alt="The LeadConversion workflow open in the editor. A black trigger card reads 'When a Lead record is CREATED · runs when triggered by a rule'. Below it a Rule Gates panel lists bus_lead_validation with nine conditions, leadRouting and leadScoring, each linking to its rule, with an Add another rule button. Then numbered steps: 1 Size the account, 2 Create Record — Open the account, 3 Create Record — Create the primary contact. A Details sidebar shows entity Lead, trigger operation CREATE, run mode Rule-gated, 6 steps, 3 rule gates and the created and updated dates; a Linked Rules panel lists the three rules with a New rule button; and a Recent Runs panel lists two successful runs.">
 </figure>
 
 <figure>
-  <img src="img/31-crm-workflow-editor-steps.png" alt="The step list of the LeadConversion workflow: create record, create record, create record, update record, update record, each typed and titled.">
   <figcaption>
     <b>The steps, in order.</b> Each is typed — <em>Create Record</em>, <em>Update Record</em> — and titled
     with the label from the flowchart node it was bound to. Three creates and two updates: the account, the
     contact and the opportunity come into existence, then the lead is stamped converted and the campaign
     member is closed off. Write readable node labels in the model and this list reads like documentation.
   </figcaption>
+  <img src="img/31-crm-workflow-editor-steps.png" alt="The step list of the LeadConversion workflow: create record, create record, create record, update record, update record, each typed and titled.">
 </figure>
 
 <div class="note tip">
@@ -363,9 +445,55 @@
   <a class="next" href="04-generate.html"><span class="dir">Next</span><div class="ttl">04 · Generate the app →</div></a>
 </nav>
 
-</div>
-</main>
-</div>
-<script src="assets/guide.js"></script>
+      </article>
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h3>AppWithAI</h3>
+          <p>Open source AI-powered generator for production-ready business applications. Licensed under the Apache License 2.0.</p>
+          <p class="mt-2"><a href="https://github.com/businessappwithai/app-with-ai-tanstack" target="_blank" rel="noopener noreferrer">Source on GitHub &rarr;</a></p>
+        </div>
+        <div>
+          <h3>Product</h3>
+          <ul class="footer-links">
+            <li><a href="../justification.html">Why AppWithAI</a></li>
+            <li><a href="../try-it-yourself.html">Try It Yourself</a></li>
+            <li><a href="../viewers/index.html">Model Viewer</a></li>
+            <li><a href="../features.html">Features</a></li>
+            <li><a href="../how-it-works.html">How It Works</a></li>
+            <li><a href="../technology.html">Technology</a></li>
+            <li><a href="index.html">Build a CRM Guide</a></li>
+            <li><a href="../todo.html">Todo</a></li>
+            <li><a href="../pricing.html">Pricing</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Company</h3>
+          <ul class="footer-links">
+            <li><a href="../contact.html">Contact</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Legal</h3>
+          <ul class="footer-links">
+            <li><a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer">Apache License 2.0</a></li>
+            <li><a href="../privacy.html">Privacy Policy</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 AppWithAI Contributors. Open Source &mdash; <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer" style="color: var(--primary-400);">Apache License 2.0</a>. Powered by Claude, OpenAI, and Ollama.</p>
+        <p class="mt-2"><a href="run-in-browser.html" style="color: var(--primary-400);">Run the CRM demo in your browser &rarr;</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/guide.js"></script>
 </body>
 </html>

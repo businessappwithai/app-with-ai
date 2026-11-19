@@ -1,0 +1,722 @@
+#!/usr/bin/env node
+/**
+ * Website end-to-end tests.
+ *
+ * Every claim this site makes about a published model is checked against the
+ * model itself, read with the generator's own reader — `viewers/eml-model.js`,
+ * the bundle the viewers page runs. Nothing here re-implements the language: if
+ * a count is wrong, it is wrong because the page is stale, not because this
+ * file counts differently.
+ *
+ * It exists because three separate defects reached the live site, each of the
+ * same shape — a page describing a model it no longer matched, or a vendored
+ * bundle that had fallen behind the generator:
+ *
+ *   1. `try-it-yourself.html` said the hospital model had 28 entities, nine
+ *      state machines and 87 access restrictions. It has 30, ten and 132.
+ *   2. The same stale figures were repeated in three guide chapters.
+ *   3. `assets/js/appwithai-fullstack.js` was months behind the acronym fix, so
+ *      the deployable zip named a table `bus_k_y_c_record` while every reader of
+ *      the same model called it `bus_kyc_record`. The application built, ran and
+ *      answered; only a query written in the model's own words found it.
+ *
+ * None of those had a test. All three do now.
+ *
+ *   node scripts/website-e2e.mjs          exit 0 clean, 1 on any failure
+ *   node scripts/website-e2e.mjs --verbose  print every assertion, not just failures
+ *
+ * Node only, no dependencies, in the style of check-spec.mjs beside it.
+ */
+
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const VERBOSE = process.argv.includes("--verbose");
+const p = (...s) => path.join(ROOT, ...s);
+
+let passed = 0;
+const failures = [];
+function ok(name) { passed++; if (VERBOSE) console.log(`  ok   ${name}`); }
+function fail(name, detail) { failures.push(`${name}\n         ${detail}`); console.log(`  FAIL ${name}\n         ${detail}`); }
+function is(actual, expected, name) { actual === expected ? ok(name) : fail(name, `expected ${expected}, page says ${actual}`); }
+
+const { readModel } = await import(`file://${p("viewers", "eml-model.js")}`);
+const { check, LANGUAGE_VERSION } = await import(`file://${p("html", "checker.js")}`);
+
+const MODELS = readdirSync(p("html", "models")).filter((f) => f.endsWith(".eml.mmd")).sort();
+
+/** The key each model is selected by, in chapter 09's BUILT_IN map and every `#hash` that links to it. */
+const KEY_OF = {
+  "crm.eml.mmd": "crm",
+  "dance-studio.eml.mmd": "dance",
+  "drug-discovery.eml.mmd": "drug",
+  "education-management-system.eml.mmd": "education",
+  "airport-management-system.eml.mmd": "airport",
+  "shipping-management-system.eml.mmd": "shipping",
+  "unified-education-management-system.eml.mmd": "unified",
+  "enterprise-sales-crm.eml.mmd": "sales",
+  "enterprise-service-management-system.eml.mmd": "service",
+  "construction-enterprise-management.eml.mmd": "construction",
+  "hospital-management-system.eml.mmd": "hospital",
+  "investment-planning-wealth-management-system.eml.mmd": "investment",
+};
+
+const NUMBER = "(?:a |one )?[\\w-]+(?:\\s+hundred\\s+and\\s+[\\w-]+)?";
+const WORDS = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10,
+  eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18,
+  nineteen:19, twenty:20, "twenty-two":22, "twenty-seven":27, "twenty-eight":28, thirty:30,
+  "thirty-two":32, "fifty-nine":59, "sixty-eight":68, "eighty-seven":87, ninety:90, "ninety-one":91,
+  "a hundred and thirty-two":132, "one hundred and thirty-two":132 };
+const num = (t) => { const s = String(t).trim().toLowerCase().replace(/\s+/g, " ").replace(/,/g, ""); return /^\d+$/.test(s) ? Number(s) : (WORDS[s] ?? null); };
+
+/** Measured, never asserted by hand: the generator's own reader, plus the directive count for reports. */
+function measure(file) {
+  const src = readFileSync(p("html", "models", file), "utf8");
+  const m = readModel(src);
+  return {
+    src,
+    entities: m.stats.entities,
+    stateMachines: m.stats.stateMachines,
+    sagas: m.stats.sagas,
+    rules: m.stats.rules,
+    hooks: m.stats.hooks,
+    // The roles the *model* declares, which is what every other figure on a card
+    // is: a count of something in the .mmd. `stats.roles` is two higher — it adds
+    // the generated `administrator` and `user` that no model writes. Counting
+    // names in `%%rbac` lines instead gets this wrong in the other direction,
+    // because some models name `administrator` there and some do not, so that
+    // number silently means different things per model.
+    roles: m.access.roles.filter((r) => /Declared by %%rbac/.test(r.description || "")).length,
+    accessRules: m.stats.accessRules,
+    // `%%report <key> ...` — matched on the directive's real shape, not the bare
+    // keyword: the education model contains a line of prose that mentions it.
+    reports: (src.match(/%%report[ \t]+[a-z0-9-]+[ \t]/g) || []).length,
+  };
+}
+
+const STATS = Object.fromEntries(MODELS.map((f) => [f, measure(f)]));
+
+/** Each figure a page may claim, and the measured value it has to equal. */
+const CLAIMS = [
+  ["entities",      new RegExp(`(${NUMBER})\\s+entities\\b`, "i"),                     (s) => s.entities],
+  ["stateMachines", new RegExp(`(${NUMBER})\\s+state\\s+machines\\b`, "i"),            (s) => s.stateMachines],
+  ["sagas",         new RegExp(`(${NUMBER})\\s+sagas\\b`, "i"),                          (s) => s.sagas],
+  ["rules",         new RegExp(`(${NUMBER})\\s+rules\\b`, "i"),                          (s) => s.rules],
+  ["hooks",         new RegExp(`(${NUMBER})\\s+(?:lifecycle\\s+)?hooks\\b`, "i"),      (s) => s.hooks],
+  ["roles",         new RegExp(`(${NUMBER})\\s+roles\\b`, "i"),                          (s) => s.roles],
+  ["accessRules",   new RegExp(`(${NUMBER})\\s+access\\s+restrictions\\b`, "i"),       (s) => s.accessRules],
+  ["reports",       new RegExp(`(${NUMBER})\\s+<code>%%report</code>\\s+directives\\b`, "i"), (s) => s.reports],
+];
+
+/** The block of markup that describes one model on one page. */
+function blockFor(html, key) {
+  const card = html.match(new RegExp(`<a[^>]+href="[^"]*run-in-browser\\.html#${key}"[\\s\\S]*?</a>`, "i"));
+  if (card) return card[0];
+  const choice = html.match(new RegExp(`id="choice-${key}"[\\s\\S]*?</button>`, "i"));
+  return choice ? choice[0] : null;
+}
+
+console.log("Website end-to-end tests\n");
+
+// ---------------------------------------------------------------------------
+console.log("Every published model still checks clean");
+for (const f of MODELS) {
+  const r = check(STATS[f].src);
+  const errors = (r.issues || r.diagnostics || []).filter((i) => (i.severity || i.level) === "error").length;
+  is(errors, 0, `${f} — 0 errors`);
+}
+
+// ---------------------------------------------------------------------------
+console.log("\nEvery figure a page states matches the model it describes");
+const PAGES = ["try-it-yourself.html", "html/run-in-browser.html", "html/run-real-stack.html", "html/11-check-a-model.html"];
+let claimsChecked = 0;
+for (const page of PAGES) {
+  if (!existsSync(p(page))) { fail(page, "page is missing"); continue; }
+  const html = readFileSync(p(page), "utf8");
+  for (const [file, key] of Object.entries(KEY_OF)) {
+    const block = blockFor(html, key);
+    if (!block) continue;                      // not every page describes every model
+    for (const [label, re, pick] of CLAIMS) {
+      const m = block.match(re);
+      if (!m) continue;                        // a page need not state every figure
+      const claimed = num(m[1]);
+      if (claimed === null) continue;          // not a number word we recognise — e.g. "the largest"
+      claimsChecked++;
+      is(claimed, pick(STATS[file]), `${page} · ${key} · ${label}`);
+    }
+  }
+}
+console.log(`  (${claimsChecked} figures checked across ${PAGES.length} pages)`);
+
+// ---------------------------------------------------------------------------
+console.log("\nEvery example a page offers is one chapter 09 can select");
+const runner = readFileSync(p("assets", "js", "run-in-browser.js"), "utf8");
+// A key is declared inside the BUILT_IN literal, or assigned onto it afterwards (BUILT_IN.key = {...}).
+const builtIn = new Set([
+  ...runner.matchAll(/^\s*([a-z]+)\s*:\s*\{[^}]*?\.eml\.mmd/gms),
+  ...[...runner.matchAll(/^BUILT_IN\.([a-z]+) = \{/gm)].filter((m) => runner.slice(m.index, m.index + 400).includes(".eml.mmd")),
+].map((m) => m[1]));
+for (const key of Object.values(KEY_OF)) {
+  builtIn.has(key)
+    ? ok(`chapter 09 can select #${key}`)
+    : fail(`chapter 09 can select #${key}`, `BUILT_IN has no "${key}" — the card offers a model the page cannot load`);
+}
+const tiy = readFileSync(p("try-it-yourself.html"), "utf8");
+for (const key of [...builtIn]) {
+  tiy.includes(`run-in-browser.html#${key}`)
+    ? ok(`try-it-yourself.html offers #${key}`)
+    : fail(`try-it-yourself.html offers #${key}`, `BUILT_IN carries "${key}" but no card links to it`);
+}
+
+// ---------------------------------------------------------------------------
+console.log("\nThe vendored generator artifacts are current");
+// An entity whose name begins with an acronym is the case that reached the live
+// site: a stale bundle spelled it one letter at a time, and every join through
+// it matched nothing while the application looked healthy.
+const probe = readModel(`%%meta name: Acronym Probe
+erDiagram
+    KYCRecord {
+        string id PK
+        string reference
+    }
+    %%rbac role:officer on KYCRecord.read
+`);
+is(probe.entities[0].tableName, "kyc_record", "an acronym entity is one word (viewers/eml-model.js)");
+is(probe.rbac.operations[0]?.tableName, "bus_kyc_record", "and its bus_ table likewise");
+
+// The two copies of the checker this site publishes have to agree; they are one
+// engine built by two bundler entries, and a reader who gets different verdicts
+// from chapter 11 and the viewers has no way to tell which to believe.
+const viewerCheck = await import(`file://${p("viewers", "eml-model.js")}`);
+is(viewerCheck.LANGUAGE_VERSION, LANGUAGE_VERSION, "checker.js and eml-model.js report one language version");
+
+/*
+ * `stack-templates.json` is the third artifact in that set, and the one with no
+ * other reader here: `appwithai-fullstack.js` compiles the model, but the files
+ * it writes come out of this payload. So the bundle can be perfectly current
+ * and the deployable zip still ship last month's application — which is exactly
+ * what happened. The four templates the line-item work touched were left behind
+ * when the bundles beside them were re-vendored, and every zip a reader
+ * downloaded built an application whose line items had no window to appear in.
+ * Nothing else notices: the archive is internally consistent, it installs, it
+ * builds, and it runs.
+ *
+ * These assert the feature is present in the payload rather than comparing
+ * bytes against a generator checkout this repository does not have.
+ */
+const templates = JSON.parse(readFileSync(p("assets", "vendor", "stack-templates.json"), "utf8"));
+const template = (name) => templates[`tanstack-start-nestjs/${name}`] ?? "";
+const carries = (name, needle, what) =>
+  template(name).includes(needle)
+    ? ok(`stack-templates.json: ${what}`)
+    : fail(
+        `stack-templates.json: ${what}`,
+        `"${needle}" is absent from ${name} — the payload predates the feature. ` +
+          "Rebuild it upstream with `bun run build:stack-templates` and re-copy."
+      );
+
+carries(
+  "frontend/src/hooks/use-bus-entity-level.ts",
+  "childTabs",
+  "the entity hook resolves a parent's child tabs"
+);
+/* This rule used to be a `lineItemTables` list the service computed for itself.
+   The dashboard is one query now, and the rule is the NOT EXISTS below: a table
+   with a tab at `tab_level` > 0 is reached by opening its parent, so it is not
+   a place to navigate to. Read off `sys_tab` rather than recomputed, so this
+   screen and the detail screen cannot disagree — which is the property worth
+   asserting, and the reason this pins the predicate rather than a symbol. */
+carries(
+  "backend/src/modules/sys/services/sys-category.service.ts.hbs",
+  "tb.tab_level > 0",
+  "the category service keeps line items off the dashboard"
+);
+
+// ---------------------------------------------------------------------------
+console.log("\nEvery published model explains itself, and puts its line items where they belong");
+/*
+ * Two properties nothing else on this site would notice going backwards.
+ *
+ * Help is the first: a model can be re-vendored with complete coverage and
+ * worthless content — `Household id for HouseholdMember.` on every reference —
+ * and every page still renders, every count still matches, and the generated
+ * manual reads as a list of labels printed twice. `EML151` is what sees it.
+ *
+ * Line items are the second: `%%entity <Child> parent: <Parent>` is the only
+ * thing that keeps an invoice line off the dashboard and inside its invoice,
+ * and a model that loses the directive loses the arrangement silently — the
+ * application still builds and still runs.
+ *
+ * Both are read from the published checker rather than counted here, so this
+ * agrees with what chapter 11 tells a reader about the same file.
+ */
+for (const name of readdirSync(p("html", "models")).filter((f) => f.endsWith(".mmd")).sort()) {
+  const source = readFileSync(p("html", "models", name), "utf8");
+  const issues = check(source).issues;
+
+  const helpFaults = issues.filter((i) => ["EML151", "EML152", "EML153"].includes(i.code));
+  helpFaults.length === 0
+    ? ok(`${name}: help on every entity and column, none of it restating a name`)
+    : fail(`${name}: help`, helpFaults.slice(0, 3).map((i) => `${i.code} ${i.message}`).join("; "));
+
+  const onDashboard = issues.filter((i) => i.code === "EML150");
+  onDashboard.length === 0
+    ? ok(`${name}: no line item is left on the dashboard`)
+    : fail(`${name}: line items`, onDashboard.map((i) => i.message).join("; "));
+
+  const namelessCategory = issues.filter((i) => i.code === "EML154");
+  namelessCategory.length === 0
+    ? ok(`${name}: every %%category declares a name, so none is silently dropped`)
+    : fail(`${name}: categories`, `${namelessCategory.length} %%category line(s) with no name: key`);
+}
+
+// ---------------------------------------------------------------------------
+// The reporting application the deployable archive now carries.
+//
+// Chapter 09 states concrete figures about it — a role reads five of seventeen
+// tables and is offered 36 of 116 reports — and those are not figures anyone
+// can check by reading the model: they come out of the pack the generator
+// derives. So they are measured here, from the *vendored* bundle, which makes
+// this the same kind of check as the acronym one above: a page claim held to
+// the byte the site actually serves rather than to the generator upstream.
+//
+// It generates a whole application, so it is the slow group. Skipped with a
+// said-out-loud note when the templates are absent, because
+// `stack-templates.json` is a build artefact and a fresh clone may not have it
+// — a check that quietly passes without running is worse than one that says it
+// did not.
+console.log("\nThe reporting application in the deployable archive");
+{
+  const templatesPath = p("assets", "vendor", "stack-templates.json");
+  const bundlePath = p("assets", "js", "appwithai-fullstack.js");
+
+  if (!existsSync(templatesPath) || !existsSync(bundlePath)) {
+    console.log("  note stack-templates.json or appwithai-fullstack.js absent — group skipped");
+  } else {
+    const templates = JSON.parse(readFileSync(templatesPath, "utf8"));
+    const { generateFullStack } = await import(`file://${bundlePath}`);
+
+    // The generator narrates to stdout, and this file's output is its report.
+    const realLog = console.log;
+    console.log = () => {};
+    let files;
+    try {
+      const result = await generateFullStack({
+        source: STATS["crm.eml.mmd"].src,
+        name: "crm",
+        templates,
+        // The archive is unzipped and run under Docker against a real
+        // PostgreSQL, so no WASM overlay — the same flag the download uses.
+        overlay: false,
+      });
+      files = result.files ?? result;
+    } finally {
+      console.log = realLog;
+    }
+
+    const has = (path) => Object.hasOwn(files, path);
+    has("reporting/reporting-pack.json")
+      ? ok("the archive carries reporting/reporting-pack.json")
+      : fail("the archive carries the reporting pack", "reporting/reporting-pack.json was not written");
+    has("reporting/Dockerfile")
+      ? ok("and the Dockerfile that builds the platform")
+      : fail("the archive carries reporting/Dockerfile", "not written");
+    has("reporting/README.md")
+      ? ok("and the README naming both sets of accounts")
+      : fail("the archive carries reporting/README.md", "not written");
+
+    const compose = files["docker-compose.yml"] ?? "";
+    /^ {2}report:/m.test(compose)
+      ? ok("docker-compose.yml names the report service")
+      : fail("compose names the report service", "no `report:` service found");
+    /^ {2}report-seeder:/m.test(compose)
+      ? ok("docker-compose.yml names the one-shot seeder")
+      : fail("compose names the seeder", "no `report-seeder:` service found");
+
+    if (has("reporting/reporting-pack.json")) {
+      const pack = JSON.parse(files["reporting/reporting-pack.json"]);
+      const roles = pack.access.roles;
+
+      // One reporting role per role the model declares, plus the two the
+      // generator adds — the same arithmetic `measure()` documents above, from
+      // the other end.
+      is(roles.length, STATS["crm.eml.mmd"].roles + 2,
+        "one reporting role per declared role, plus administrator and user");
+
+      // Every figure chapter 09 states about the reporting side.
+      const chapter = readFileSync(p("html", "run-in-browser.html"), "utf8");
+      const agent = roles.find((r) => /support\.agent@/.test(r.email));
+      if (!agent) {
+        fail("the CRM pack seeds a support.agent reporting account", "no such role in the pack");
+      } else {
+        const stated = chapter.match(/It reads (\w+) of the model's\s*\n?\s*(\w+) tables/);
+        stated
+          ? (is(num(stated[1]), agent.tables.length, "chapter 09: the tables support.agent reads"),
+             is(num(stated[2]), pack.access.entityTotal, "chapter 09: the tables the model has"))
+          : fail("chapter 09 states what support.agent reads",
+                 "the sentence naming its table counts is gone — update this check with it");
+
+        // Reports visible to that role: a report is visible when every table
+        // its query reads is one the role may. Computed the way the runtime
+        // computes it, off the pack's own `tables`, so the two cannot disagree.
+        const allowed = new Set(agent.tables);
+        const byKey = new Map(pack.queries.map((q) => [q.key, q]));
+        const visible = pack.reports.filter((r) =>
+          (byKey.get(r.queryKey)?.tables ?? []).every((t) => allowed.has(t))
+        ).length;
+        const offered = chapter.match(/offered (\d+) of the (\d+) reports/);
+        offered
+          ? (is(Number(offered[1]), visible, "chapter 09: the reports that role is offered"),
+             is(Number(offered[2]), pack.reports.length, "chapter 09: the reports the pack holds"))
+          : fail("chapter 09 states how many reports the role is offered",
+                 "the sentence is gone — update this check with it");
+      }
+
+      // Every query names the tables it reads, or a role cannot be scoped at
+      // all and every report is offered to everybody.
+      const unscoped = pack.queries.filter((q) => !q.tables?.length);
+      unscoped.length === 0
+        ? ok("every saved query records the tables it reads")
+        : fail("every saved query records its tables",
+               `${unscoped.length} with none, e.g. ${unscoped[0].key}`);
+
+      // The acronym check, one layer deeper than the one above: the pack's SQL
+      // has to name tables the generated migration creates.
+      const migration = Object.entries(files).find(([k]) => /create_bus_tables/.test(k))?.[1] ?? "";
+      const created = new Set(
+        [...migration.matchAll(/CREATE TABLE IF NOT EXISTS (bus_[a-z0-9_]+)/g)].map((m) => m[1])
+      );
+      const phantom = pack.queries.flatMap((q) =>
+        (q.tables ?? []).filter((t) => !created.has(t)).map((t) => `${q.key} -> ${t}`)
+      );
+      created.size > 0 && phantom.length === 0
+        ? ok(`every table the pack queries is one the migration creates (${created.size})`)
+        : fail("the pack queries only tables the migration creates",
+               created.size === 0 ? "no CREATE TABLE found in the migration" : phantom.slice(0, 3).join(", "));
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7. The four prompts on try-it-yourself.html.
+//
+// The page carries one prompt for a new model and for a change to an existing
+// one. It makes promises a reader acts on — that attaching a .mmd changes that
+// model and gets the whole file back, that the form layout is required — and
+// the anchors other pages link to have to keep landing on it.
+console.log("\n7. The prompts on try-it-yourself.html");
+{
+  const page = readFileSync(path.join(ROOT, "try-it-yourself.html"), "utf8");
+
+  const promptBody = (id) => {
+    const m = page.match(new RegExp(`<pre id="${id}"[^>]*>([\\s\\S]*?)</pre>`));
+    if (!m) return null;
+    /* `[data-url]` spans carry the URL as their text; main.js rewrites them at
+       run time, so the text is what a reader copies. Unwrap, then unescape. */
+    return m[1]
+      .replace(/<span[^>]*>([\s\S]*?)<\/span>/g, "$1")
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+  };
+
+  /* One prompt, and one document. The page used to carry four prompts in two
+     pairs that had to stay word for word identical below their first line; they
+     are one prompt now, pointing at llms.txt, which decides new-or-change from
+     whether a .mmd is attached. What the enhancement pair existed to guarantee
+     is held on the one prompt instead. */
+  const body = promptBody("research-prompt");
+  if (!body) fail("the prompt is on the page", "missing #research-prompt");
+  else {
+    body.split("\n")[0].includes("llms.txt") && /section 1/.test(body.split("\n")[0])
+      ? ok("the prompt names llms.txt and its section 1")
+      : fail("the prompt names llms.txt and its section 1", `got: ${body.split("\n")[0].slice(0, 80)}`);
+    /* Both pages carry the prompt, and both must be free of the removed ChatGPT
+       app's tool call: a tool that does not exist is an instruction nobody can follow. */
+    for (const file of ["index.html", "try-it-yourself.html"]) {
+      const html = readFileSync(path.join(ROOT, file), "utf8");
+      const block = /<pre id="research-prompt"[\s\S]*?<\/pre>/.exec(html)?.[0] ?? "";
+      block && !/open_appwithai|Open AppWithAI|\bMCP\b/i.test(block)
+        ? ok(`${file}: the prompt asks for no tool call (the ChatGPT app is gone)`)
+        : fail(`${file}: the prompt asks for no tool call`, "it still tells the AI to call open_appwithai, or the prompt block is missing");
+    }
+    /If I have attached a \.mmd file, it is my existing model/.test(body) && /Never rebuild it from memory/.test(body)
+      ? ok("the prompt changes an attached model and refuses to rebuild it")
+      : fail("the prompt changes an attached model", "it does not tell the AI what an attached .mmd means");
+    /give me back the whole file with before-and-after counts/.test(body)
+      ? ok("the prompt asks for the whole model back, with counts")
+      : fail("the prompt asks for the whole model back", "the prompt permits a patch");
+    /%%section/.test(body) && /two-column rows/.test(body)
+      ? ok("the prompt requires every form laid out in %%section rows")
+      : fail("the prompt requires the form layout", "no %%section requirement");
+    /If you are ChatGPT, the TinyFish plugin must be installed and signed in/.test(body) && /stop and tell me how to install it/.test(body)
+      ? ok("the prompt stops a ChatGPT run until the TinyFish plugin is installed")
+      : fail("the prompt stops a ChatGPT run until the TinyFish plugin is installed", "no ChatGPT prerequisite in the prompt");
+    /* The same prompt is on both pages, and the install steps are on one of them. */
+    const home = readFileSync(path.join(ROOT, "index.html"), "utf8");
+    /If you are ChatGPT, the TinyFish plugin must be installed/.test(home)
+      ? ok("index.html: the prompt carries the ChatGPT prerequisite too")
+      : fail("index.html: the prompt carries the ChatGPT prerequisite too", "the two copies of the prompt differ");
+    /id="chatgpt-tinyfish"/.test(page) && /Install plugin/.test(page) && /https:\/\/docs\.tinyfish\.ai\/plugins/.test(page)
+      ? ok("try-it-yourself.html: says how to install the TinyFish plugin, and links its instructions")
+      : fail("try-it-yourself.html: says how to install the TinyFish plugin", "missing #chatgpt-tinyfish, the steps or the link");
+  }
+  for (const id of ["enterprise-research-prompt", "enhance-prompt", "enterprise-enhance-research-prompt"])
+    !page.includes(`id="${id}"`)
+      ? ok(`the retired #${id} is gone`)
+      : fail(`the retired #${id} is gone`, "a second prompt is still on the page");
+  for (const anchor of ["the-prompt", "enterprise-prompt", "enhance", "enterprise-enhance-prompt"])
+    page.includes(`id="${anchor}"`)
+      ? ok(`#${anchor} still resolves — other pages link to it`)
+      : fail(`#${anchor} still resolves`, "an inbound link would land nowhere");
+
+  /* The document the prompt names is served here, and the four it replaced are
+     stubs that send an AI to it. */
+  existsSync(path.join(ROOT, "llmtext", "llms.txt"))
+    ? ok("llms.txt is published here")
+    : fail("llms.txt is published here", "the prompt names a document this site does not serve");
+  /* llms.txt is a controller; the chunks it names must be served here too, or a
+     model told to fetch one gets a 404 in the middle of a run. */
+  const controllerText = readFileSync(path.join(ROOT, "llmtext", "llms.txt"), "utf8");
+  const named = [...new Set([...controllerText.matchAll(/https:\/\/www\.appwithai\.org\/([a-z-]+\.txt)/g)].map((m) => m[1]))].filter((n) => n !== "llms.txt");
+  named.length === 6 && named.every((name) => existsSync(path.join(ROOT, "llmtext", name)))
+    ? ok("every chunk llms.txt names is published here")
+    : fail("every chunk llms.txt names is published here", `named ${named.join(", ")}`);
+  for (const doc of ["llms.md", "llms-full.txt", "llmdetailed.txt", "llmtextenhancement.txt", "llmdetailedenhancement.txt"]) {
+    !existsSync(path.join(ROOT, doc))
+      ? ok(`${doc} is gone: llms.txt is the only protocol file`)
+      : fail(`${doc} is gone`, "a second protocol file would let an AI read a staler account of the language");
+  }
+}
+
+// ---------------------------------------------------------------------------
+console.log("\n8. The model assistant");
+/*
+ * `assistant.html` is the only page here that sends a reader's model to
+ * another company, and the only one that asks for a credential. Three things
+ * about it are promises rather than implementation details, and each is the
+ * kind that rots quietly:
+ *
+ *   - it runs the ENHANCEMENT protocol. Pointed at the authoring edition it
+ *     would rewrite the model it was given, which is the exact failure that
+ *     edition exists to prevent — and the page would still look right.
+ *   - the key never reaches this origin. The moment anything on this page
+ *     posts it somewhere of ours, the warning it prints becomes a lie.
+ *   - the warning is above the key field. Below it, a reader has already
+ *     pasted by the time they read it.
+ */
+{
+  const assistant = readFileSync(p("assistant.html"), "utf8");
+  const controller = readFileSync(p("assets", "js", "assistant.js"), "utf8");
+
+  /* The one protocol document, run as a change in one pass. */
+  /PROTOCOL_URL\s*=\s*"llms\.txt"/.test(controller) && /JUST BUILD IT/.test(controller)
+    ? ok("the assistant runs llms.txt, in one pass")
+    : fail(
+        "the assistant runs llms.txt, in one pass",
+        "PROTOCOL_URL is not llms.txt, or the user turn does not ask for one pass — a single request cannot answer a question"
+      );
+
+  /* A single request cannot fetch mid-run, so the assistant sends the controller
+     and every chunk the controller names. */
+  const chunkNames = [...readFileSync(p("llmtext", "llms.txt"), "utf8").matchAll(/https:\/\/www\.appwithai\.org\/([a-z-]+\.txt)/g)].map((m) => m[1]);
+  chunkNames.length > 0 && chunkNames.every((name) => controller.includes(`"${name}"`))
+    ? ok("the assistant sends the controller and every chunk it names")
+    : fail("the assistant sends the controller and every chunk it names", `missing from assistant.js: ${chunkNames.filter((n) => !controller.includes(`"${n}"`)).join(", ")}`);
+
+  /* Every host the controller can reach. A key goes on these requests, so the
+     list has to stay exactly the two providers and nothing else — this is the
+     assertion that catches a proxy being added later. */
+  const hosts = [...controller.matchAll(/https:\/\/([a-z0-9.-]+)\//g)].map((m) => m[1]);
+  const unexpected = [...new Set(hosts)].filter(
+    (h) => !["api.anthropic.com", "api.openai.com", "console.anthropic.com", "platform.openai.com"].includes(h)
+  );
+  unexpected.length === 0
+    ? ok("the assistant reaches the two providers and nothing else")
+    : fail(
+        "the assistant reaches the two providers and nothing else",
+        `it also names ${unexpected.join(", ")} — a key rides these requests`
+      );
+
+  /* No analytics call survives in the controller: the only measurement left
+     is the Google tag, which is handed nothing from this page. */
+  !/awTrack|posthog/i.test(controller)
+    ? ok("the assistant calls no analytics")
+    : fail("the assistant calls no analytics", "an awTrack or PostHog reference remains");
+
+  /* The warning is above the key field, not below it. */
+  const warnAt = assistant.indexOf("aia-warning");
+  const keyAt = assistant.indexOf('id="aia-key"');
+  warnAt !== -1 && keyAt !== -1 && warnAt < keyAt
+    ? ok("the key warning is above the key field")
+    : fail("the key warning is above the key field", "a reader pastes before reading it");
+
+  /* The download is offered only at zero errors — and that promise was broken
+     by CSS rather than by logic. `.btn` sets `display: inline-flex`, a class
+     beats the user agent's `[hidden] { display: none }`, and so Download as
+     .mmd, Repair and Stop all rendered at rest on a merged main; clicking
+     Download handed over an empty `model.eml.mmd`. Node has no cascade to ask,
+     so assert the rule that settles it — every button the controller toggles
+     with `hidden` carries a class that would otherwise win. */
+  const assistantCss = readFileSync(p("assets", "css", "assistant.css"), "utf8");
+  /\.aia-root\s+\[hidden\]\s*\{[^}]*display:\s*none\s*!important/.test(assistantCss)
+    ? ok("[hidden] beats .btn's display on the assistant")
+    : fail(
+        "[hidden] beats .btn's display on the assistant",
+        "assistant.css has no `.aia-root [hidden] { display: none !important }` — " +
+          "the download button renders before anything has been checked"
+      );
+
+  for (const id of ["aia-download", "aia-repair", "aia-stop"])
+    new RegExp(`id="${id}"[^>]*\\bhidden\\b`).test(assistant)
+      ? ok(`${id} starts hidden`)
+      : fail(`${id} starts hidden`, `it is offered before a run has produced one`);
+
+  /* The nav is at its seven-item ceiling; an eighth overflows the header at
+     every desktop width. The assistant is linked from the footer and from
+     #enhance instead. */
+  const navItems = (assistant.match(/class="nav-link/g) ?? []).length;
+  navItems === 7
+    ? ok("the assistant page keeps the nav at seven items")
+    : fail("the assistant page keeps the nav at seven items", `it has ${navItems}`);
+
+  readFileSync(p("try-it-yourself.html"), "utf8").includes("assistant.html")
+    ? ok("try-it-yourself.html links the assistant")
+    : fail("try-it-yourself.html links the assistant", "the page it belongs beside does not point at it");
+}
+
+// ---------------------------------------------------------------------------
+// 9. The archive keeps its scripts executable.
+//
+// `docker compose up` bind-mounts `reporting/pg-init/` into Postgres's
+// /docker-entrypoint-initdb.d, and an init script without its execute bit is
+// one Docker cannot run. `zip.js` wrote every entry 0644 — and marked the
+// archive as made on MS-DOS, which makes unzip ignore the mode anyway — so the
+// archive the download button produced could not start the reporting database.
+// Nothing about the application looked wrong: every file was there and correct.
+console.log("\n9. The deployable archive keeps script permissions");
+{
+  const { createZip } = await import(`file://${p("assets", "js", "zip.js")}`);
+  /* The unix mode of each entry, read back from the central directory the way
+     unzip does: only trusted when "version made by" says Unix (high byte 3). */
+  const modes = async (files) => {
+    const bytes = new Uint8Array(await (await createZip(files)).arrayBuffer());
+    const view = new DataView(bytes.buffer);
+    let at = view.getUint32(bytes.length - 22 + 16, true);
+    const out = {};
+    while (view.getUint32(at, true) === 0x02014b50) {
+      const madeBy = view.getUint16(at + 4, true);
+      const nameLength = view.getUint16(at + 28, true);
+      const extra = view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
+      const name = new TextDecoder().decode(bytes.subarray(at + 46, at + 46 + nameLength));
+      out[name] = madeBy >> 8 === 3 ? (view.getUint32(at + 38, true) >>> 16) & 0o777 : null;
+      at += 46 + nameLength + extra;
+    }
+    return out;
+  };
+  const m = await modes({
+    "a/init.sh": "echo hi\n",
+    "a/tool": "#!/bin/sh\necho hi\n",
+    "a/notes.txt": "hello\n",
+  });
+  m["a/init.sh"] === 0o755 ? ok("a .sh file is stored 0755") : fail("a .sh file is stored 0755", `mode ${m["a/init.sh"]?.toString(8)}`);
+  m["a/tool"] === 0o755 ? ok("a #! file is stored 0755") : fail("a #! file is stored 0755", `mode ${m["a/tool"]?.toString(8)}`);
+  m["a/notes.txt"] === 0o644 ? ok("an ordinary file stays 0644") : fail("an ordinary file stays 0644", `mode ${m["a/notes.txt"]?.toString(8)}`);
+
+  const templatesPath = p("assets", "vendor", "stack-templates.json");
+  const bundlePath = p("assets", "js", "appwithai-fullstack.js");
+  if (!existsSync(templatesPath) || !existsSync(bundlePath)) {
+    console.log("  note stack-templates.json or appwithai-fullstack.js absent — real archive skipped");
+  } else {
+    const { generateFullStack } = await import(`file://${bundlePath}`);
+    const realLog = console.log;
+    console.log = () => {};
+    let files;
+    try {
+      files = (await generateFullStack({
+        source: STATS["crm.eml.mmd"].src,
+        name: "crm",
+        templates: JSON.parse(readFileSync(templatesPath, "utf8")),
+        overlay: false,
+      })).files;
+    } finally {
+      console.log = realLog;
+    }
+    const real = await modes(files);
+    for (const script of Object.keys(files).filter((f) => /\.sh$/.test(f))) {
+      real[script] === 0o755
+        ? ok(`${script} is executable in the archive`)
+        : fail(`${script} is executable in the archive`, `mode ${real[script]?.toString(8)}`);
+    }
+    "reporting/pg-init/01-reporting-database.sh" in files
+      ? ok("the archive carries the reporting init script")
+      : fail("the archive carries the reporting init script", "reporting/pg-init/01-reporting-database.sh is missing");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 10. The archive's seed survives a reference with no parent.
+//
+// A model can mark a column as a required FK and declare no entity for it
+// (EML502, an info note). The seed returned null for it, the column's NOT NULL
+// refused the insert, and the generated backend never started. Every figure on
+// every page was right; the application just did not run.
+//
+// The published wealth-management model used to be the fixture for this, with
+// `Document.document_type_id`. It declares a closed vocabulary instead now, so
+// the group drives the same path with a model that is small enough to read.
+const ORPHAN_REFERENCE_MODEL = `%%meta name: Orphan Reference
+%%meta kind: erd
+erDiagram
+    Party {
+        string id PK
+        string name
+    }
+    Document {
+        string id PK
+        string party_id FK
+        string document_type_id FK
+        string file_name
+    }
+    Party ||--o{ Document : "holds"
+`;
+console.log("\n10. The deployable archive's seed handles a reference with no parent");
+{
+  const templatesPath = p("assets", "vendor", "stack-templates.json");
+  const bundlePath = p("assets", "js", "appwithai-fullstack.js");
+  if (!existsSync(templatesPath) || !existsSync(bundlePath)) {
+    console.log("  note templates or bundle absent — group skipped");
+  } else {
+    const { generateFullStack } = await import(`file://${bundlePath}`);
+    const realLog = console.log;
+    console.log = () => {};
+    let files;
+    try {
+      files = (await generateFullStack({
+        source: ORPHAN_REFERENCE_MODEL,
+        name: "orphan-reference",
+        templates: JSON.parse(readFileSync(templatesPath, "utf8")),
+        overlay: false,
+      })).files;
+    } finally {
+      console.log = realLog;
+    }
+    const seed = files["backend/seeds/03_business_data.ts"] ?? "";
+    seed.includes("fk('document_type_id', 0, true)")
+      ? ok("the seed tells fk() that document_type_id is required")
+      : fail("the seed tells fk() that document_type_id is required", "the call does not carry the required flag");
+    seed.includes("orphanIds")
+      ? ok("the seed has a fallback for a required reference with no parent")
+      : fail("the seed has a fallback for a required reference with no parent", "fk() still returns null for it, and NOT NULL refuses the insert");
+    /* Any call that passes `false` for a column the model requires would
+       reintroduce it, so every document_type_id call must say true. */
+    const calls = seed.match(/document_type_id: fk\([^)]*\)/g) ?? [];
+    calls.length > 0 && calls.every((c) => c.endsWith("true)"))
+      ? ok(`all ${calls.length} document_type_id values are drawn as required`)
+      : fail("every document_type_id value is drawn as required", calls.find((c) => !c.endsWith("true)")) ?? "no calls found");
+  }
+}
+
+// ---------------------------------------------------------------------------
+console.log(`\n${failures.length === 0 ? "OK" : "FAILED"} — ${passed} passed, ${failures.length} failed`);
+process.exit(failures.length === 0 ? 0 : 1);

@@ -321,9 +321,9 @@ app-with-ai-tanstack/
 │   └── app_and_report/  # The orchestrator: the app and its reporting platform, composed
 ├── reporting/      # tanstack-enterprise_reporting, the reporting platform
 ├── database/       # Migrations (001–010)
-├── website/        # What businessappwithai.github.io publishes from here
-│   ├── html/       #   Static guide + run-in-browser.html + run-real-stack.html
-│   ├── llmtext/    #   llms.txt — the ~1k-token controller, plus the chunks
+├── website/        # The published site (appwithai.org): pages, assets, demo, specifications
+│   ├── html/       #   The guide, published at /guide/ (the site plugin maps html → guide)
+│   ├── llmtext/    #   llms.txt — the ~1k-token controller, plus the chunks (served at the site root)
 │                   #   it names and a model loads lazily
 │   ├── viewers/    #   The model viewers — served at appwithai.org/viewers
 │   └── examples/   #   Legacy `.mmd` samples (the `.eml.mmd` models live in common/language)
@@ -335,13 +335,14 @@ app-with-ai-tanstack/
 The language, the checker, the fixer, the CLI and the example models live in
 `common/language/`. The guide's screenshots and shared stylesheet and scripts live in
 `website/html/`, and the model viewers and llmtext chunks in `website/`. Those are the
-**only** copies. The trees that serve them — `website/html/models/`, the orchestrator's
-`common/app_and_report/common/html/`, and the published site's `guide/`, `viewers/` and root —
-need the files on disk, so `scripts/sync-common.ts` (`bun run sync:common`) writes them and
-rewrites a managed block of `.gitignore`; `-- --check` fails if one differs. `bun run test` and
-`bun run test:wasm` run it first. Edit the file at its home, never the synced copy — a change
-to the copy is overwritten and, because the copy is ignored, never reaches a commit. A new
-shared file is added to the lists at the top of the script.
+**only** copies. The trees that serve them need the files on disk: the guide's `models/`, the
+orchestrator's `common/app_and_report/common/html/`, and the site's `assets/js/` generator
+bundles. `scripts/sync-common.ts` (`bun run sync:common`) writes them and rewrites a managed
+block of `.gitignore`; `-- --check` fails if one differs. `bun run test` and `bun run test:wasm`
+run it first; run it yourself before building the site in `website/`. Edit the file at its
+home, never the synced copy — a change to the copy is overwritten and, because the copy is
+ignored, never reaches a commit. A new shared file is added to the lists at the top of the
+script.
 
 ### Package Aliases
 
@@ -1469,10 +1470,9 @@ whole file, and prove nothing was lost with a before-and-after table.
 
 **It is authored, not derived.** It began as the site's language-only
 `llms-full.txt` with §1 and §3.7 rewritten; the language reference after §1 is
-that text. Edit it in place. The same file is published by the website and
-carried by the orchestrator — copy it, byte for byte, to
-`businessappwithai.github.io/llms.txt` and
-`app-and-report-with-ai-tanstack/website/llmtext/llms.txt`.
+that text. Edit it in place. The website publishes this same file at its root
+(`/llms.txt`) straight from `website/llmtext/`, and the orchestrator reads it from there
+too — there is no second copy to keep in step.
 
 **`bun run test:llmtext` holds it** (`scripts/ci/llmtext-claims.ts`): every code it
 cites exists, every auto-fixable code is tabulated and counted right, every
@@ -1814,7 +1814,7 @@ did, which is how it surfaced. Held by
 
 **When changing language semantics:** edit `appwithai-language.json` first, then spec docs, grammar, parser, composer, rag. If adding a diagnostic, add its code to `AUTO_FIXABLE_CODES` in `checker.ts`, the fixer's dispatch table, and `diagnostics.autoFixable` in the JSON — all three.
 
-**Example models live once** — `common/language/examples/*.eml.mmd`. `website/html/models/`, the orchestrator's `common/app_and_report/common/html/models/` and the website's `guide/models/` carry copies the pages load, but those copies are written by `bun run sync:common` and git-ignored, never committed.
+**Example models live once** — `common/language/examples/*.eml.mmd`. `website/html/models/` (the published `/guide/models/`) and the orchestrator's `common/app_and_report/common/html/models/` carry copies the pages load, but those copies are written by `bun run sync:common` and git-ignored, never committed.
 
 ---
 
