@@ -1,0 +1,33 @@
+# Keeps the `deploy` branch in sync with `main` whenever website/ changes.
+#
+# Any commit to main that touches website/** is immediately mirrored to the
+# deploy branch. This makes deploy a reliable snapshot of the latest published
+# site source, without a separate PR or manual step.
+name: Sync website changes to deploy branch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+
+  # Run by hand to sync after a non-website change that affects what the site
+  # receives (e.g. a shared file updated via sync:common).
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push main to deploy
+        run: |
+          git push origin HEAD:deploy --force
+          echo "deploy branch updated to $(git rev-parse HEAD)"
