@@ -94,6 +94,11 @@ BUILT_IN.construction = {
   label: "construction-enterprise-management.eml.mmd",
   name: "Construction Enterprise Management",
 };
+BUILT_IN.carwash = {
+  path: "models/car-wash-management-system.eml.mmd",
+  label: "car-wash-management-system.eml.mmd",
+  name: "Car Wash Management System",
+};
 
 const $ = (id) => document.getElementById(id);
 
