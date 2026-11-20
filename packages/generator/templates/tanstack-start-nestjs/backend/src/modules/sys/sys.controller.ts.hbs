@@ -26,6 +26,7 @@ import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { DictionaryWriteGuard } from '../auth/guards/dictionary-write.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { SysService } from './sys.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { SystemConfigService } from './services/system-config.service';
@@ -662,6 +663,35 @@ export class SysController {
   @ApiOperation({ summary: 'Delete report design for a table (administrators only)' })
   async deleteReportDesign(@Param('tableName') tableName: string) {
     return this.sysService.deleteReportDesign(tableName);
+  }
+
+  // ── Demo accounts (public) ────────────────────────────────────────────
+
+  /**
+   * Returns the accounts from `password_list.txt` at the project root so the
+   * sign-in screen can list them without hardcoding anything in source.
+   *
+   * Public — called before sign-in, so no session is available. If the file is
+   * absent (production cleanup) the response is an empty list and no password,
+   * and the sign-in screen shows nothing.
+   */
+  @Public()
+  @Get('demo-accounts')
+  @ApiOperation({ summary: 'Seeded accounts for the sign-in page (public)' })
+  async getDemoAccounts(): Promise<{ accounts: Array<{ email: string; role: string; isAdmin: boolean; entities: number }>; password: string }> {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const filePath = join(process.cwd(), '..', 'password_list.txt');
+    if (!existsSync(filePath)) return { accounts: [], password: '' };
+    try {
+      const data = JSON.parse(readFileSync(filePath, 'utf-8')) as {
+        app?: Array<{ email: string; role: string; isAdmin: boolean; entities: number }>;
+        appPassword?: string;
+      };
+      return { accounts: data.app ?? [], password: data.appPassword ?? '' };
+    } catch {
+      return { accounts: [], password: '' };
+    }
   }
 
   // ── System Configuration ───────────────────────────────────────────────

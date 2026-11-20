@@ -5,7 +5,7 @@
  *
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { signIn } from '@/lib/auth';
 import { useAuth } from '@/contexts/auth-context';
@@ -18,11 +18,16 @@ import { Loader2, LogIn, AlertCircle, Mail, Lock, Shield } from 'lucide-react';
 import {
   ACCESS_IS_SCOPED,
   APP_NAME,
-  SEEDED_ACCOUNTS,
-  SEEDED_PASSWORD,
   TOTAL_ENTITIES,
   LINE_ITEM_ENTITIES,
 } from "@/lib/app-meta";
+
+interface DemoAccount {
+  email: string;
+  role: string;
+  isAdmin: boolean;
+  entities: number;
+}
 
 /**
  * The password field's placeholder mask, built from a code point rather than
@@ -55,6 +60,20 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
+
+  const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>([]);
+  const [demoPassword, setDemoPassword] = useState('');
+
+  useEffect(() => {
+    fetch('/api/sys/demo-accounts')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { accounts?: DemoAccount[]; password?: string } | null) => {
+        if (!data) return;
+        setDemoAccounts(data.accounts ?? []);
+        setDemoPassword(data.password ?? '');
+      })
+      .catch(() => {/* no accounts available — login page works fine without them */});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,18 +235,18 @@ function LoginPage() {
           </form>
 
           {/* The seeded accounts, one row each.
+              Read at mount from GET /api/sys/demo-accounts which reads
+              password_list.txt at the project root. When the file is absent
+              (production cleanup) this block is empty and the form shows alone.
+
               A generated application seeds one account per functional role plus
               an administrator who bypasses every restriction the model wrote —
               so an application you can only sign into as the administrator is
               one whose access control you cannot see. The entity count beside
               each address is the invitation to compare two roles, and clicking
               a row fills the form because retyping an address is exactly the
-              friction that stops people comparing them.
-
-              This is demonstration data. Change SEEDED_PASSWORD in the seed
-              before this runs anywhere real and the list stops being true; the
-              seed's own header says the same. */}
-          {SEEDED_ACCOUNTS.length > 0 && (
+              friction that stops people comparing them. */}
+          {demoAccounts.length > 0 && (
             <>
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
@@ -241,7 +260,7 @@ function LoginPage() {
               </div>
 
               <p className="text-sm text-muted-foreground mb-3">
-                Password <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs">{SEEDED_PASSWORD}</code> for all of them.
+                Password <code className="px-1.5 py-0.5 rounded bg-muted font-mono text-xs">{demoPassword}</code> for all of them.
                 {ACCESS_IS_SCOPED
                   ? " Each role sees only its own entities — pick one to try it."
                   : " Pick one to fill the form."}
@@ -250,13 +269,13 @@ function LoginPage() {
               </p>
 
               <ul className="space-y-1.5">
-                {SEEDED_ACCOUNTS.map((account) => (
+                {demoAccounts.map((account) => (
                   <li key={account.email}>
                     <button
                       type="button"
                       onClick={() => {
                         setEmail(account.email);
-                        setPassword(SEEDED_PASSWORD);
+                        setPassword(demoPassword);
                       }}
                       className="w-full text-left rounded-md border border-border/60 bg-muted/40 px-3 py-2 transition-colors hover:border-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >

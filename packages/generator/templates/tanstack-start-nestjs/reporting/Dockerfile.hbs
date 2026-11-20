@@ -61,6 +61,36 @@ RUN apt-get update \
 # without catching anything. The ref is what makes a build reproducible.
 RUN bun install && bun pm cache rm
 
+# Inject a public GET /api/sys/demo-accounts route so the reporting platform's
+# sign-in screen can list its seeded accounts the same way the main app does.
+# The route reads password_list.txt (copied below) and returns the `report`
+# array; if the file is absent it returns an empty list.
+RUN mkdir -p /app/src/routes/api/sys
+RUN printf '%s\n' \
+  'import { createFileRoute } from "@tanstack/react-router";' \
+  'import { readFileSync, existsSync } from "node:fs";' \
+  'import { join } from "node:path";' \
+  'export const Route = createFileRoute("/api/sys/demo-accounts")({' \
+  '  server: {' \
+  '    handlers: {' \
+  '      GET: async () => {' \
+  '        const p = join(process.cwd(), "password_list.txt");' \
+  '        if (!existsSync(p)) return new Response(JSON.stringify({ accounts: [], password: "" }), { headers: { "Content-Type": "application/json" } });' \
+  '        try {' \
+  '          const d = JSON.parse(readFileSync(p, "utf-8"));' \
+  '          return new Response(JSON.stringify({ accounts: d.report ?? [], password: d.reportPassword ?? "" }), { headers: { "Content-Type": "application/json" } });' \
+  '        } catch { return new Response(JSON.stringify({ accounts: [], password: "" }), { headers: { "Content-Type": "application/json" } }); }' \
+  '      },' \
+  '    },' \
+  '  },' \
+  '});' \
+  > /app/src/routes/api/sys/demo-accounts.ts
+
+# The seeded accounts. Generated alongside the application from the same model
+# that produced the reporting pack. If this file is absent (production cleanup)
+# the demo-accounts route returns an empty list.
+COPY password_list.txt ./
+
 RUN bun run build
 
 # ─── runtime ────────────────────────────────────────────────────────────────
@@ -100,6 +130,8 @@ COPY --from=builder /app/server-static-wrapper.mjs ./server-static-wrapper.mjs
 # copied above.
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/src ./src
+# The seeded accounts — the demo-accounts route reads this at runtime.
+COPY --from=builder /app/password_list.txt ./
 
 EXPOSE 3000
 
