@@ -94,6 +94,18 @@ export interface Entity {
    */
   icon?: string;
   /**
+   * What a record of this entity is called, from
+   * `%%entity <E> identifier: <column>, <column>`.
+   *
+   * The columns, in order, whose values joined make the record's display value
+   * — what a dropdown lists and what a grid shows in place of a foreign key.
+   * They land in `sys_column.is_identifier`, which is the dictionary's own
+   * answer and what an administrator changes afterwards in the Column window.
+   * Undefined when the model says nothing; `identifierColumnNames` then derives
+   * them from the column names.
+   */
+  identifierColumns?: string[];
+  /**
    * The entity this one is a line item of, from `%%entity <E> parent: <P>`.
    *
    * A child is not a thing you navigate to. It has no window of its own and no

@@ -363,6 +363,9 @@ class CheckEngine {
        the one it names — no window, no dashboard card, a tab inside its
        parent's window linked on the foreign key it already declared. */
     "parent",
+    /* `identifier` names the columns a record is called by — its display value,
+       compiled to sys_column.is_identifier. Checked by EML163-EML165. */
+    "identifier",
   ]);
   private validFieldKeys = new Set([
     "enum",
@@ -443,6 +446,7 @@ class CheckEngine {
     this.checkFieldDirectives();
     this.checkIndexDirectives();
     this.checkEntityDirectives();
+    this.checkDisplayValues();
     this.checkCategoryDirectives();
     this.checkLineItems();
     this.checkHelpText();
@@ -1325,6 +1329,185 @@ class CheckEngine {
         }
       }
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // EML163-EML165: what a record is called — `%%entity <E> identifier:`
+  // -------------------------------------------------------------------------
+
+  /**
+   * The display value: the columns whose values, joined, are what a record is
+   * called wherever something other than the record shows it — a dropdown, a
+   * grid cell holding a foreign key, a related-records list. It lands in
+   * `sys_column.is_identifier`, and an administrator can change it afterwards in
+   * the Column window.
+   *
+   * A model states it with `%%entity <E> identifier: <column>, <column>`. When it
+   * does not, the generator derives it (`identifierColumnNames` in
+   * packages/core, `applicationDictionary.displayValue` in the language
+   * definition), and for an entity with no column that names it — no name, no
+   * person's name, no code — that derivation is a guess: its first two
+   * references, its first text column, or a parent and a date. EML165 says
+   * which guess it will make, so the author decides rather than the fallback.
+   */
+  private checkDisplayValues(): void {
+    const declared = new Map<string, { columns: string[]; lineNo: number }>();
+    for (const { lineNo, text } of this.src.findAll(/^\s*%%entity\s+\w+\s+identifier\s*:/)) {
+      const m = text.trim().match(/^%%entity\s+(\w+)\s+identifier\s*:\s*(.*)$/);
+      if (!m?.[1]) continue;
+      const columns = (m[2] ?? "")
+        .split(",")
+        .map((column) => column.trim())
+        .filter(Boolean);
+      declared.set(m[1], { columns, lineNo });
+    }
+    const boundToEnum = new Set(
+      this.src
+        .findAll(/^\s*%%field\s+\w+\.\w+\s+enum\s*:/)
+        .map(({ text }) => {
+          const m = text.trim().match(/^%%field\s+(\w+)\.(\w+)/);
+          return m ? `${m[1]}.${m[2]}` : "";
+        })
+        .filter(Boolean)
+    );
+
+    for (const entity of this.model.entities) {
+      const statement = declared.get(entity.name);
+      if (statement) {
+        const byName = new Map(entity.attributes.map((attribute) => [attribute.name, attribute]));
+        if (statement.columns.length === 0) {
+          this.error("EML163", `%%entity ${entity.name} identifier: names no column.`, {
+            line: statement.lineNo,
+            hint: `List the columns a ${entity.name} is called by, e.g. \`%%entity ${entity.name} identifier: name\`.`,
+          });
+          continue;
+        }
+        for (const column of statement.columns) {
+          const attribute = byName.get(column);
+          if (!attribute) {
+            this.error(
+              "EML163",
+              `%%entity ${entity.name} identifier: names "${column}", which ${entity.name} does not declare.`,
+              {
+                line: statement.lineNo,
+                hint: `Name one of ${entity.name}'s own columns: ${entity.attributes
+                  .filter((a) => !a.isPrimaryKey)
+                  .map((a) => a.name)
+                  .join(", ")}.`,
+              }
+            );
+          } else if (attribute.isPrimaryKey || column === entity.primaryKey) {
+            this.warn(
+              "EML164",
+              `%%entity ${entity.name} identifier: names the primary key "${column}".`,
+              {
+                line: statement.lineNo,
+                hint: "The key is a uuid, which is exactly what a display value exists to hide. Name the columns a person would quote.",
+              }
+            );
+          } else if (boundToEnum.has(`${entity.name}.${column}`)) {
+            this.warn(
+              "EML164",
+              `%%entity ${entity.name} identifier: names "${column}", which is bound to an enum.`,
+              {
+                line: statement.lineNo,
+                hint: "A status or a category says what a record is doing, not which record it is — every row would read the same few words. Name the columns that tell one record from another.",
+              }
+            );
+          }
+        }
+        continue;
+      }
+
+      const guess = this.derivedDisplayValue(entity, boundToEnum);
+      if (!guess) continue;
+      this.info(
+        "EML165",
+        `"${entity.name}" has no column that names it, so its records will be called by ${guess.describe}.`,
+        {
+          line: this.src.findLine(new RegExp(`^\\s*${entity.name}\\s*\\{`)),
+          hint:
+            `That is what each ${entity.name} shows in every dropdown and in place of every reference to it. ` +
+            `If it is how people tell one ${entity.name} from another, declare it so it stays that way: ` +
+            `\`%%entity ${entity.name} identifier: ${guess.columns.join(", ") || "<column>, <column>"}\`. ` +
+            `Otherwise name the columns they would quote instead.`,
+        }
+      );
+    }
+  }
+
+  /**
+   * The generator's display-value derivation, for an entity with nothing that
+   * names it. `undefined` when the entity has such a column (a name, a person's
+   * two names, a code — no guess to report). Mirrors `identifierColumnNames` in
+   * packages/core/src/types/bus-entity.types.ts and
+   * `applicationDictionary.displayValue` in the language definition; the
+   * language package cannot import the generator, so the three are kept in step
+   * by `display-value-check.test.ts`.
+   */
+  private derivedDisplayValue(
+    entity: EmlEntity,
+    boundToEnum: Set<string>
+  ): { columns: string[]; describe: string } | undefined {
+    const byName = new Map(entity.attributes.map((attribute) => [attribute.name, attribute]));
+    const has = (name: string) => byName.has(name);
+    const isEnum = (name: string) => boundToEnum.has(`${entity.name}.${name}`);
+    const primaryKey = entity.primaryKey;
+    /* The generator reads `string x_id PK FK` — a key shared with a parent — as a
+       unique reference beside its own generated `id`, so such a column is a
+       reference here, not the key. */
+    const isOwnKey = (attribute: EmlAttribute) =>
+      (attribute.isPrimaryKey || attribute.name === primaryKey) && !attribute.isForeignKey;
+    const prefixes = [
+      primaryKey?.endsWith("_id") ? primaryKey.slice(0, -3) : undefined,
+      entity.name.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase(),
+    ].filter((prefix, i, all): prefix is string => !!prefix && all.indexOf(prefix) === i);
+    const prefixed = (...suffixes: string[]) =>
+      prefixes.some((prefix) =>
+        suffixes.some((suffix) => {
+          const attribute = byName.get(`${prefix}_${suffix}`);
+          return !!attribute && !attribute.isForeignKey && !isEnum(attribute.name);
+        })
+      );
+
+    if (["name", "full_name", "display_name", "title", "label", "subject"].some(has)) return undefined;
+    if (prefixed("name", "title", "label")) return undefined;
+    if (has("first_name") && has("last_name")) return undefined;
+    if (["code", "reference", "number"].some(has)) return undefined;
+    if (prefixed("code", "reference", "number")) return undefined;
+
+    const references = entity.attributes.filter(
+      (attribute) =>
+        !isOwnKey(attribute) &&
+        attribute.isForeignKey &&
+        isForeignKeyColumnName(attribute.name)
+    );
+    if (references.length >= 2) {
+      const pair = references.slice(0, 2).map((attribute) => attribute.name);
+      return { columns: pair, describe: `its first two references, ${pair.join(" and ")}` };
+    }
+    const readable = entity.attributes.find(
+      (attribute) =>
+        !isOwnKey(attribute) &&
+        !attribute.isForeignKey &&
+        !isEnum(attribute.name) &&
+        !attribute.name.endsWith("_id") &&
+        (attribute.type === "string" || attribute.type === "text")
+    );
+    if (readable) {
+      return { columns: [readable.name], describe: `its first text column, ${readable.name}` };
+    }
+    const parent = references[0];
+    const when = entity.attributes.find(
+      (attribute) => attribute.type === "date" || attribute.type === "datetime"
+    );
+    if (parent && when) {
+      return {
+        columns: [parent.name, when.name],
+        describe: `its parent and a date, ${parent.name} and ${when.name}`,
+      };
+    }
+    return { columns: [], describe: "its id, because it has no column a person could read" };
   }
 
   // -------------------------------------------------------------------------

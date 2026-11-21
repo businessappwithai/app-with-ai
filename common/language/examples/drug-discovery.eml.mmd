@@ -555,6 +555,7 @@ erDiagram
     %%field Assay.is_active help: Whether the assay is still available to be run.
 
     %%entity AssayRun help: One execution of an assay — typically one plate, on one instrument, on one day, by one operator. The run is where quality is judged: if its Z-prime is below the assay's acceptance threshold, every result on the plate is suspect no matter how good the numbers look.
+    %%entity AssayRun identifier: run_reference
     %%field AssayRun.run_reference help: The identifier for this run, used to trace a result back to the day and plate it came from.
     %%field AssayRun.assay_id help: The assay definition being executed.
     %%field AssayRun.experiment_id help: The experiment this run was scheduled under, where it was scheduled under one.
@@ -569,6 +570,7 @@ erDiagram
     %%field AssayRun.failure_reason help: Why the run failed, where it did.
 
     %%entity AssayResult help: One compound's measurement from one run. This is the row the whole application exists to produce: a number, its unit, and enough context to know whether to believe it.
+    %%entity AssayResult identifier: assay_run_id, compound_id
     %%entity AssayResult parent: AssayRun
     %%field AssayResult.assay_run_id help: The run this measurement came from.
     %%field AssayResult.compound_id help: The compound that was measured.
@@ -580,6 +582,7 @@ erDiagram
     %%field AssayResult.is_validated help: Whether a scientist has reviewed and accepted this result.
 
     %%entity AdmetProfile help: What is known about whether a compound could behave like a drug — absorption, distribution, metabolism, excretion and toxicity. Kept apart from Compound because each endpoint is measured separately, at different times, by different people, and a potent compound can be killed by any one of them.
+    %%entity AdmetProfile identifier: compound_id, assessed_on
     %%entity AdmetProfile parent: Compound
     %%field AdmetProfile.compound_id help: The compound this profile describes.
     %%field AdmetProfile.kinetic_solubility_um help: How much of the compound will dissolve, in micromolar. A compound that will not dissolve cannot be dosed and often cannot even be assayed honestly.
@@ -607,6 +610,7 @@ erDiagram
     %%field Experiment.objective help: What the experiment is meant to establish.
 
     %%entity Sample help: A physical quantity of material in a tube, plate or vial, in a known place. A sample is the thing a scientist can actually pick up, and the difference between the compound and the sample is the difference between a structure and eight microlitres of it in freezer A.
+    %%entity Sample identifier: sample_barcode
     %%field Sample.sample_barcode help: The barcode on the physical container. Scanning it is how the material is identified at the bench.
     %%field Sample.compound_id help: The compound this material is, where it is a registered compound.
     %%field Sample.experiment_id help: The experiment the sample was prepared for.
@@ -620,6 +624,7 @@ erDiagram
     %%field Sample.status help: Whether the sample is available, spoken for, used up or quarantined.
 
     %%entity InventoryTransaction help: One movement of material — received, split into aliquots, consumed, moved, discarded or corrected. Samples are edited constantly, and a stock figure nobody can explain is worse than none, so every change to a sample leaves one of these behind.
+    %%entity InventoryTransaction identifier: sample_id, occurred_at
     %%field InventoryTransaction.sample_id help: The sample that moved.
     %%field InventoryTransaction.performed_by_id help: Who moved it. Empty when the movement was recorded automatically by the disposition process rather than by a person at the bench.
     %%field InventoryTransaction.transaction_type help: What kind of movement this was.
@@ -640,6 +645,7 @@ erDiagram
     %%field Instrument.is_active help: Whether the instrument is in service. An inactive instrument cannot be booked.
 
     %%entity InstrumentBooking help: A reserved block of time on an instrument. Instruments are the scarce resource in most laboratories, so the booking is where contention is resolved and where an overdue calibration stops work before it starts.
+    %%entity InstrumentBooking identifier: instrument_id, start_time
     %%field InstrumentBooking.instrument_id help: The instrument being booked.
     %%field InstrumentBooking.experiment_id help: The experiment the time is for.
     %%field InstrumentBooking.booked_by_id help: Who made the booking.
@@ -659,6 +665,7 @@ erDiagram
     %%field Vendor.is_approved help: Whether the vendor has passed qualification. Unapproved vendors may not be sent work.
 
     %%entity VendorRequest help: A piece of work sent outside — a synthesis, a panel, an analysis. It is raised against an experiment so that outsourced results can be traced back to the work that needed them.
+    %%entity VendorRequest identifier: request_number
     %%field VendorRequest.request_number help: The reference the request is tracked by with the vendor.
     %%field VendorRequest.vendor_id help: Who the work was sent to.
     %%field VendorRequest.experiment_id help: The experiment the work belongs to.
@@ -669,6 +676,7 @@ erDiagram
     %%field VendorRequest.status help: Where the request has got to.
 
     %%entity DeviationReport help: A record that something did not go to plan. Deviations are the raw material of laboratory quality: severity is assigned by rule rather than by opinion, and a critical one opens a corrective action automatically.
+    %%entity DeviationReport identifier: anomaly_description
     %%field DeviationReport.experiment_id help: The experiment the deviation happened in.
     %%field DeviationReport.reported_by_id help: Who reported it.
     %%field DeviationReport.severity help: How serious it is. Assigned by the routing rule rather than chosen by the reporter.

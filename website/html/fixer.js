@@ -440,13 +440,15 @@ var appwithai_language_default = {
     },
     displayValue: {
       description: "What a record is called wherever something other than the record shows it: a Table Direct dropdown, and a grid cell holding a foreign key. Stored as sys_column.is_identifier, and the display value is the identifier columns concatenated in seq_no order - the same rule in both stacks.",
+      declared: "A model states it with `%%entity <Entity> identifier: <column>, <column>`, and a declaration wins over every step of the derivation: the named columns the entity declares are its identifiers, joined in field order (seq_no). Declare it for every entity that has no column naming it outright - no name, no person's two names, no code - because for those the derivation below is a guess (its parents, its first text column, or a parent and a date), and the checker reports which guess it would make as EML165. An administrator can still change it afterwards in the Column window (Identifier), and the running application reads sys_column.is_identifier on every request.",
       derivation: [
+        "0. A `%%entity <Entity> identifier:` declaration, if there is one.",
         "1. A column named name, full_name, display_name, title, label or subject - whichever appears first in that order - or, failing those, the entity's own <entity>_name, <entity>_title or <entity>_label (department_name on Department, key department_id). Never a reference, never an enum column.",
         "2. Otherwise first_name and last_name together, if the entity declares both. This is why the value is a concatenation and not one column.",
         "3. Otherwise code, reference or number, or the entity's own <entity>_code, <entity>_reference or <entity>_number - not a name, but what people quote at each other, and better than a uuid.",
         "4. Otherwise, if the entity declares two or more FK columns ending _id/_by, it is a join entity: its first two references are the identifiers, each resolved through the parent's own label. CampaignMember reads as `Spring Promo - Omar Kowalski`.",
         "5. Otherwise the first declared string/text column that is neither the key nor a reference.",
-        "6. Otherwise the key, so a lookup still lists something."
+        "6. Otherwise its first reference and its first date column together (`Dennis Lindgren - 2026-08-26`); failing even that, no identifier, and a lookup lists the key."
       ],
       joinEntities: {
         description: "An entity whose identity is the pair of records it joins - CampaignMember, OrderLine, QuoteLineItem - has no name to give it, and step 5 would pick whatever text column came first: member_status, so every campaign member read `invited`. Two or more references and no name of its own is the shape.",
@@ -647,6 +649,9 @@ var appwithai_language_default = {
       EML147: "%%entity ... parent: names an entity that is not declared, or the entity names itself.",
       EML148: "%%entity ... parent: is declared but the child has no foreign key back to the parent, so the detail tab has nothing to link on.",
       EML149: "info — an entity shaped like a line item that declares no parent:. Names the candidate parent and the column a tab would link on. Never an error: identifyingAChild's three questions are about the business, not the document.",
+      EML163: "error — `%%entity <E> identifier:` names a column the entity does not declare, or names none. The parser drops the unknown column, and a declaration left with none falls back to the derivation.",
+      EML164: "warning — `%%entity <E> identifier:` names the primary key (a uuid, which a display value exists to hide) or a column bound to a %%enum (a status says what a record is doing, not which record it is).",
+      EML165: "info — an entity with no column that names it (no name, no first_name + last_name, no code/reference/number) and no `identifier:` declaration. Names the columns the derivation would choose - its first two references, its first text column, or a parent and a date - and the declaration that would fix it. Answer every one before delivering: declare what people call the record.",
       EML155: "info — a line item of a line item: parent: names an entity that is itself declared parent:. The dictionary has two levels, so the deeper entity is generated as a top-level one (own window and dashboard card, foreign key kept) rather than as a tab. Mirrors flattenNestedLineItems in the generator's parser; only a parent: that takes effect (declared parent, foreign key to it) counts.",
       EML150: "warning — an entity declared parent: is also named in a %%category. The category asks for a dashboard card the directive has taken away.",
       EML151: "warning — entity or column help that restates its own name instead of describing it. See helpText.mustBeDomainKnowledge.",
@@ -1353,13 +1358,14 @@ var appwithai_language_default = {
         form: "%%entity <Name> <key>: <value>",
         status: "compiled",
         consumedBy: [
-          "packages/generator/src/parsers/mermaid.parser.ts (help:/description:, icon: and parent: are compiled; prefix:, softDelete:, label: and audited: are validated only)",
-          "language/checker.ts (EML160, EML161, EML162)"
+          "packages/generator/src/parsers/mermaid.parser.ts (help:/description:, icon:, identifier: and parent: are compiled; prefix:, softDelete:, label: and audited: are validated only)",
+          "language/checker.ts (EML160, EML161, EML162, and EML163-EML165 for identifier:)"
         ],
-        purpose: "Attach entity-level metadata not expressible in the ERD block: the sentence that explains the entity to whoever opens its screen, the icon that represents it, the parent it is a line item of, plus table prefix (bus/sys), soft delete, label, audited.",
+        purpose: "Attach entity-level metadata not expressible in the ERD block: the sentence that explains the entity to whoever opens its screen, the icon that represents it, the columns its records are called by (identifier: - its display value, compiled to sys_column.is_identifier; see applicationDictionary.displayValue), the parent it is a line item of, plus table prefix (bus/sys), soft delete, label, audited.",
         examples: [
           "%%entity Account help: A company you sell to. One account holds many contacts and every deal you run with them.",
           "%%entity Patient icon: stethoscope",
+          "%%entity InventoryTransaction identifier: sample_id, performed_by",
           "%%entity Order audited: true",
           "%%entity Account prefix: bus",
           "%%entity Session softDelete: false"
@@ -3021,7 +3027,8 @@ class CheckEngine {
     "icon",
     "help",
     "description",
-    "parent"
+    "parent",
+    "identifier"
   ]);
   validFieldKeys = new Set([
     "enum",
@@ -3075,6 +3082,7 @@ class CheckEngine {
     this.checkFieldDirectives();
     this.checkIndexDirectives();
     this.checkEntityDirectives();
+    this.checkDisplayValues();
     this.checkCategoryDirectives();
     this.checkLineItems();
     this.checkHelpText();
@@ -3613,6 +3621,103 @@ class CheckEngine {
         }
       }
     }
+  }
+  checkDisplayValues() {
+    const declared = new Map;
+    for (const { lineNo, text } of this.src.findAll(/^\s*%%entity\s+\w+\s+identifier\s*:/)) {
+      const m = text.trim().match(/^%%entity\s+(\w+)\s+identifier\s*:\s*(.*)$/);
+      if (!m?.[1])
+        continue;
+      const columns = (m[2] ?? "").split(",").map((column) => column.trim()).filter(Boolean);
+      declared.set(m[1], { columns, lineNo });
+    }
+    const boundToEnum = new Set(this.src.findAll(/^\s*%%field\s+\w+\.\w+\s+enum\s*:/).map(({ text }) => {
+      const m = text.trim().match(/^%%field\s+(\w+)\.(\w+)/);
+      return m ? `${m[1]}.${m[2]}` : "";
+    }).filter(Boolean));
+    for (const entity of this.model.entities) {
+      const statement = declared.get(entity.name);
+      if (statement) {
+        const byName = new Map(entity.attributes.map((attribute) => [attribute.name, attribute]));
+        if (statement.columns.length === 0) {
+          this.error("EML163", `%%entity ${entity.name} identifier: names no column.`, {
+            line: statement.lineNo,
+            hint: `List the columns a ${entity.name} is called by, e.g. \`%%entity ${entity.name} identifier: name\`.`
+          });
+          continue;
+        }
+        for (const column of statement.columns) {
+          const attribute = byName.get(column);
+          if (!attribute) {
+            this.error("EML163", `%%entity ${entity.name} identifier: names "${column}", which ${entity.name} does not declare.`, {
+              line: statement.lineNo,
+              hint: `Name one of ${entity.name}'s own columns: ${entity.attributes.filter((a) => !a.isPrimaryKey).map((a) => a.name).join(", ")}.`
+            });
+          } else if (attribute.isPrimaryKey || column === entity.primaryKey) {
+            this.warn("EML164", `%%entity ${entity.name} identifier: names the primary key "${column}".`, {
+              line: statement.lineNo,
+              hint: "The key is a uuid, which is exactly what a display value exists to hide. Name the columns a person would quote."
+            });
+          } else if (boundToEnum.has(`${entity.name}.${column}`)) {
+            this.warn("EML164", `%%entity ${entity.name} identifier: names "${column}", which is bound to an enum.`, {
+              line: statement.lineNo,
+              hint: "A status or a category says what a record is doing, not which record it is — every row would read the same few words. Name the columns that tell one record from another."
+            });
+          }
+        }
+        continue;
+      }
+      const guess = this.derivedDisplayValue(entity, boundToEnum);
+      if (!guess)
+        continue;
+      this.info("EML165", `"${entity.name}" has no column that names it, so its records will be called by ${guess.describe}.`, {
+        line: this.src.findLine(new RegExp(`^\\s*${entity.name}\\s*\\{`)),
+        hint: `That is what each ${entity.name} shows in every dropdown and in place of every reference to it. ` + `If it is how people tell one ${entity.name} from another, declare it so it stays that way: ` + `\`%%entity ${entity.name} identifier: ${guess.columns.join(", ") || "<column>, <column>"}\`. ` + `Otherwise name the columns they would quote instead.`
+      });
+    }
+  }
+  derivedDisplayValue(entity, boundToEnum) {
+    const byName = new Map(entity.attributes.map((attribute) => [attribute.name, attribute]));
+    const has = (name) => byName.has(name);
+    const isEnum = (name) => boundToEnum.has(`${entity.name}.${name}`);
+    const primaryKey = entity.primaryKey;
+    const isOwnKey = (attribute) => (attribute.isPrimaryKey || attribute.name === primaryKey) && !attribute.isForeignKey;
+    const prefixes = [
+      primaryKey?.endsWith("_id") ? primaryKey.slice(0, -3) : undefined,
+      entity.name.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase()
+    ].filter((prefix, i, all) => !!prefix && all.indexOf(prefix) === i);
+    const prefixed = (...suffixes) => prefixes.some((prefix) => suffixes.some((suffix) => {
+      const attribute = byName.get(`${prefix}_${suffix}`);
+      return !!attribute && !attribute.isForeignKey && !isEnum(attribute.name);
+    }));
+    if (["name", "full_name", "display_name", "title", "label", "subject"].some(has))
+      return;
+    if (prefixed("name", "title", "label"))
+      return;
+    if (has("first_name") && has("last_name"))
+      return;
+    if (["code", "reference", "number"].some(has))
+      return;
+    if (prefixed("code", "reference", "number"))
+      return;
+    const references = entity.attributes.filter((attribute) => !isOwnKey(attribute) && attribute.isForeignKey && isForeignKeyColumnName(attribute.name));
+    if (references.length >= 2) {
+      const pair = references.slice(0, 2).map((attribute) => attribute.name);
+      return { columns: pair, describe: `its first two references, ${pair.join(" and ")}` };
+    }
+    const readable = entity.attributes.find((attribute) => !isOwnKey(attribute) && !attribute.isForeignKey && !isEnum(attribute.name) && !attribute.name.endsWith("_id") && (attribute.type === "string" || attribute.type === "text"));
+    if (readable) {
+      return { columns: [readable.name], describe: `its first text column, ${readable.name}` };
+    }
+    const parent = references[0];
+    const when = entity.attributes.find((attribute) => attribute.type === "date" || attribute.type === "datetime");
+    if (parent && when) {
+      return {
+        columns: [parent.name, when.name],
+        describe: `its parent and a date, ${parent.name} and ${when.name}`
+      };
+    }
+    return { columns: [], describe: "its id, because it has no column a person could read" };
   }
   declaredParents() {
     const parents = new Map;

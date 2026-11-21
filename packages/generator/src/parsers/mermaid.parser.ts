@@ -145,6 +145,7 @@ export class MermaidParser {
       [];
     const entityHelpText = new Map<string, string>();
     const entityIcons = new Map<string, string>();
+    const entityIdentifiers = new Map<string, string[]>();
     const entityParents = new Map<string, string>();
 
     for (let i = 0; i < lines.length; i++) {
@@ -174,6 +175,10 @@ export class MermaidParser {
         if (entityHelp) entityHelpText.set(entityHelp.entity, entityHelp.help);
         const entityIcon = this.parseEntityIconDirective(trimmed);
         if (entityIcon) entityIcons.set(entityIcon.entity, entityIcon.icon);
+        const entityIdentifier = this.parseEntityIdentifierDirective(trimmed);
+        if (entityIdentifier) {
+          entityIdentifiers.set(entityIdentifier.entity, entityIdentifier.columns);
+        }
         const entityParent = this.parseEntityParentDirective(trimmed);
         if (entityParent) entityParents.set(entityParent.entity, entityParent.parent);
         continue;
@@ -231,6 +236,7 @@ export class MermaidParser {
     this.attachHelp(entities, fieldHelpText, entityHelpText);
     this.attachFieldLogic(entities, fieldLogic);
     this.attachIcons(entities, entityIcons);
+    this.attachIdentifiers(entities, entityIdentifiers);
     this.attachParents(entities, entityParents);
     const enums = this.attachEnums(entities, declaredEnums, enumBindings);
 
@@ -273,6 +279,24 @@ export class MermaidParser {
     for (const [name, icon] of icons) {
       const entity = entities.find((candidate) => candidate.name === name);
       if (entity) entity.icon = icon;
+    }
+  }
+
+  /**
+   * Hang each `%%entity <E> identifier: <columns>` on the entity it names,
+   * keeping only the columns it declares.
+   *
+   * A column the entity does not have is dropped rather than invented — the
+   * checker reports it (EML163) — and a directive left with none says nothing,
+   * so the display value is derived as if it were absent.
+   */
+  private attachIdentifiers(entities: Entity[], identifiers: Map<string, string[]>): void {
+    for (const [name, columns] of identifiers) {
+      const entity = entities.find((candidate) => candidate.name === name);
+      if (!entity) continue;
+      const declared = new Set(entity.attributes.map((attribute) => attribute.name));
+      const kept = columns.filter((column) => declared.has(column));
+      if (kept.length > 0) entity.identifierColumns = kept;
     }
   }
 
@@ -499,6 +523,26 @@ export class MermaidParser {
     if (!match?.[1] || !match[2]) return null;
     const icon = match[2].trim();
     return icon ? { entity: match[1], icon } : null;
+  }
+
+  /**
+   * `%%entity InventoryTransaction identifier: sample_id, performed_by` — what a
+   * record is called wherever something other than the record shows it.
+   *
+   * The columns are joined in the order the record's fields are (`seq_no`),
+   * as every display value is. A reference among them is shown through its
+   * parent's own display value, as for a derived one.
+   */
+  private parseEntityIdentifierDirective(
+    line: string
+  ): { entity: string; columns: string[] } | null {
+    const match = line.match(/^%%entity\s+([A-Za-z_]\w*)\s+identifier\s*:\s*(.+)$/);
+    if (!match?.[1] || !match[2]) return null;
+    const columns = match[2]
+      .split(",")
+      .map((column) => column.trim())
+      .filter((column) => column.length > 0);
+    return columns.length > 0 ? { entity: match[1], columns } : null;
   }
 
   /**
