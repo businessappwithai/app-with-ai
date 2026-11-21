@@ -149,7 +149,8 @@ export function entityToBusEntity(entity: Entity, declared?: Map<string, string>
         attributeToBusAttribute(attr, index, entity.primaryKey, declared)
       ),
       entity.primaryKey,
-      entity.name
+      entity.name,
+      entity.identifierColumns
     ),
   };
 }
@@ -158,9 +159,10 @@ export function entityToBusEntity(entity: Entity, declared?: Map<string, string>
 function withIdentifiers(
   attributes: BusEntityAttribute[],
   primaryKey?: string,
-  entityName?: string
+  entityName?: string,
+  declared?: readonly string[]
 ): BusEntityAttribute[] {
-  const identifiers = new Set(identifierColumnNames(attributes, primaryKey, entityName));
+  const identifiers = new Set(identifierColumnNames(attributes, primaryKey, entityName, declared));
   return attributes.map((attribute) => ({
     ...attribute,
     isIdentifier: identifiers.has(attribute.name),
@@ -233,6 +235,11 @@ const SEMANTIC_REFERENCE = {
  * a display value built from identifier columns begins with a uuid, which is
  * why every consumer had grown its own `!== "id"` filter.
  *
+ * A model that says what its records are called —
+ * `%%entity <E> identifier: <columns>`, passed here as `declared` — is taken at
+ * its word: the declared columns the entity has, in the order written. The
+ * derivation below is only the answer for a model that said nothing.
+ *
  * Returns the names in the order they should be concatenated.
  */
 export function identifierColumnNames(
@@ -244,10 +251,14 @@ export function identifierColumnNames(
     enumReferenceId?: number;
   }>,
   primaryKey?: string,
-  entityName?: string
+  entityName?: string,
+  declared?: readonly string[]
 ): string[] {
   const byName = new Map(attributes.map((attribute) => [attribute.name, attribute]));
   const has = (name: string) => byName.has(name);
+
+  const stated = (declared ?? []).filter(has);
+  if (stated.length > 0) return [...stated];
 
   /* The entity's own name, as its columns are prefixed with it: `department_name`
      and `department_code` on `Department`, whose key is `department_id`. A model that

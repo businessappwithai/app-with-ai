@@ -119,25 +119,59 @@ points at — a lead before its campaign is known, a contact with no account.
 
 **What the lookup shows: the display value.** A reference stores a uuid, and
 every screen that shows one turns it back into something a person recognises —
-the lookup dropdown and the grid cell. The dictionary decides what a record is
-*called* from its **identifier columns** (`sys_column.is_identifier`):
+the lookup dropdown, the grid cell, the related-records list. The dictionary
+decides what a record is *called* from its **identifier columns**
+(`sys_column.is_identifier`, the Column window's *Identifier* checkbox): their
+values, joined in field order. The running application reads them on every
+request, so an administrator who ticks or unticks *Identifier* changes every
+dropdown and grid at once, without regenerating. What you decide in the model is
+where it starts.
+
+**Say what a record is called** with `%%entity <Entity> identifier: <column>,
+<column>`. A declaration wins over everything below:
+
+```
+%%entity Sample identifier: sample_barcode
+%%entity InventoryTransaction identifier: sample_id, transaction_type
+```
+
+The columns must be the entity's own (`EML163` otherwise) and never the primary
+key. Two shapes are reported as `EML164`: a declaration of nothing but `%%enum`
+columns — a status says what a record is doing, not which record it is, so every
+row would read the same few words — and one whose own columns are all `OPTIONAL`,
+because a record with them empty has no name of its own. A status beside the
+record it belongs to is fine. A reference among them shows its parent's own
+display value, so `sample_id, transaction_type` reads `SMP-0042 — consumed`.
+
+Without a declaration the generator derives one from the column names:
 
 | What the referenced entity declares | What a reference to it shows |
 |---|---|
+| `%%entity <E> identifier: …` | those columns, joined — **always wins** |
 | `name` — or `full_name`, `display_name`, `title`, `label`, `subject` | that column |
 | the entity's own `<entity>_name` (or `_title`, `_label`) — `department_name` on `Department` | that column |
 | `first_name` **and** `last_name` | both, joined — `Omar Kowalski` |
 | `code`, `reference` or `number` — or the entity's own `<entity>_code`, `_reference`, `_number` | that column — `CON2026-0001` |
 | **two or more `FK` columns and no name of its own** | its first two parents, resolved and joined — `Spring Promo — Omar Kowalski` |
 | none of those | the first plain `string`/`text` column you declared |
-| no text column at all | the uuid — the outcome to avoid |
+| no text column at all | its first parent and its first date — `Dennis Lindgren — 2026-08-26` |
+| not even that | the uuid — the outcome to avoid |
 
-So **every entity that something references wants a name column**, placed first
-in its first `%%section`. A join entity — `CampaignMember`, `OrderLine`,
-`QuoteLineItem` — needs nothing extra: it labels itself from its first two
-references in declared order, so **declare the two that name it first**. Only one
-level deep, never more than two parents, and the primary key is never part of a
-display value.
+The first four rows are names: when the entity has one, the derivation is right
+and you need write nothing. **The last four are guesses**, and the checker tells
+you which one it will make as `EML165`, naming the columns. Answer every `EML165`
+before you deliver: ask how people in this business tell one of these records
+from another, and declare it — the barcode on a sample, the run reference on an
+assay run, the request number on a vendor request (a unique `*_barcode`,
+`*_reference` or `*_number` that is not the entity's own name is a column the
+derivation does **not** find), the description on a deviation report. Where the
+guess is right — a campaign member really is *its campaign and its contact* —
+declare it anyway, so the answer is yours and stays put when a column is added.
+
+So **every entity that something references has a name column or an
+`identifier:`**, and the name column is placed first in its first `%%section`.
+The primary key is never part of a display value; a reference in one is resolved
+one level deep only.
 
 **References also decide the sample data.** A generated application is seeded so
 it can be opened and used, parents first, and a Table Direct column is seeded with
@@ -341,7 +375,7 @@ specific type alias over the canonical name. All but the last are checked:
 
 They are warnings rather than errors because the generator does not refuse them;
 they are still required. `node audit-model.mjs <file>.mmd` fails while any of
-them stands (§8.5), and §10 item 22 makes exiting `0` there part of delivering.
+them stands (§8.5), and §10 item 23 makes exiting `0` there part of delivering.
 
 #### 3.7.9 Field logic — when a field shows, locks or is required
 

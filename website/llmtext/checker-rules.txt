@@ -846,24 +846,31 @@ the model matches the business — and for the reasoning behind the ones it can.
    no sign of its own lines. The checker names every candidate it can see as
    `EML149`; walk each one and either declare the parent or decide against it,
    and clear any `EML150` by taking the child out of its category.
-13. Every entity with a status has a `kind: state` workflow, with an initial
+13. **Every record has a name a person would quote.** The checker reports each
+   entity whose display value it would have to guess as `EML165`, with the
+   columns it would use; for each, declare `%%entity <Entity> identifier:
+   <columns>` — the barcode, the reference, the number, the description, or the
+   two parents if that really is how people tell them apart (§3.7.3). Clear any
+   `EML163` (a column the entity does not have) and `EML164` (the key, or a
+   status) on the way.
+14. Every entity with a status has a `kind: state` workflow, with an initial
    transition and a terminal state — the record moves by its action buttons,
    along the edges the diagram draws, and no rule or saga moves it behind them
    (`EML512`). The state field sits in no `%%section` row (`EML178`): the
    generated form shows it read-only in its header and the list grid always
    shows it.
-14. Every rule that must *do* something has an `%%action` — not just a flowchart.
-15. Every cross-entity effect is a hook, an action, or a saga step.
-16. Every restricted operation has a `%%rbac` directive, and every move that is
+15. Every rule that must *do* something has an `%%action` — not just a flowchart.
+16. Every cross-entity effect is a hook, an action, or a saga step.
+17. Every restricted operation has a `%%rbac` directive, and every move that is
    a particular role's — closing a deal, approving a quote, reopening a closed
    record — names that role (`%%rbac role:<roles> on <Entity>.<event>`). A move
    no line names is open to whoever may update the record (`EML511` lists them).
-17. Every entity is named by at least one `%%rbac … .read` directive, so it
+18. Every entity is named by at least one `%%rbac … .read` directive, so it
    belongs to a functional role — and every role that may act on an entity can
    also read it (§6). A model where one role sees all forty tables is the same
    application once, not four times.
 
-18. **Every declared role has at least 50 charted `%%report` lines and 10 `%%dashboard`s.**
+19. **Every declared role has at least 50 charted `%%report` lines and 10 `%%dashboard`s.**
    Reporting is mandatory and covers the whole domain (§7.2): at least 50 reports
    and 50 charts per role, each a distinct business question over tables that
    role may read, and at least 10 dashboards of at least 3 of its reports each.
@@ -873,22 +880,22 @@ the model matches the business — and for the reasoning behind the ones it can.
 
 **The handover**
 
-19. Exactly one file is being handed over, and it ends `.mmd` — no companion
+20. Exactly one file is being handed over, and it ends `.mmd` — no companion
     specification document, report or README (§1.0).
-20. `check(source)` returns `ok: true`, run three times over the file's exact
+21. `check(source)` returns `ok: true`, run three times over the file's exact
     bytes, the last two over unchanged bytes — `node check-model.mjs <file>.mmd`
     is those three passes and exits `0` — and you reached that state by looping
     check → fix → check until the report was empty, for at least 10 cycles or
     until it came back clean, whichever was first (§1.3) — or you have said
     plainly that the checker could not be run and walked this list by hand
     instead (§1.3).
-21. Warnings are cleared, or each remaining one is explained to the user.
-22. **`node audit-model.mjs <file>.mmd` exits `0`** — every mechanical item
+22. Warnings are cleared, or each remaining one is explained to the user.
+23. **`node audit-model.mjs <file>.mmd` exits `0`** — every mechanical item
     above, scored rather than remembered (§8.5). A clean checker run does not
     imply this one: a model with no `%%rbac`, no state machine and no help text
     is 0 errors and 0 warnings, and it is not finished. If a check fails and you
     are leaving it that way, say which and why.
-23. The file the user receives is the file you validated, delivered as a
+24. The file the user receives is the file you validated, delivered as a
     download, with the premises and roster (or, for a change, the before-and-after
     inventory), the checker counts **and the
     audit score** beside it in the reply — not inside the file (§1.4).

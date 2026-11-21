@@ -596,13 +596,16 @@ erDiagram
     %%entity Lead help: An unqualified enquiry that has not been connected to an account yet. A lead is either converted into an account, a contact and an opportunity, or disqualified.
     %%entity Campaign help: A marketing programme with a budget and a window, run to generate leads.
     %%entity CampaignMember help: One person on one campaign's target list, and whether they responded.
+    %%entity CampaignMember identifier: campaign_id, lead_id
     %%entity CampaignMember parent: Campaign
     %%entity Opportunity help: A deal in progress against an account, with an amount, a stage and a close date. The pipeline is the sum of these.
     %%entity OpportunityLineItem help: One product on one opportunity, priced. The opportunity's amount is what these add up to.
+    %%entity OpportunityLineItem identifier: opportunity_id, product_id
     %%entity OpportunityLineItem parent: Opportunity
     %%entity Product help: Something you sell, with a list price. Products are what line items point at.
     %%entity Quote help: A priced, versioned offer to an account for one opportunity. A quote is what gets approved and sent.
     %%entity QuoteLineItem help: One product on one quote, priced, in the order it appears on the document.
+    %%entity QuoteLineItem identifier: quote_id, product_id
     %%entity QuoteLineItem parent: Quote
     %%entity Contract help: The signed commitment that follows an accepted quote — a term, an annual value and a renewal date.
     %%entity SupportCase help: A customer problem, from the moment it arrives to the moment it is resolved, measured against an SLA.

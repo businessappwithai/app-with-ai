@@ -412,6 +412,11 @@ appears on the dashboard, and a child does not.
   `min`, `max`, `format`) are accepted and validated only.
 - **`%%entity <Name> help: <sentence>`** — or `description:`, the same key — is
   the sentence that explains the entity. It becomes `sys_table.description`.
+- **`%%entity <Name> identifier: <column>, <column>`** says what a record is
+  called — its display value, in every dropdown and in place of every reference
+  to it. It becomes `sys_column.is_identifier` on those columns. Declare it on
+  every entity with no `name`, no `first_name` + `last_name` and no code
+  (`EML165` names each one and the columns it would guess); see §3.7.3.
 
 **Help is not optional. Write `%%entity <Name> help:` for every entity and
 `%%field <Entity>.<column> help:` for every column, without exception.**

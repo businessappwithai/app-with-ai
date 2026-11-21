@@ -174,7 +174,12 @@ export function renderSkills(model: ParsedModel, options: SkillsOptions): Record
     const object = tableNameFor(entity);
     const label = title(entity.name);
     const primaryKey = entity.primaryKey || "id";
-    const identifiers = identifierColumnNames(entity.attributes, primaryKey, entity.name);
+    const identifiers = identifierColumnNames(
+      entity.attributes,
+      primaryKey,
+      entity.name,
+      entity.identifierColumns
+    );
     const readers = access.entityVisibility[entity.name] ?? [];
     const layout = dictionary.get(entity.name);
     const byColumn = new Map(entity.attributes.map((attribute) => [attribute.name, attribute]));

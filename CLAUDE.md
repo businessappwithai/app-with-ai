@@ -416,6 +416,21 @@ guard finds no edge out of a state the model never declared, and every rule
 keyed on a real status value never fired. A generated application could not
 demonstrate the workflows it was generated from.
 
+### A record's display value is declared, else derived
+
+`sys_column.is_identifier` is what a record is called — the columns, joined in field order,
+that a dropdown lists and a grid shows in place of a foreign key; the running application reads
+it on every request, so an administrator changes it in the Column window without regenerating.
+A model declares it with `%%entity <E> identifier: <column>, <column>` (parser:
+`attachIdentifiers`; `Entity.identifierColumns`), and `identifierColumnNames` takes a declaration
+over every step of its derivation. For an entity with no name, person's name or code the
+derivation is a guess (two parents, the first text column, a parent and a date), and the checker
+says which as `EML165` (info); `EML163` refuses a column the entity lacks, `EML164` warns on the
+key or an enum column. The checker's copy of the derivation (`derivedDisplayValue`) is held to
+the real one over every example model by `generators/__tests__/display-value-check.test.ts`.
+`llms.txt` (M7), §3.7.3 of `eml-dictionary.txt`, Gate C and checklist item 13 tell a model to
+answer every `EML165`.
+
 ### A required reference with no parent takes a uuid, not null
 
 `Document.document_type_id` marked `FK` and required, with no `DocumentType` in the model, is
@@ -1596,7 +1611,7 @@ warnings are advisory"*, for every warning alike. But §10 of the authoring
 protocol requires a complete Application Dictionary — help on every entity and
 every column, the `FK` modifier on every reference, an enum binding on every
 closed vocabulary, a `name:` on every category — and `audit-model.mjs` **fails**
-a model missing any of it, which §10 item 22 of `llms.txt` makes part of delivering. So a model
+a model missing any of it, which §10 item 23 of `llms.txt` makes part of delivering. So a model
 could clear the checker, read in the checker's own last words that the rest was
 optional, and fail the audit the same protocol required it to pass.
 
