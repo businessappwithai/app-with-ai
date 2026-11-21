@@ -650,7 +650,7 @@ var appwithai_language_default = {
       EML148: "%%entity ... parent: is declared but the child has no foreign key back to the parent, so the detail tab has nothing to link on.",
       EML149: "info — an entity shaped like a line item that declares no parent:. Names the candidate parent and the column a tab would link on. Never an error: identifyingAChild's three questions are about the business, not the document.",
       EML163: "error — `%%entity <E> identifier:` names a column the entity does not declare, or names none. The parser drops the unknown column, and a declaration left with none falls back to the derivation.",
-      EML164: "warning — `%%entity <E> identifier:` names the primary key (a uuid, which a display value exists to hide) or a column bound to a %%enum (a status says what a record is doing, not which record it is).",
+      EML164: "warning — `%%entity <E> identifier:` names the primary key (a uuid, which a display value exists to hide), names only columns bound to a %%enum (every row would read the same few words), or names only optional columns of the entity's own (a record with them empty has no name of its own).",
       EML165: "info — an entity with no column that names it (no name, no first_name + last_name, no code/reference/number) and no `identifier:` declaration. Names the columns the derivation would choose - its first two references, its first text column, or a parent and a date - and the declaration that would fix it. Answer every one before delivering: declare what people call the record.",
       EML155: "info — a line item of a line item: parent: names an entity that is itself declared parent:. The dictionary has two levels, so the deeper entity is generated as a top-level one (own window and dashboard card, foreign key kept) rather than as a tab. Mirrors flattenNestedLineItems in the generator's parser; only a parent: that takes effect (declared parent, foreign key to it) counts.",
       EML150: "warning — an entity declared parent: is also named in a %%category. The category asks for a dashboard card the directive has taken away.",
@@ -3658,12 +3658,21 @@ class CheckEngine {
               line: statement.lineNo,
               hint: "The key is a uuid, which is exactly what a display value exists to hide. Name the columns a person would quote."
             });
-          } else if (boundToEnum.has(`${entity.name}.${column}`)) {
-            this.warn("EML164", `%%entity ${entity.name} identifier: names "${column}", which is bound to an enum.`, {
-              line: statement.lineNo,
-              hint: "A status or a category says what a record is doing, not which record it is — every row would read the same few words. Name the columns that tell one record from another."
-            });
           }
+        }
+        const named = statement.columns.map((column) => byName.get(column)).filter((attribute) => !!attribute && !attribute.isPrimaryKey);
+        if (named.length > 0 && named.every((a) => boundToEnum.has(`${entity.name}.${a.name}`))) {
+          this.warn("EML164", `%%entity ${entity.name} identifier: names only columns bound to an enum.`, {
+            line: statement.lineNo,
+            hint: "Every row would read the same few words. Add the column, or the parent, that tells one record from another."
+          });
+        }
+        const own = named.filter((a) => !a.isForeignKey);
+        if (own.length > 0 && own.every((a) => !a.required)) {
+          this.warn("EML164", `%%entity ${entity.name} identifier: names only optional columns of its own (${own.map((a) => a.name).join(", ")}).`, {
+            line: statement.lineNo,
+            hint: "A record with them empty has no name of its own. Name a column that is always filled, or make one required."
+          });
         }
         continue;
       }

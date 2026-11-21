@@ -1405,16 +1405,37 @@ class CheckEngine {
                 hint: "The key is a uuid, which is exactly what a display value exists to hide. Name the columns a person would quote.",
               }
             );
-          } else if (boundToEnum.has(`${entity.name}.${column}`)) {
-            this.warn(
-              "EML164",
-              `%%entity ${entity.name} identifier: names "${column}", which is bound to an enum.`,
-              {
-                line: statement.lineNo,
-                hint: "A status or a category says what a record is doing, not which record it is — every row would read the same few words. Name the columns that tell one record from another.",
-              }
-            );
           }
+        }
+        const named = statement.columns
+          .map((column) => byName.get(column))
+          .filter((attribute): attribute is EmlAttribute => !!attribute && !attribute.isPrimaryKey);
+        /* A status beside the record it belongs to reads well ("SMP-0042 — consumed");
+           a status alone says what a record is doing, not which record it is. */
+        if (named.length > 0 && named.every((a) => boundToEnum.has(`${entity.name}.${a.name}`))) {
+          this.warn(
+            "EML164",
+            `%%entity ${entity.name} identifier: names only columns bound to an enum.`,
+            {
+              line: statement.lineNo,
+              hint: "Every row would read the same few words. Add the column, or the parent, that tells one record from another.",
+            }
+          );
+        }
+        /* The record's own columns are what a list shows when they are filled; if
+           every one is optional, a record with them empty has no name of its own. */
+        const own = named.filter((a) => !a.isForeignKey);
+        if (own.length > 0 && own.every((a) => !a.required)) {
+          this.warn(
+            "EML164",
+            `%%entity ${entity.name} identifier: names only optional columns of its own (${own
+              .map((a) => a.name)
+              .join(", ")}).`,
+            {
+              line: statement.lineNo,
+              hint: "A record with them empty has no name of its own. Name a column that is always filled, or make one required.",
+            }
+          );
         }
         continue;
       }

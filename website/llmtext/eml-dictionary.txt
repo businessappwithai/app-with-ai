@@ -132,13 +132,16 @@ where it starts.
 
 ```
 %%entity Sample identifier: sample_barcode
-%%entity InventoryTransaction identifier: sample_id, occurred_at
+%%entity InventoryTransaction identifier: sample_id, transaction_type
 ```
 
-The columns must be the entity's own (`EML163` otherwise), never the primary key
-and never a column bound to a `%%enum` — a status says what a record is doing, not
-which record it is (`EML164`). A reference among them shows its parent's own
-display value, so `sample_id, occurred_at` reads `SMP-0042 — 2026-11-21 09:14`.
+The columns must be the entity's own (`EML163` otherwise) and never the primary
+key. Two shapes are reported as `EML164`: a declaration of nothing but `%%enum`
+columns — a status says what a record is doing, not which record it is, so every
+row would read the same few words — and one whose own columns are all `OPTIONAL`,
+because a record with them empty has no name of its own. A status beside the
+record it belongs to is fine. A reference among them shows its parent's own
+display value, so `sample_id, transaction_type` reads `SMP-0042 — consumed`.
 
 Without a declaration the generator derives one from the column names:
 

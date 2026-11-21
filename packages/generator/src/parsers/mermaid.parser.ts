@@ -526,7 +526,7 @@ export class MermaidParser {
   }
 
   /**
-   * `%%entity InventoryTransaction identifier: sample_id, performed_by` — what a
+   * `%%entity InventoryTransaction identifier: sample_id, transaction_type` — what a
    * record is called wherever something other than the record shows it.
    *
    * The columns are joined in the order the record's fields are (`seq_no`),

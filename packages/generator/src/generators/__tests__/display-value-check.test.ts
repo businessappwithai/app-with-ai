@@ -51,10 +51,13 @@ const identifiersOf = (source: string, entity: string) => {
 describe("%%entity identifier:", () => {
   it("is what the dictionary marks, instead of the derivation", () => {
     const source = model([
-      "%%entity InventoryTransaction identifier: sample_id, occurred_at",
+      "%%entity InventoryTransaction identifier: sample_id, performed_by_id",
       "%%entity Sample identifier: sample_barcode",
     ]);
-    expect(identifiersOf(source, "InventoryTransaction")).toEqual(["sample_id", "occurred_at"]);
+    expect(identifiersOf(source, "InventoryTransaction")).toEqual([
+      "sample_id",
+      "performed_by_id",
+    ]);
     expect(identifiersOf(source, "Sample")).toEqual(["sample_barcode"]);
     expect(codes(source, "EML165")).toEqual([]);
   });
@@ -74,7 +77,14 @@ describe("%%entity identifier:", () => {
     expect(codes(source, "EML163")).toHaveLength(1);
   });
 
-  it("warns on the key and on an enum-bound column", () => {
+  it("warns when its own columns are all optional: an empty one leaves the record unnamed", () => {
+    const source = model(["%%entity InventoryTransaction identifier: sample_id, occurred_at"]);
+    expect(codes(source, "EML164").map((issue) => issue.message)).toEqual([
+      "%%entity InventoryTransaction identifier: names only optional columns of its own (occurred_at).",
+    ]);
+  });
+
+  it("warns on the key and on a declaration of nothing but enum columns", () => {
     const source = `${model([
       "%%entity Sample identifier: id",
       "%%entity InventoryTransaction identifier: kind",

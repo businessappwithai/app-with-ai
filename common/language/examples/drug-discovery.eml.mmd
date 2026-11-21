@@ -624,7 +624,7 @@ erDiagram
     %%field Sample.status help: Whether the sample is available, spoken for, used up or quarantined.
 
     %%entity InventoryTransaction help: One movement of material — received, split into aliquots, consumed, moved, discarded or corrected. Samples are edited constantly, and a stock figure nobody can explain is worse than none, so every change to a sample leaves one of these behind.
-    %%entity InventoryTransaction identifier: sample_id, occurred_at
+    %%entity InventoryTransaction identifier: sample_id, transaction_type
     %%field InventoryTransaction.sample_id help: The sample that moved.
     %%field InventoryTransaction.performed_by_id help: Who moved it. Empty when the movement was recorded automatically by the disposition process rather than by a person at the bench.
     %%field InventoryTransaction.transaction_type help: What kind of movement this was.
