@@ -27,6 +27,8 @@ a 4-branch switch, an 8-row verdict table), tested with 15 sample deals. Copy it
 
   ```bash
   cd scripts/e2e-rules-workflows
+  # macOS: PLAYWRIGHT_CHROMIUM_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  # Linux container: PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium
   E2E_NO_SERVER=1 E2E_BASE_URL=http://127.0.0.1:4000 PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium \
     SHOTS_DIR=/path/for/screenshots bunx --bun playwright test -c playwright.config.ts specs/11
   ```

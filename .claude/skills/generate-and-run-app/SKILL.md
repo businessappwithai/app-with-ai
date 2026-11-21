@@ -10,8 +10,8 @@ The modelling tool turns one `.eml.mmd` into an application through a **single p
 ## Browser stack (no database, quickest to see)
 
 ```bash
-bun run wasm generate -i common/language/examples/crm.eml.mmd -o /var/tmp/crm --standalone --force
-cd /var/tmp/crm && npm install            # the generated app uses npm on purpose
+bun run wasm generate -i common/language/examples/crm.eml.mmd -o /tmp/crm --standalone --force
+cd /tmp/crm && npm install            # the generated app uses npm on purpose
 mkdir -p vendor/pglite && cp -r node_modules/@electric-sql/pglite/dist/* vendor/pglite/
 node serve.mjs --port 4000                # sign in admin@admin.com / admin
 ```
