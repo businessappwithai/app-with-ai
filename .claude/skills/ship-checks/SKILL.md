@@ -28,4 +28,4 @@ bun --filter @appwithai/web test
 
 ## Commit and merge
 
-Develop on the session's branch, commit with the attribution trailer the session specifies, push with `git push -u origin <branch>`. A pull request is created only when asked. Merging to `main` goes through the GitHub MCP tools (`create_pull_request`, `merge_pull_request`) — there is no `gh`. Do not merge with failing or unread checks; say plainly what was and was not run.
+Develop on the session's branch, commit with the attribution trailer the session specifies, push with `git push -u origin <branch>`. A pull request is created only when asked. Use `gh pr create` / `gh pr merge` (gh 2.91.0 is installed at `/opt/homebrew/bin/gh`). Do not merge with failing or unread checks; say plainly what was and was not run.
