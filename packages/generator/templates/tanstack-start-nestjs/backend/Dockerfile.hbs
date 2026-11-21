@@ -58,6 +58,14 @@ COPY --from=builder /app/backend/tsconfig.json ./backend/
 # model-context assistant answers nothing.
 COPY --from=builder /app/model ./model
 
+# The seeded accounts file. `GET /api/sys/demo-accounts` reads it at runtime
+# (from `../password_list.txt` relative to the backend directory) so the
+# sign-in page can list accounts without hardcoding them in source. If you
+# clean this file up before deploying anywhere real, the sign-in page shows
+# no accounts and the endpoint returns an empty list — which is the right
+# behaviour for production.
+COPY --from=builder /app/password_list.txt ./
+
 # Copy startup script
 COPY --from=builder /app/backend/run-app.sh ./backend/
 RUN chmod +x ./backend/run-app.sh

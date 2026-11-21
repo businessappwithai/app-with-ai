@@ -1,0 +1,2016 @@
+%%meta name: Car Wash Management System
+%%meta kind: erd
+%%meta version: 1.2.0
+%%enum SiteType: express_tunnel, in_bay_automatic, self_service, hand_wash, detailing, mobile
+%%enum EmployeeRole: manager, site_operator, cashier, washer, detailer, technician
+%%enum VehicleType: car, suv, pickup, van, motorcycle, commercial
+%%enum CustomerType: retail, fleet, corporate
+%%enum ServiceCategory: exterior, interior, full_service, detailing, fleet, self_service
+%%enum BillingMode: fixed, per_minute, per_vehicle, subscription_included
+%%enum TaxMode: inclusive, exclusive, exempt
+%%enum MembershipStatus: active, paused, past_due, cancelled, expired
+%%enum BillingCycle: monthly, quarterly, annual
+%%enum BookingStatus: requested, confirmed, checked_in, completed, cancelled, no_show
+%%enum QueueStatus: waiting, called, in_service, completed, left
+%%enum WorkOrderStatus: opened, assigned, washing, quality_check, completed, cancelled
+%%enum LineType: service, addon, discount, fee
+%%enum PaymentMethod: cash, card, upi, wallet, bank_transfer, membership
+%%enum PaymentStatus: pending, captured, partially_refunded, refunded, failed, voided
+%%enum CashShiftStatus: open, counted, closed, variance_review
+%%enum InventoryCategory: chemical, consumable, spare_part, retail_item, ppe
+%%enum StockMovementType: receipt, consumption, adjustment, transfer_in, transfer_out, return
+%%enum PurchaseOrderStatus: drafted, submitted, approved, partially_received, received, cancelled
+%%enum EquipmentType: tunnel, gantry, pump, vacuum, dryer, water_reclaim, pos, compressor
+%%enum EquipmentStatus: operational, degraded, out_of_service, retired
+%%enum MaintenanceStatus: requested, scheduled, in_progress, completed, cancelled
+%%enum MaintenanceType: preventive, corrective, inspection, calibration
+%%enum IncidentType: safety, vehicle_damage, chemical_spill, equipment_failure, customer_complaint
+%%enum IncidentSeverity: low, medium, high, critical
+%%enum IncidentStatus: reported, investigating, action_required, resolved, closed
+%%enum MeterType: water_input, water_reclaimed, electricity, gas
+%%enum PromotionType: percentage, fixed_amount, free_addon, bundle
+%%enum PromotionStatus: planned, active, paused, expired
+%%enum LoyaltyEntryType: earn, redeem, expire, adjust
+%%enum AlertType: low_stock, equipment_due, membership_past_due, safety_follow_up
+%%enum AlertStatus: open, acknowledged, resolved
+%%enum BayStatus: available, occupied, cleaning, maintenance, closed
+%%enum BayAllocationStatus: reserved, checked_in, in_service, released, cancelled, no_show
+%%enum ClaimStatus: reported, evidence_review, approved, rejected, settled, closed
+%%enum RefundRequestStatus: requested, under_review, approved, rejected, processed, cancelled
+%%enum SafetyCheckResult: pass, attention_required, fail
+%%enum SafetyCheckStatus: open, remediation_required, verified, closed
+%%enum ConditionPhase: before_wash, after_wash, during_rework
+%%enum AdditionalApprovalStatus: requested, approved, rejected, withdrawn
+%%enum ChecklistKind: opening, closing, chemical_handling, emergency, equipment_handover
+%%enum ChecklistOutcome: pass, attention_required, fail
+%%enum PermitResult: current, expired, suspended, under_renewal
+%%enum EffluentResult: within_limits, exceedance, awaiting_lab, sample_invalid
+%%enum WasteCategory: sludge, oil_grease, chemical_container, filter_media, general_waste
+%%enum FleetBillingCycle: weekly, fortnightly, monthly
+%%enum FleetInvoiceStatus: draft, issued, partially_paid, paid, overdue, voided
+%%enum AttemptResult: succeeded, declined, timed_out, duplicate, reversed
+%%enum BillingEventResult: scheduled, collected, retry_due, failed, waived
+%%enum FeedbackChannel: in_person, web, phone, sms, email
+%%enum RecoveryOutcome: none, callback_requested, rewash_offered, credit_issued, resolved
+erDiagram
+    Organization {
+  string id PK
+  string name UK
+  string tax_number OPTIONAL
+  string currency_code
+  string timezone
+    }
+    Site {
+  string id PK
+  string organization_id FK
+  string name
+  string site_code UK
+  string site_type
+  text address
+  phone phone OPTIONAL
+  string timezone
+  boolean is_active
+    }
+    Employee {
+  string id PK
+  string site_id FK
+  string employee_number UK
+  string full_name
+  email email UK
+  phone phone OPTIONAL
+  string role
+  date start_date
+  date end_date OPTIONAL
+  boolean is_active
+    }
+    Customer {
+  string id PK
+  string customer_number UK
+  string full_name
+  string customer_type
+  email email OPTIONAL
+  phone phone OPTIONAL
+  boolean marketing_consent
+  decimal credit_limit OPTIONAL
+  integer loyalty_balance
+    }
+    Vehicle {
+  string id PK
+  string customer_id FK
+  string registration_number
+  string vehicle_type
+  string make OPTIONAL
+  string model OPTIONAL
+  string color OPTIONAL
+  integer model_year OPTIONAL
+  boolean has_special_notes
+  text special_notes OPTIONAL
+    }
+    Service {
+  string id PK
+  string service_code UK
+  string name
+  string category
+  string billing_mode
+  integer standard_minutes
+  boolean requires_inspection
+  boolean is_active
+  text description
+    }
+    SitePrice {
+  string id PK
+  string site_id FK
+  string service_id FK
+  decimal amount
+  string tax_mode
+  decimal tax_rate
+  date effective_from
+  date effective_to OPTIONAL
+    }
+    MembershipPlan {
+  string id PK
+  string name UK
+  string billing_cycle
+  decimal price
+  integer included_washes
+  integer minimum_days_between_washes
+  boolean auto_renew_default
+  boolean is_active
+  text terms
+    }
+    Membership {
+  string id PK
+  string customer_id FK
+  string vehicle_id FK
+  string membership_plan_id FK
+  string membership_number UK
+  string status
+  date started_on
+  date current_period_start
+  date current_period_end
+  date next_billing_date OPTIONAL
+  boolean auto_renew
+    }
+    Promotion {
+  string id PK
+  string site_id FK OPTIONAL
+  string code UK
+  string name
+  string promotion_type
+  decimal value
+  decimal minimum_spend
+  decimal maximum_discount OPTIONAL
+  date starts_on
+  date ends_on
+  string status
+    }
+    Booking {
+  string id PK
+  string site_id FK
+  string customer_id FK
+  string vehicle_id FK
+  string service_id FK
+  string booking_number UK
+  string status
+  datetime scheduled_start
+  datetime scheduled_end
+  string source
+  text notes OPTIONAL
+    }
+    QueueTicket {
+  string id PK
+  string site_id FK
+  string customer_id FK OPTIONAL
+  string vehicle_id FK OPTIONAL
+  string service_id FK
+  string ticket_number
+  string status
+  datetime arrived_at
+  integer priority
+  integer estimated_wait_minutes
+    }
+    WorkOrder {
+  string id PK
+  string site_id FK
+  string customer_id FK OPTIONAL
+  string vehicle_id FK
+  string booking_id FK OPTIONAL
+  string queue_ticket_id FK OPTIONAL
+  string employee_id FK OPTIONAL
+  string work_order_number UK
+  string status
+  datetime opened_at
+  datetime promised_at OPTIONAL
+  datetime completed_at OPTIONAL
+  decimal subtotal
+  decimal discount_total
+  decimal tax_total
+  decimal grand_total
+  text internal_notes OPTIONAL
+    }
+    WorkOrderLine {
+  string id PK
+  string work_order_id FK
+  string service_id FK OPTIONAL
+  string promotion_id FK OPTIONAL
+  string line_type
+  string description
+  decimal quantity
+  decimal unit_price
+  decimal discount_amount
+  decimal tax_amount
+  decimal line_total
+    }
+    VehicleInspection {
+  string id PK
+  string work_order_id FK
+  string employee_id FK
+  datetime inspected_at
+  boolean pre_existing_damage
+  boolean customer_acknowledged
+  text condition_notes
+  json media_references OPTIONAL
+    }
+    Payment {
+  string id PK
+  string work_order_id FK
+  string cash_shift_id FK OPTIONAL
+  string employee_id FK
+  string payment_reference UK
+  string method
+  string status
+  decimal amount
+  datetime processed_at
+  text failure_reason OPTIONAL
+    }
+    CashShift {
+  string id PK
+  string site_id FK
+  string employee_id FK
+  string status
+  datetime opened_at
+  datetime closed_at OPTIONAL
+  decimal opening_float
+  decimal expected_cash
+  decimal counted_cash OPTIONAL
+  decimal variance OPTIONAL
+  text variance_reason OPTIONAL
+    }
+    InventoryItem {
+  string id PK
+  string sku UK
+  string name
+  string category
+  string unit_of_measure
+  decimal standard_cost
+  boolean hazardous
+  boolean is_active
+    }
+    InventoryStock {
+  string id PK
+  string site_id FK
+  string inventory_item_id FK
+  decimal quantity_on_hand
+  decimal reorder_level
+  decimal reorder_quantity
+  decimal maximum_level OPTIONAL
+  datetime last_counted_at OPTIONAL
+    }
+    InventoryTransaction {
+  string id PK
+  string inventory_stock_id FK
+  string work_order_id FK OPTIONAL
+  string employee_id FK
+  string movement_type
+  decimal quantity
+  decimal unit_cost
+  datetime transacted_at
+  string reference OPTIONAL
+  text notes OPTIONAL
+    }
+    Vendor {
+  string id PK
+  string vendor_code UK
+  string name
+  email email OPTIONAL
+  phone phone OPTIONAL
+  string tax_number OPTIONAL
+  integer lead_time_days
+  boolean is_active
+    }
+    PurchaseOrder {
+  string id PK
+  string site_id FK
+  string vendor_id FK
+  string employee_id FK
+  string purchase_order_number UK
+  string status
+  date ordered_on OPTIONAL
+  date expected_on OPTIONAL
+  decimal total_amount
+  text notes OPTIONAL
+    }
+    PurchaseOrderLine {
+  string id PK
+  string purchase_order_id FK
+  string inventory_item_id FK
+  decimal ordered_quantity
+  decimal received_quantity
+  decimal unit_cost
+  decimal line_total
+    }
+    Equipment {
+  string id PK
+  string site_id FK
+  string asset_number UK
+  string name
+  string equipment_type
+  string status
+  date commissioned_on OPTIONAL
+  date warranty_until OPTIONAL
+  integer service_interval_days
+  date next_service_date OPTIONAL
+    }
+    EquipmentMaintenance {
+  string id PK
+  string equipment_id FK
+  string employee_id FK OPTIONAL
+  string maintenance_number UK
+  string maintenance_type
+  string status
+  datetime requested_at
+  datetime scheduled_at OPTIONAL
+  datetime completed_at OPTIONAL
+  decimal cost
+  integer downtime_minutes
+  text work_notes
+    }
+    Incident {
+  string id PK
+  string site_id FK
+  string work_order_id FK OPTIONAL
+  string equipment_id FK OPTIONAL
+  string employee_id FK
+  string incident_number UK
+  string incident_type
+  string severity
+  string status
+  datetime occurred_at
+  text description
+  text immediate_action OPTIONAL
+  text root_cause OPTIONAL
+  text corrective_action OPTIONAL
+  datetime resolved_at OPTIONAL
+    }
+    UtilityReading {
+  string id PK
+  string site_id FK
+  string meter_type
+  string meter_number
+  datetime reading_at
+  decimal reading_value
+  string unit_of_measure
+  decimal period_cost OPTIONAL
+  string employee_id FK
+    }
+    LoyaltyEntry {
+  string id PK
+  string customer_id FK
+  string work_order_id FK OPTIONAL
+  string employee_id FK OPTIONAL
+  string entry_type
+  integer points
+  datetime posted_at
+  date expires_on OPTIONAL
+  text reason OPTIONAL
+    }
+    StockAlert {
+  string id PK
+  string inventory_stock_id FK
+  string alert_type
+  string status
+  text message
+  datetime resolved_at OPTIONAL
+    }
+    WashBay {
+  string id PK
+  string site_id FK
+  string equipment_id FK OPTIONAL
+  string bay_code UK
+  string name
+  integer capacity_vehicles
+  string status
+  boolean is_active
+  text access_notes OPTIONAL
+    }
+    BayAllocation {
+  string id PK
+  string wash_bay_id FK
+  string booking_id FK OPTIONAL
+  string work_order_id FK OPTIONAL
+  string vehicle_id FK
+  string employee_id FK OPTIONAL
+  string status
+  datetime planned_start
+  datetime planned_end
+  datetime actual_start OPTIONAL
+  datetime actual_end OPTIONAL
+  text exception_reason OPTIONAL
+    }
+    DamageClaim {
+  string id PK
+  string incident_id FK
+  string customer_id FK
+  string vehicle_id FK
+  string employee_id FK OPTIONAL
+  string claim_number UK
+  string status
+  datetime reported_at
+  decimal claimed_amount
+  decimal approved_amount OPTIONAL
+  text damage_description
+  text evidence_reference OPTIONAL
+  text resolution_notes OPTIONAL
+  datetime closed_at OPTIONAL
+    }
+    RefundRequest {
+  string id PK
+  string payment_id FK
+  string work_order_id FK
+  string employee_id FK
+  string approved_by_id FK OPTIONAL
+  string request_number UK
+  string status
+  datetime requested_at
+  decimal requested_amount
+  decimal approved_amount OPTIONAL
+  text reason
+  text decision_notes OPTIONAL
+  datetime processed_at OPTIONAL
+    }
+    ChemicalSafetyCheck {
+  string id PK
+  string site_id FK
+  string inventory_item_id FK
+  string employee_id FK
+  string equipment_id FK OPTIONAL
+  string check_number UK
+  string status
+  string result
+  datetime checked_at
+  date corrective_due_on OPTIONAL
+  text findings
+  text corrective_action OPTIONAL
+  datetime verified_at OPTIONAL
+    }
+    ConditionEvidence {
+  string id PK
+  string work_order_id FK
+  string vehicle_inspection_id FK OPTIONAL
+  string employee_id FK
+  string phase
+  datetime captured_at
+  url media_url
+  text description
+  boolean customer_visible
+  date retention_until OPTIONAL
+    }
+    AdditionalWorkApproval {
+  string id PK
+  string work_order_id FK
+  string customer_id FK
+  string service_id FK
+  string employee_id FK
+  string approved_by_id FK OPTIONAL
+  string approval_number UK
+  string status
+  datetime requested_at
+  datetime responded_at OPTIONAL
+  decimal quoted_amount
+  string authorization_reference OPTIONAL
+  text reason
+  text decision_notes OPTIONAL
+    }
+    SiteChecklist {
+  string id PK
+  string site_id FK
+  string employee_id FK
+  string wash_bay_id FK OPTIONAL
+  string checklist_code UK
+  string kind
+  string outcome
+  datetime completed_at
+  boolean ppe_checked
+  boolean emergency_stop_tested
+  boolean drain_trap_checked
+  text findings
+  datetime corrective_due_at OPTIONAL
+    }
+    EnvironmentalPermit {
+  string id PK
+  string site_id FK
+  string permit_number UK
+  string issuing_authority
+  string permit_result
+  date effective_on
+  date expires_on
+  decimal daily_discharge_limit_liters OPTIONAL
+  text special_conditions
+  string renewal_reference OPTIONAL
+    }
+    EffluentSample {
+  string id PK
+  string site_id FK
+  string environmental_permit_id FK OPTIONAL
+  string employee_id FK
+  string sample_code UK
+  datetime sampled_at
+  decimal ph OPTIONAL
+  decimal suspended_solids_mg_l OPTIONAL
+  decimal oil_grease_mg_l OPTIONAL
+  decimal flow_liters OPTIONAL
+  string result
+  string laboratory_reference OPTIONAL
+  text corrective_action OPTIONAL
+    }
+    WasteDisposal {
+  string id PK
+  string site_id FK
+  string vendor_id FK OPTIONAL
+  string employee_id FK
+  string manifest_number UK
+  string category
+  decimal quantity_kg
+  datetime collected_at
+  string destination
+  string authorized_receiver_reference OPTIONAL
+  url receipt_url OPTIONAL
+    }
+    FleetAccount {
+  string id PK
+  string customer_id FK
+  string account_code UK
+  string billing_cycle
+  decimal credit_limit
+  integer payment_terms_days
+  email billing_contact_email
+  boolean purchase_order_required
+  boolean is_active
+  string contract_reference OPTIONAL
+    }
+    FleetInvoice {
+  string id PK
+  string fleet_account_id FK
+  string site_id FK
+  string invoice_number UK
+  string status
+  date period_start
+  date period_end
+  date issued_on OPTIONAL
+  date due_on OPTIONAL
+  decimal subtotal
+  decimal tax_total
+  decimal total_amount
+  decimal amount_paid
+  string purchase_order_reference OPTIONAL
+  text dispute_reason OPTIONAL
+    }
+    PaymentAttempt {
+  string id PK
+  string payment_id FK
+  string attempt_reference UK
+  datetime attempted_at
+  decimal amount
+  string result
+  string provider_reference OPTIONAL
+  string failure_code OPTIONAL
+  text failure_detail OPTIONAL
+    }
+    MembershipBillingEvent {
+  string id PK
+  string membership_id FK
+  string payment_id FK OPTIONAL
+  string billing_reference UK
+  date scheduled_on
+  datetime attempted_at OPTIONAL
+  decimal amount
+  string result
+  integer retry_count
+  text failure_reason OPTIONAL
+    }
+    CustomerFeedback {
+  string id PK
+  string work_order_id FK
+  string customer_id FK
+  string feedback_reference UK
+  datetime received_at
+  string channel
+  integer rating OPTIONAL
+  text comments OPTIONAL
+  string recovery_outcome
+  datetime resolved_at OPTIONAL
+    }
+Organization ||--o{ Site : "owns"
+Site ||--o{ Employee : "employs"
+Customer ||--o{ Vehicle : "registers"
+Site ||--o{ SitePrice : "prices"
+Service ||--o{ SitePrice : "receives price"
+MembershipPlan ||--o{ Membership : "governs"
+Customer ||--o{ Membership : "subscribes"
+Vehicle ||--o{ Membership : "covered by"
+Site ||--o{ Promotion : "offers"
+Site ||--o{ Booking : "hosts"
+Customer ||--o{ Booking : "books"
+Vehicle ||--o{ Booking : "scheduled"
+Service ||--o{ Booking : "reserves"
+Site ||--o{ QueueTicket : "queues"
+Customer ||--o{ QueueTicket : "joins"
+Vehicle ||--o{ QueueTicket : "waits"
+Service ||--o{ QueueTicket : "requests"
+Site ||--o{ WorkOrder : "delivers"
+Customer ||--o{ WorkOrder : "buys"
+Vehicle ||--o{ WorkOrder : "receives"
+Booking ||--o{ WorkOrder : "creates"
+QueueTicket ||--o{ WorkOrder : "dispatches"
+Employee ||--o{ WorkOrder : "leads"
+WorkOrder ||--o{ WorkOrderLine : "contains"
+Service ||--o{ WorkOrderLine : "sold as"
+Promotion ||--o{ WorkOrderLine : "discounts"
+WorkOrder ||--o{ VehicleInspection : "documents"
+Employee ||--o{ VehicleInspection : "inspects"
+WorkOrder ||--o{ Payment : "settled by"
+CashShift ||--o{ Payment : "accounts"
+Employee ||--o{ Payment : "processes"
+Site ||--o{ CashShift : "operates"
+Employee ||--o{ CashShift : "controls"
+Site ||--o{ InventoryStock : "holds"
+InventoryItem ||--o{ InventoryStock : "balances"
+InventoryStock ||--o{ InventoryTransaction : "explains"
+WorkOrder ||--o{ InventoryTransaction : "consumes"
+Employee ||--o{ InventoryTransaction : "posts"
+Vendor ||--o{ PurchaseOrder : "supplies"
+Site ||--o{ PurchaseOrder : "receives"
+Employee ||--o{ PurchaseOrder : "raises"
+PurchaseOrder ||--o{ PurchaseOrderLine : "contains"
+InventoryItem ||--o{ PurchaseOrderLine : "ordered"
+Site ||--o{ Equipment : "operates"
+Equipment ||--o{ EquipmentMaintenance : "requires"
+Employee ||--o{ EquipmentMaintenance : "performs"
+Site ||--o{ Incident : "owns"
+WorkOrder ||--o{ Incident : "involves"
+Equipment ||--o{ Incident : "involves"
+Employee ||--o{ Incident : "reports"
+Site ||--o{ UtilityReading : "measures"
+Employee ||--o{ UtilityReading : "records"
+Customer ||--o{ LoyaltyEntry : "earns"
+WorkOrder ||--o{ LoyaltyEntry : "causes"
+Employee ||--o{ LoyaltyEntry : "adjusts"
+InventoryStock ||--o{ StockAlert : "raises"
+Site ||--o{ WashBay : "organizes wash bays"
+Equipment ||--o{ WashBay : "serves wash bay"
+WashBay ||--o{ BayAllocation : "allocates service slots"
+Booking ||--o{ BayAllocation : "reserves service slot"
+WorkOrder ||--o{ BayAllocation : "occupies service slot"
+Vehicle ||--o{ BayAllocation : "occupies bay"
+Employee ||--o{ BayAllocation : "dispatches to bay"
+Incident ||--o{ DamageClaim : "opens customer claim"
+Customer ||--o{ DamageClaim : "submits damage claim"
+Vehicle ||--o{ DamageClaim : "identified in damage claim"
+Employee ||--o{ DamageClaim : "investigates claim"
+Payment ||--o{ RefundRequest : "is disputed for refund"
+WorkOrder ||--o{ RefundRequest : "motivates refund"
+Employee ||--o{ RefundRequest : "requests or approves refund"
+Site ||--o{ ChemicalSafetyCheck : "requires safety review"
+InventoryItem ||--o{ ChemicalSafetyCheck : "is inspected for safe use"
+Employee ||--o{ ChemicalSafetyCheck : "performs safety check"
+Equipment ||--o{ ChemicalSafetyCheck : "is checked for chemical safety"
+WorkOrder ||--o{ ConditionEvidence : "captures"
+VehicleInspection ||--o{ ConditionEvidence : "documents"
+Employee ||--o{ ConditionEvidence : "records"
+WorkOrder ||--o{ AdditionalWorkApproval : "requests"
+Customer ||--o{ AdditionalWorkApproval : "authorizes"
+Service ||--o{ AdditionalWorkApproval : "quotes"
+Employee ||--o{ AdditionalWorkApproval : "raises"
+Site ||--o{ SiteChecklist : "inspects"
+Employee ||--o{ SiteChecklist : "performs"
+WashBay ||--o{ SiteChecklist : "tests"
+Site ||--o{ EnvironmentalPermit : "holds"
+Site ||--o{ EffluentSample : "samples"
+EnvironmentalPermit ||--o{ EffluentSample : "governs"
+Employee ||--o{ EffluentSample : "collects"
+Site ||--o{ WasteDisposal : "disposes"
+Vendor ||--o{ WasteDisposal : "receives"
+Employee ||--o{ WasteDisposal : "records"
+Customer ||--o{ FleetAccount : "contracts"
+FleetAccount ||--o{ FleetInvoice : "invoices"
+Site ||--o{ FleetInvoice : "bills"
+Payment ||--o{ PaymentAttempt : "attempts"
+Membership ||--o{ MembershipBillingEvent : "renews"
+Payment ||--o{ MembershipBillingEvent : "settles"
+WorkOrder ||--o{ CustomerFeedback : "receives"
+Customer ||--o{ CustomerFeedback : "submits"
+%%entity WashBay help: One physical wash or detailing bay with its own capacity, availability, equipment and operating restrictions.
+%%entity WashBay icon: Warehouse
+%%field WashBay.site_id help: Operating site that controls the physical wash bay.
+%%field WashBay.equipment_id help: Primary machine or conveyor serving this bay, when fitted.
+%%field WashBay.bay_code help: Stable printed lane identifier, unique across the business.
+%%field WashBay.name help: Name supervisors use to dispatch vehicles to the correct lane.
+%%field WashBay.capacity_vehicles help: Maximum vehicles safely handled simultaneously in this bay.
+%%field WashBay.status help: Current operating availability; operators must not allocate a closed or maintenance bay.
+%%field WashBay.is_active help: Deactivate the bay to block future allocations while preserving its history.
+%%field WashBay.access_notes help: Clearance, size, safe-entry and operating limitations staff must follow.
+%%field WashBay.status enum: BayStatus
+%%section entity: WashBay; name: Bay identification; help: Which site and machine this lane belongs to, and what capacity operators can schedule.; rows: bay_code, name | site_id, equipment_id | capacity_vehicles
+%%section entity: WashBay; name: Availability and clearance; help: Whether the bay may be allocated and any restrictions staff must follow.; rows: is_active,access_notes
+%%entity BayAllocation help: A reserved interval for one vehicle in one bay, tied to the booking or delivered work order and updated when service begins and ends.
+%%entity BayAllocation icon: CalendarClock
+%%field BayAllocation.wash_bay_id help: Bay reserved for the vehicle during the stated interval.
+%%field BayAllocation.booking_id help: Customer reservation that originated the slot, if any.
+%%field BayAllocation.work_order_id help: Service job occupying the bay, if already created.
+%%field BayAllocation.vehicle_id help: Actual vehicle scheduled to occupy the bay.
+%%field BayAllocation.employee_id help: Worker responsible for dispatch or service at this allocation.
+%%field BayAllocation.status help: Reservation, arrival, service and release progress for the slot.
+%%field BayAllocation.planned_start help: Scheduled slot start expressed in the site time zone.
+%%field BayAllocation.planned_end help: Expected latest release time used for capacity checks.
+%%field BayAllocation.actual_start help: Real service-entry time for waiting and throughput metrics.
+%%field BayAllocation.actual_end help: Real service-exit time for utilization and delay metrics.
+%%field BayAllocation.exception_reason help: Reason for cancellation, late arrival, overrun or no-show.
+%%field BayAllocation.status enum: BayAllocationStatus
+%%section entity: BayAllocation; name: Reservation; help: The vehicle, bay, assigned worker, and source records for this occupancy.; rows: wash_bay_id, vehicle_id | booking_id, work_order_id | employee_id, planned_start | planned_end
+%%section entity: BayAllocation; name: Service evidence; help: Actual occupancy and reasons for a missed or shortened booking.; rows: actual_start,actual_end | exception_reason
+%%entity DamageClaim help: A customer claim concerning an incident affecting a vehicle, preserving submitted evidence, adjudication, and final settlement.
+%%entity DamageClaim icon: ShieldAlert
+%%field DamageClaim.incident_id help: Recorded incident being investigated; claims must retain source evidence.
+%%field DamageClaim.customer_id help: Customer making the claim and receiving updates.
+%%field DamageClaim.vehicle_id help: Vehicle for which damage is alleged.
+%%field DamageClaim.employee_id help: Investigator assigned to gather evidence and document the decision.
+%%field DamageClaim.claim_number help: Unique claim reference for insurer and customer correspondence.
+%%field DamageClaim.status help: Investigation, decision and settlement state of this claim.
+%%field DamageClaim.reported_at help: Time the claim was first received from the customer.
+%%field DamageClaim.claimed_amount help: Customer stated amount, not automatically an accepted liability.
+%%field DamageClaim.approved_amount help: Amount authorized for settlement after review.
+%%field DamageClaim.damage_description help: Specific damage and circumstances reported, preserving the original allegation.
+%%field DamageClaim.evidence_reference help: Location or reference of photographs, inspection notes and supporting documents.
+%%field DamageClaim.resolution_notes help: Decision reasoning, approvals and customer communication record.
+%%field DamageClaim.closed_at help: Time the dispute was finally closed after settlement or rejection.
+%%field DamageClaim.status enum: ClaimStatus
+%%section entity: DamageClaim; name: Claim intake; help: The incident, claimant, vehicle, investigator, requested amount and observed damage.; rows: claim_number, incident_id | customer_id, vehicle_id | employee_id, reported_at | claimed_amount, damage_description
+%%section entity: DamageClaim; name: Decision and settlement; help: Evidence and management decision used to resolve a claim without deleting original facts.; rows: evidence_reference,approved_amount | resolution_notes,closed_at
+%%entity RefundRequest help: A controlled request to return part or all of a captured payment, retaining approval and processing evidence.
+%%entity RefundRequest icon: ReceiptText
+%%field RefundRequest.payment_id help: Captured payment from which the authorized return is made.
+%%field RefundRequest.work_order_id help: Completed or disputed work order underlying the requested refund.
+%%field RefundRequest.employee_id help: Staff member accountable for opening the request.
+%%field RefundRequest.approved_by_id help: Different authorized worker who reviewed and approved the amount.
+%%field RefundRequest.request_number help: Unique identifier used to reconcile customer and payment provider returns.
+%%field RefundRequest.status help: Requested, reviewed, approved, rejected or processed standing.
+%%field RefundRequest.requested_at help: Moment the refund was requested, used for response SLA tracking.
+%%field RefundRequest.requested_amount help: Amount the requester believes should be returned.
+%%field RefundRequest.approved_amount help: Management authorized amount, never greater than the captured balance.
+%%field RefundRequest.reason help: Service, billing or goodwill reason that justifies the request.
+%%field RefundRequest.decision_notes help: Approval or rejection justification and control evidence.
+%%field RefundRequest.processed_at help: Provider settlement or cash return completion time.
+%%field RefundRequest.status enum: RefundRequestStatus
+%%section entity: RefundRequest; name: Request; help: Which sale and payment is involved, who raised it, and why the customer is owed money.; rows: request_number, payment_id | work_order_id, employee_id | requested_at, requested_amount | reason
+%%section entity: RefundRequest; name: Approval and execution; help: Who approved the maximum refund and when finance completed the return.; rows: approved_by_id,approved_amount | decision_notes,processed_at
+%%entity ChemicalSafetyCheck help: A recorded inspection of safe chemical handling, storage or equipment dosing, with remediation and independent closure evidence.
+%%entity ChemicalSafetyCheck icon: FlaskConical
+%%field ChemicalSafetyCheck.site_id help: Location whose chemical handling and discharge controls are assessed.
+%%field ChemicalSafetyCheck.inventory_item_id help: Chemical or consumable being assessed, with safety information available.
+%%field ChemicalSafetyCheck.employee_id help: Inspector accountable for this check and its findings.
+%%field ChemicalSafetyCheck.equipment_id help: Dosing pump, storage equipment or reclaim equipment involved, if any.
+%%field ChemicalSafetyCheck.check_number help: Unique traceable inspection reference for follow-up.
+%%field ChemicalSafetyCheck.status help: Remediation and verification standing; open findings require action.
+%%field ChemicalSafetyCheck.result help: Pass, attention required or fail outcome observed by inspector.
+%%field ChemicalSafetyCheck.checked_at help: Time this inspection was performed.
+%%field ChemicalSafetyCheck.corrective_due_on help: Deadline for safe remediation when a defect is identified.
+%%field ChemicalSafetyCheck.findings help: Observed storage, labeling, protective equipment, leakage and handling conditions.
+%%field ChemicalSafetyCheck.corrective_action help: Specific corrective work required and evidence of completion.
+%%field ChemicalSafetyCheck.verified_at help: Time a responsible reviewer confirmed the corrective work.
+%%field ChemicalSafetyCheck.status enum: SafetyCheckStatus
+%%field ChemicalSafetyCheck.result enum: SafetyCheckResult
+%%section entity: ChemicalSafetyCheck; name: Inspection scope; help: Which location, material and equipment were checked, who checked them, and the findings.; rows: check_number, site_id | inventory_item_id, equipment_id | employee_id, checked_at | result, findings
+%%section entity: ChemicalSafetyCheck; name: Corrective action; help: Resolution deadline, work performed and verification before the issue is closed.; rows: corrective_due_on,corrective_action | verified_at
+%%entity Organization help: The legal operating company that owns sites, customer obligations, and consolidated management reporting. Create one per independently accountable business, not per wash location.
+%%entity Organization icon: Building2
+%%field Organization.name help: Registered or trading name shown on consolidated reports and customer documents.
+%%field Organization.tax_number help: Government tax registration printed on taxable receipts; leave empty only where registration is not required.
+%%field Organization.currency_code help: ISO currency used for prices and financial summaries across this company.
+%%field Organization.timezone help: Primary IANA time zone used when consolidating site operating days.
+%%section entity: Organization; name: Company identity; help: The legal identity and accounting context shared by every site.; rows: name,tax_number | currency_code,timezone
+%%entity Site help: A physical or mobile operating location where washes are sold and delivered. Capacity, meters, staff, equipment, and daily results are tracked against this record.
+%%entity Site icon: MapPin
+%%field Site.organization_id help: Company responsible for this location and its financial results.
+%%field Site.name help: Location name customers and staff use on bookings, receipts, and schedules.
+%%field Site.site_code help: Short stable code used in transfers, work-order numbers, and consolidated reporting.
+%%field Site.site_type help: Operating format that determines the normal flow of vehicles and labor.
+%%field Site.site_type enum: SiteType
+%%field Site.address help: Service address or mobile base from which teams and equipment are dispatched.
+%%field Site.phone help: Public number used for booking changes and service recovery.
+%%field Site.timezone help: IANA time zone that defines this site's business day and appointment times.
+%%field Site.is_active help: Turn off when the site stops accepting new business while retaining its history.
+%%section entity: Site; name: Location; help: What customers and staff call this operation and where it serves them.; rows: name,site_code | organization_id,site_type | address | phone,timezone
+%%section entity: Site; name: Availability; help: Whether the location may accept new operational records.; rows: is_active
+%%entity Employee help: A worker or contractor scheduled and assigned to car-wash work. Keep the record when employment ends so sales, incidents, cash, and maintenance remain attributable.
+%%entity Employee icon: UsersRound
+%%field Employee.site_id help: Home location responsible for scheduling and supervising this worker.
+%%field Employee.employee_number help: Payroll or contractor reference used to reconcile labor records.
+%%field Employee.full_name help: Name displayed in assignments, approvals, tips, and incident records.
+%%field Employee.email help: Work address used for sign-in notices and management communication.
+%%field Employee.phone help: Number used for urgent schedule and safety contact.
+%%field Employee.role help: Primary operational duty used for scheduling and workload analysis.
+%%field Employee.role enum: EmployeeRole
+%%field Employee.start_date help: First date the worker may be scheduled.
+%%field Employee.end_date help: Last working date; leave empty while the worker remains active.
+%%field Employee.is_active help: Controls new assignments without deleting past accountability.
+%%section entity: Employee; name: Worker identity; help: Who performs and owns work at the site.; rows: employee_number,full_name | site_id,role | email,phone
+%%section entity: Employee; name: Employment; help: When the worker can be scheduled and whether new work may be assigned.; rows: start_date,end_date | is_active
+%%entity Customer help: A retail, fleet, or corporate buyer. Create one when contact, loyalty, credit, membership, or service history must be retained beyond a single anonymous sale.
+%%entity Customer icon: ContactRound
+%%field Customer.customer_number help: Stable reference printed on statements and used by service staff to find the buyer.
+%%field Customer.full_name help: Person or organization name used on bookings and receipts.
+%%field Customer.customer_type help: Commercial relationship that controls fleet fields, pricing eligibility, and reporting.
+%%field Customer.customer_type enum: CustomerType
+%%field Customer.email help: Address for receipts, reminders, membership notices, and consented marketing.
+%%field Customer.phone help: Number used for booking changes and service-completion messages.
+%%field Customer.marketing_consent help: Whether promotional communication is permitted; operational messages remain separate.
+%%field Customer.credit_limit help: Maximum approved unpaid exposure for fleet or corporate billing.
+%%field Customer.loyalty_balance help: Current usable points; detailed changes are retained in loyalty entries.
+%%section entity: Customer; name: Customer identity; help: How staff identify and contact the buyer during service.; rows: customer_number,full_name | customer_type,email | phone
+%%section entity: Customer; name: Commercial relationship; help: Consent, approved credit, and the current loyalty position.; rows: marketing_consent,credit_limit | loyalty_balance
+%%entity Vehicle help: A customer vehicle that receives services. The registration and physical profile prevent package mismatches, damage disputes, and duplicate service history.
+%%entity Vehicle icon: CarFront
+%%field Vehicle.customer_id help: Owner or accountable fleet customer whose history and entitlements apply.
+%%field Vehicle.registration_number help: License plate or fleet identifier staff verify at arrival.
+%%field Vehicle.vehicle_type help: Body class used for pricing, clearance checks, and wash-method eligibility.
+%%field Vehicle.vehicle_type enum: VehicleType
+%%field Vehicle.make help: Manufacturer used to identify the vehicle and support damage review.
+%%field Vehicle.model help: Model name used with make and color to distinguish similar vehicles.
+%%field Vehicle.color help: Visible color used to identify the correct vehicle in a queue.
+%%field Vehicle.model_year help: Year used when equipment or chemical restrictions depend on finish or fittings.
+%%field Vehicle.has_special_notes help: Signals that staff must read the handling notes before service.
+%%field Vehicle.special_notes help: Roof racks, wraps, loose trim, accessibility, or other handling instructions.
+%%section entity: Vehicle; name: Vehicle identity; help: What staff verify before bringing the vehicle into a bay or tunnel.; rows: registration_number,vehicle_type | customer_id,color | make,model | model_year
+%%section entity: Vehicle; name: Handling; help: Exceptions that may change equipment choice or require customer confirmation.; rows: has_special_notes | special_notes
+%%entity Service help: A sellable wash, detailing task, self-service allowance, or fleet service. It defines what is promised before local prices and packages are applied.
+%%entity Service icon: Sparkles
+%%field Service.service_code help: Stable short code used on menus, receipts, and integrations.
+%%field Service.name help: Customer-facing service name displayed in booking and point of sale.
+%%field Service.category help: Operational family used for menus, staffing, and profitability analysis.
+%%field Service.category enum: ServiceCategory
+%%field Service.billing_mode help: How quantity and price are interpreted for this service.
+%%field Service.billing_mode enum: BillingMode
+%%field Service.standard_minutes help: Expected effort or bay occupation used for scheduling and capacity planning.
+%%field Service.requires_inspection help: Whether a pre-service condition record must be completed.
+%%field Service.is_active help: Controls new sales while preserving historical line items.
+%%field Service.description help: Plain-language promise staff can explain consistently to customers.
+%%section entity: Service; name: Service definition; help: What is sold, how it is measured, and where it appears operationally.; rows: service_code,name | category,billing_mode | standard_minutes,requires_inspection | is_active
+%%section entity: Service; name: Customer promise; help: Scope staff can use to confirm what is and is not included.; rows: description
+%%entity SitePrice help: A location-specific price and tax treatment for one service. Effective dates preserve the amount that was valid when a booking or sale was made.
+%%entity SitePrice icon: BadgeIndianRupee
+%%field SitePrice.site_id help: Location where this price may be sold.
+%%field SitePrice.service_id help: Sellable service receiving this local price.
+%%field SitePrice.amount help: Base selling amount before or including tax according to tax mode.
+%%field SitePrice.tax_mode help: Whether the stored amount includes tax, excludes it, or is exempt.
+%%field SitePrice.tax_mode enum: TaxMode
+%%field SitePrice.tax_rate help: Percentage used to calculate tax for this effective period.
+%%field SitePrice.effective_from help: First business date on which this price may be used.
+%%field SitePrice.effective_to help: Last valid date; leave empty for the current open-ended price.
+%%section entity: SitePrice; name: Price scope; help: Where, what, and how the service is charged.; rows: site_id,service_id | amount,tax_mode | tax_rate
+%%section entity: SitePrice; name: Validity; help: Business dates that select this price without rewriting old sales.; rows: effective_from,effective_to
+%%entity MembershipPlan help: A recurring entitlement product that grants washes or discounts under stated limits. Plans are definitions; each customer subscription is a Membership.
+%%entity MembershipPlan icon: BadgeCheck
+%%field MembershipPlan.name help: Customer-facing plan name used in sales and renewal notices.
+%%field MembershipPlan.billing_cycle help: Frequency at which the recurring plan charge is due.
+%%field MembershipPlan.billing_cycle enum: BillingCycle
+%%field MembershipPlan.price help: Recurring amount charged per billing cycle.
+%%field MembershipPlan.included_washes help: Number of qualifying washes available in each cycle; zero means policy-defined unlimited use.
+%%field MembershipPlan.minimum_days_between_washes help: Abuse-control interval before another included wash may be redeemed.
+%%field MembershipPlan.auto_renew_default help: Initial renewal setting offered when a customer subscribes.
+%%field MembershipPlan.is_active help: Controls new enrollment without terminating existing memberships.
+%%field MembershipPlan.terms help: Eligibility, fair-use, cancellation, and redemption terms staff must disclose.
+%%section entity: MembershipPlan; name: Plan offer; help: What the plan costs and how its included use is limited.; rows: name,billing_cycle | price,included_washes | minimum_days_between_washes,auto_renew_default | is_active
+%%section entity: MembershipPlan; name: Customer terms; help: Conditions staff must disclose before enrollment.; rows: terms
+%%entity Membership help: A customer subscription to a membership plan, including the covered vehicle, billing dates, renewal choice, and operational standing.
+%%entity Membership icon: CreditCard
+%%field Membership.customer_id help: Subscriber responsible for payment and plan decisions.
+%%field Membership.vehicle_id help: Vehicle entitled to redeem this membership.
+%%field Membership.membership_plan_id help: Plan whose price, frequency, and fair-use limits apply.
+%%field Membership.membership_number help: Customer-visible identifier used at check-in and support.
+%%field Membership.status help: Current billing and entitlement standing.
+%%field Membership.status enum: MembershipStatus
+%%field Membership.started_on help: Date benefits first became available.
+%%field Membership.current_period_start help: Opening date of the current usage and billing cycle.
+%%field Membership.current_period_end help: Closing date after which benefits reset or expire.
+%%field Membership.next_billing_date help: Next planned charge date; empty after non-renewing cancellation.
+%%field Membership.auto_renew help: Whether billing should continue into the next period.
+%%section entity: Membership; name: Subscription; help: Who and which vehicle receive benefits under which plan.; rows: membership_number,membership_plan_id | customer_id,vehicle_id
+%%section entity: Membership; name: Standing; help: The period, renewal choice, and entitlement state used at redemption.; rows: started_on,current_period_start | current_period_end,next_billing_date | auto_renew,status
+%%entity Promotion help: A time-bounded discount or bundle rule authorized for point of sale and booking. It records eligibility and caps so discounts can be audited.
+%%entity Promotion icon: Tags
+%%field Promotion.site_id help: Location restriction; empty means the offer may apply across the organization.
+%%field Promotion.code help: Code staff or customers enter to request the offer.
+%%field Promotion.name help: Readable campaign name shown in approval and performance reports.
+%%field Promotion.promotion_type help: How the discount benefit is calculated.
+%%field Promotion.promotion_type enum: PromotionType
+%%field Promotion.value help: Percentage, fixed amount, or bundle value interpreted by promotion type.
+%%field Promotion.minimum_spend help: Minimum eligible sale value before the offer can apply.
+%%field Promotion.maximum_discount help: Hard monetary cap protecting margin on percentage offers.
+%%field Promotion.starts_on help: First date the code may be accepted.
+%%field Promotion.ends_on help: Last date the code may be accepted.
+%%field Promotion.status help: Operational availability of the campaign.
+%%field Promotion.status enum: PromotionStatus
+%%section entity: Promotion; name: Offer; help: What staff and customers identify and how the benefit is calculated.; rows: code,name | site_id,promotion_type | value,minimum_spend | maximum_discount
+%%section entity: Promotion; name: Campaign window; help: When the offer is usable and whether management has paused it.; rows: starts_on,ends_on | status
+%%entity Booking help: A request to reserve site capacity for one vehicle and service. Its lifecycle records confirmation, arrival, fulfillment, cancellation, and no-show outcomes.
+%%entity Booking icon: CalendarClock
+%%field Booking.site_id help: Location expected to deliver the appointment.
+%%field Booking.customer_id help: Person or account making and receiving appointment communication.
+%%field Booking.vehicle_id help: Vehicle whose size, notes, and entitlement are checked.
+%%field Booking.service_id help: Primary service for which capacity is reserved.
+%%field Booking.booking_number help: Reference the customer quotes when changing or arriving for the appointment.
+%%field Booking.status help: Where the visit is in its controlled booking lifecycle.
+%%field Booking.status enum: BookingStatus
+%%field Booking.scheduled_start help: Promised arrival or service start in the site time zone.
+%%field Booking.scheduled_end help: Capacity end calculated from service duration and local planning.
+%%field Booking.source help: Origin of the request such as counter, phone, web, or fleet desk.
+%%field Booking.notes help: Arrival instructions or customer requests staff must see before service.
+%%section entity: Booking; name: Reservation; help: Who, what, where, and when capacity is promised.; rows: booking_number, site_id | customer_id, vehicle_id | service_id, scheduled_start | scheduled_end, source
+%%section entity: Booking; name: Instructions; help: Information staff should read before confirming or checking in.; rows: notes
+%%entity QueueTicket help: A same-day arrival waiting for a bay, tunnel, or service team. It preserves order, priority, estimated wait, and abandonment.
+%%entity QueueTicket icon: ListOrdered
+%%field QueueTicket.site_id help: Location managing the queue.
+%%field QueueTicket.customer_id help: Known buyer; empty for an anonymous walk-in.
+%%field QueueTicket.vehicle_id help: Known vehicle; empty until registration is captured.
+%%field QueueTicket.service_id help: Primary requested service used to estimate work duration.
+%%field QueueTicket.ticket_number help: Short daily number announced and displayed to staff.
+%%field QueueTicket.status help: Current place in the arrival-to-service queue.
+%%field QueueTicket.status enum: QueueStatus
+%%field QueueTicket.arrived_at help: Time the vehicle joined the queue.
+%%field QueueTicket.priority help: Relative dispatch priority; normal is zero and overrides require a reason.
+%%field QueueTicket.estimated_wait_minutes help: Latest quoted wait used for customer expectation and accuracy analysis.
+%%section entity: QueueTicket; name: Arrival; help: The waiting vehicle, requested work, and sequence information dispatch uses.; rows: ticket_number,site_id | customer_id,vehicle_id | service_id,arrived_at | priority,estimated_wait_minutes | status
+%%entity WorkOrder help: The operational record that turns a booking, queue arrival, or counter sale into assigned wash work, condition evidence, consumption, quality review, and completion.
+%%entity WorkOrder icon: ClipboardCheck
+%%field WorkOrder.site_id help: Location delivering and financially owning the work.
+%%field WorkOrder.customer_id help: Buyer receiving the work; may be empty for an anonymous sale.
+%%field WorkOrder.vehicle_id help: Vehicle actually entering the service process.
+%%field WorkOrder.booking_id help: Reserved visit that produced this work; empty for walk-ins.
+%%field WorkOrder.queue_ticket_id help: Queue arrival that produced this work; empty for direct appointments.
+%%field WorkOrder.employee_id help: Lead worker accountable for execution and quality handoff.
+%%field WorkOrder.work_order_number help: Reference used on receipts, claims, and operational communication.
+%%field WorkOrder.status help: Controlled job position from opening through final completion or cancellation.
+%%field WorkOrder.status enum: WorkOrderStatus
+%%field WorkOrder.opened_at help: Time the operational job was accepted, used for throughput timing.
+%%field WorkOrder.promised_at help: Customer commitment used to flag delayed work.
+%%field WorkOrder.completed_at help: Time quality approval finished and the vehicle became ready.
+%%field WorkOrder.subtotal help: Value before tax and discounts, recomputed from work-order lines.
+%%field WorkOrder.discount_total help: Authorized discounts applied to the order.
+%%field WorkOrder.tax_total help: Tax charged according to priced lines and site rules.
+%%field WorkOrder.grand_total help: Final customer amount before recorded payments and refunds.
+%%field WorkOrder.internal_notes help: Operational detail not intended for the customer receipt.
+%%section entity: WorkOrder; name: Job identity; help: The location, vehicle, origin, and accountable worker for this service.; rows: work_order_number, site_id | customer_id, vehicle_id | booking_id, queue_ticket_id | employee_id, opened_at
+%%section entity: WorkOrder; name: Commitment; help: When staff promised and actually completed the work.; rows: promised_at,completed_at
+%%section entity: WorkOrder; name: Commercial totals; help: Amounts reconciled to lines, promotions, tax, and payments.; rows: subtotal,discount_total | tax_total,grand_total
+%%section entity: WorkOrder; name: Internal handoff; help: Information the service team needs that should not print on the receipt.; rows: internal_notes; collapsed: true
+%%entity WorkOrderLine help: One service, add-on, discount, or fee on a work order. It preserves quantity and unit price at sale time so later price changes do not rewrite history.
+%%entity WorkOrderLine icon: Rows3
+%%entity WorkOrderLine parent: WorkOrder
+%%field WorkOrderLine.work_order_id help: Parent job whose price and scope this line contributes to.
+%%field WorkOrderLine.service_id help: Sellable service delivered; empty for a pure discount or fee.
+%%field WorkOrderLine.promotion_id help: Authorized offer responsible for the line discount.
+%%field WorkOrderLine.line_type help: Commercial interpretation of this row.
+%%field WorkOrderLine.line_type enum: LineType
+%%field WorkOrderLine.description help: Receipt wording that captures exactly what was agreed.
+%%field WorkOrderLine.quantity help: Units, vehicles, or minutes charged according to the service billing mode.
+%%field WorkOrderLine.unit_price help: Price for one unit at the time of sale.
+%%field WorkOrderLine.discount_amount help: Discount allocated to this line for margin and promotion analysis.
+%%field WorkOrderLine.tax_amount help: Tax allocated to this line for compliant reporting.
+%%field WorkOrderLine.line_total help: Net amount added to the work-order grand total.
+%%section entity: WorkOrderLine; name: Line scope; help: What was sold or adjusted and why it belongs on this job.; rows: work_order_id,line_type | service_id,promotion_id | description
+%%section entity: WorkOrderLine; name: Line value; help: Quantity and immutable sale-time amounts used for receipts and margin.; rows: quantity,unit_price | discount_amount,tax_amount | line_total
+%%entity VehicleInspection help: Pre- and post-service evidence of vehicle condition and safety exceptions. It supports customer authorization, damage review, and quality control.
+%%entity VehicleInspection icon: ScanLine
+%%field VehicleInspection.work_order_id help: Job for which this condition evidence was recorded.
+%%field VehicleInspection.employee_id help: Worker who observed and attested to the condition.
+%%field VehicleInspection.inspected_at help: Time of inspection relative to vehicle handover.
+%%field VehicleInspection.pre_existing_damage help: Whether visible damage existed before service began.
+%%field VehicleInspection.customer_acknowledged help: Whether the customer accepted recorded exceptions before service.
+%%field VehicleInspection.condition_notes help: Location and nature of damage, loose fittings, valuables, or unsafe conditions.
+%%field VehicleInspection.media_references help: Authorized photo or video references retained under the site evidence policy.
+%%section entity: VehicleInspection; name: Inspection evidence; help: Who inspected the vehicle, when, and whether exceptions were acknowledged.; rows: work_order_id,employee_id | inspected_at,pre_existing_damage | customer_acknowledged
+%%section entity: VehicleInspection; name: Condition record; help: Detailed observations and supporting media used in quality or claim review.; rows: condition_notes | media_references
+%%entity Payment help: A tender, refund, or void against a work order. Multiple records support split tender and partial refunds without altering the original sale.
+%%entity Payment icon: WalletCards
+%%field Payment.work_order_id help: Sale whose receivable this transaction settles or reverses.
+%%field Payment.cash_shift_id help: Cashier session accountable for cash or counter tender.
+%%field Payment.employee_id help: Worker who accepted, refunded, or voided the transaction.
+%%field Payment.payment_reference help: Gateway, bank, UPI, or internal reference used for reconciliation.
+%%field Payment.method help: Tender channel used by the customer.
+%%field Payment.method enum: PaymentMethod
+%%field Payment.status help: Financial processing outcome and refund standing.
+%%field Payment.status enum: PaymentStatus
+%%field Payment.amount help: Positive captured amount or negative refund amount in organization currency.
+%%field Payment.processed_at help: Time used for daily settlement and gateway matching.
+%%field Payment.failure_reason help: Processor or operational explanation when the transaction fails or is voided.
+%%section entity: Payment; name: Transaction; help: What was paid, by which channel, and who processed it.; rows: payment_reference,work_order_id | cash_shift_id,employee_id | method,amount | processed_at,status
+%%section entity: Payment; name: Exception; help: Reason finance and service staff need when settlement did not complete normally.; rows: failure_reason; collapsed: true
+%%entity CashShift help: A cashier accountability session from opening float through counted close and variance review. It separates drawer responsibility between employees and operating periods.
+%%entity CashShift icon: Banknote
+%%field CashShift.site_id help: Location whose drawer and business day are being reconciled.
+%%field CashShift.employee_id help: Cashier responsible for custody during the session.
+%%field CashShift.status help: Controlled reconciliation position from opening through final review.
+%%field CashShift.status enum: CashShiftStatus
+%%field CashShift.opened_at help: Time custody began.
+%%field CashShift.closed_at help: Time custody ended and no further tenders should be added.
+%%field CashShift.opening_float help: Cash physically issued at the start.
+%%field CashShift.expected_cash help: System-calculated cash after tenders and refunds.
+%%field CashShift.counted_cash help: Physical count entered before closure.
+%%field CashShift.variance help: Counted less expected cash, investigated when outside policy.
+%%field CashShift.variance_reason help: Manager explanation and disposition for a material difference.
+%%section entity: CashShift; name: Custody; help: Where and by whom the drawer is controlled.; rows: site_id,employee_id | opened_at,closed_at
+%%section entity: CashShift; name: Reconciliation; help: Float, expected balance, physical count, and any unexplained difference.; rows: opening_float,expected_cash | counted_cash,variance | variance_reason,status
+%%entity InventoryItem help: A chemical, consumable, spare part, retail product, or protective item purchased and tracked by the business.
+%%entity InventoryItem icon: FlaskConical
+%%field InventoryItem.sku help: Stable stock code used on receipts, counts, and supplier documents.
+%%field InventoryItem.name help: Operational item name staff recognize when receiving or consuming stock.
+%%field InventoryItem.category help: Inventory family used for controls and spend analysis.
+%%field InventoryItem.category enum: InventoryCategory
+%%field InventoryItem.unit_of_measure help: Counting unit such as litre, kilogram, each, or case.
+%%field InventoryItem.standard_cost help: Reference cost used for usage and variance analysis until actual receipt cost is known.
+%%field InventoryItem.hazardous help: Whether safety data, controlled storage, and spill procedures apply.
+%%field InventoryItem.is_active help: Controls new purchasing and use while retaining historical stock movement.
+%%section entity: InventoryItem; name: Stock identity; help: How the item is recognized, measured, costed, and controlled.; rows: sku,name | category,unit_of_measure | standard_cost,hazardous | is_active
+%%entity InventoryStock help: The on-hand and reorder position for one inventory item at one site. It is the control total reconciled by movements and physical counts.
+%%entity InventoryStock icon: Warehouse
+%%field InventoryStock.site_id help: Location physically holding and consuming the item.
+%%field InventoryStock.inventory_item_id help: Item whose quantity and reorder policy this balance represents.
+%%field InventoryStock.quantity_on_hand help: Current usable quantity after all posted movements.
+%%field InventoryStock.reorder_level help: Balance at or below which purchasing should act.
+%%field InventoryStock.reorder_quantity help: Normal replenishment quantity proposed when the threshold is crossed.
+%%field InventoryStock.maximum_level help: Storage or working-capital ceiling used to flag overstock.
+%%field InventoryStock.last_counted_at help: Most recent physical verification time used to judge balance reliability.
+%%section entity: InventoryStock; name: Stock position; help: Which item is held where and the control quantity staff rely on.; rows: site_id,inventory_item_id | quantity_on_hand,last_counted_at
+%%section entity: InventoryStock; name: Replenishment; help: Thresholds purchasing uses to prevent shortage without overstocking.; rows: reorder_level,reorder_quantity | maximum_level
+%%entity InventoryTransaction help: A posted receipt, consumption, adjustment, transfer, or return that explains a change in site stock.
+%%entity InventoryTransaction icon: ArrowLeftRight
+%%field InventoryTransaction.inventory_stock_id help: Site-item balance changed by this movement.
+%%field InventoryTransaction.work_order_id help: Job that consumed the material; empty for non-job movement.
+%%field InventoryTransaction.employee_id help: Worker who posted or authorized the movement.
+%%field InventoryTransaction.movement_type help: Business reason for increasing or decreasing stock.
+%%field InventoryTransaction.movement_type enum: StockMovementType
+%%field InventoryTransaction.quantity help: Signed quantity added to or removed from the balance.
+%%field InventoryTransaction.unit_cost help: Cost per unit used to value this movement.
+%%field InventoryTransaction.transacted_at help: Time the physical movement occurred.
+%%field InventoryTransaction.reference help: Supplier document, transfer, count, or corrective reference supporting the entry.
+%%field InventoryTransaction.notes help: Explanation required for adjustments and unusual consumption.
+%%section entity: InventoryTransaction; name: Movement; help: What stock changed, why, by how much, and who posted it.; rows: inventory_stock_id,movement_type | work_order_id,employee_id | quantity,unit_cost | transacted_at,reference
+%%section entity: InventoryTransaction; name: Explanation; help: Context reviewers need for non-routine or corrective movement.; rows: notes; collapsed: true
+%%entity Vendor help: A supplier of chemicals, parts, services, or equipment. Purchasing history remains attached when the relationship becomes inactive.
+%%entity Vendor icon: Truck
+%%field Vendor.vendor_code help: Stable purchasing reference used in documents and integrations.
+%%field Vendor.name help: Supplier legal or trading name shown on purchase orders.
+%%field Vendor.email help: Address used to send orders and resolve discrepancies.
+%%field Vendor.phone help: Operational contact for urgent supply or service issues.
+%%field Vendor.tax_number help: Supplier tax registration retained for compliant purchasing records.
+%%field Vendor.lead_time_days help: Typical elapsed days used to schedule replenishment before stockout.
+%%field Vendor.is_active help: Controls new orders without losing historical vendor attribution.
+%%section entity: Vendor; name: Supplier identity; help: How purchasing identifies and contacts the supplier.; rows: vendor_code,name | email,phone | tax_number
+%%section entity: Vendor; name: Supply planning; help: Expected lead time and whether new business may be placed.; rows: lead_time_days,is_active
+%%entity PurchaseOrder help: A controlled commitment to buy stock or maintenance supplies for a site, from drafting through approval and receipt.
+%%entity PurchaseOrder icon: ShoppingCart
+%%field PurchaseOrder.site_id help: Location receiving and financially owning the purchase.
+%%field PurchaseOrder.vendor_id help: Supplier accepting the order.
+%%field PurchaseOrder.employee_id help: Buyer or requester accountable for the order.
+%%field PurchaseOrder.purchase_order_number help: Document reference shared with vendor and finance.
+%%field PurchaseOrder.status help: Controlled purchasing lifecycle and receipt standing.
+%%field PurchaseOrder.status enum: PurchaseOrderStatus
+%%field PurchaseOrder.ordered_on help: Date the approved commitment was sent to the vendor.
+%%field PurchaseOrder.expected_on help: Promised delivery date used to identify late supply.
+%%field PurchaseOrder.total_amount help: Authorized total of all order lines before payment processing.
+%%field PurchaseOrder.notes help: Delivery, substitution, or commercial instructions for the vendor and receiver.
+%%section entity: PurchaseOrder; name: Purchase; help: Where, from whom, and by whom the commitment is raised.; rows: purchase_order_number, site_id | vendor_id, employee_id | ordered_on, expected_on | total_amount
+%%section entity: PurchaseOrder; name: Instructions; help: Information purchasing and receiving need beyond the line items.; rows: notes
+%%entity PurchaseOrderLine help: One inventory item and quantity committed on a purchase order, including receipt progress and agreed unit cost.
+%%entity PurchaseOrderLine icon: PackageOpen
+%%entity PurchaseOrderLine parent: PurchaseOrder
+%%field PurchaseOrderLine.purchase_order_id help: Parent purchasing commitment.
+%%field PurchaseOrderLine.inventory_item_id help: Stock item expected from the vendor.
+%%field PurchaseOrderLine.ordered_quantity help: Quantity approved and sent to the vendor.
+%%field PurchaseOrderLine.received_quantity help: Cumulative accepted quantity posted by receiving.
+%%field PurchaseOrderLine.unit_cost help: Agreed cost per inventory unit.
+%%field PurchaseOrderLine.line_total help: Ordered quantity multiplied by unit cost for order control.
+%%section entity: PurchaseOrderLine; name: Ordered item; help: What is being bought, how much, at what cost, and what has arrived.; rows: purchase_order_id,inventory_item_id | ordered_quantity,received_quantity | unit_cost,line_total
+%%entity Equipment help: A machine or asset used to deliver, support, meter, or sell car-wash services. Status and maintenance history protect safety and uptime.
+%%entity Equipment icon: Wrench
+%%field Equipment.site_id help: Location operating and maintaining the asset.
+%%field Equipment.asset_number help: Physical tag or serial reference staff can find on the equipment.
+%%field Equipment.name help: Operational name used in checks, incidents, and maintenance requests.
+%%field Equipment.equipment_type help: Asset family used for preventive schedules and performance reporting.
+%%field Equipment.equipment_type enum: EquipmentType
+%%field Equipment.status help: Current permission and capability to operate the asset.
+%%field Equipment.status enum: EquipmentStatus
+%%field Equipment.commissioned_on help: Date operation began, used for age and warranty analysis.
+%%field Equipment.warranty_until help: Last date supplier warranty may cover qualifying repairs.
+%%field Equipment.service_interval_days help: Calendar interval used to identify preventive maintenance due dates.
+%%field Equipment.next_service_date help: Planned next preventive service date.
+%%section entity: Equipment; name: Asset identity; help: Where the equipment is, how staff identify it, and whether it may operate.; rows: asset_number,name | site_id,equipment_type | commissioned_on,warranty_until | status
+%%section entity: Equipment; name: Maintenance policy; help: Calendar interval and next planned service used to protect uptime.; rows: service_interval_days,next_service_date
+%%entity EquipmentMaintenance help: A preventive, corrective, inspection, or calibration job for one asset, including assignment, downtime, cost, and completion evidence.
+%%entity EquipmentMaintenance icon: CalendarWrench
+%%field EquipmentMaintenance.equipment_id help: Asset being inspected or repaired.
+%%field EquipmentMaintenance.employee_id help: Technician accountable for the work; empty until assigned.
+%%field EquipmentMaintenance.maintenance_number help: Reference used on schedules, vendor communication, and cost review.
+%%field EquipmentMaintenance.maintenance_type help: Reason and planning class for the work.
+%%field EquipmentMaintenance.maintenance_type enum: MaintenanceType
+%%field EquipmentMaintenance.status help: Controlled maintenance lifecycle from request through completion.
+%%field EquipmentMaintenance.status enum: MaintenanceStatus
+%%field EquipmentMaintenance.requested_at help: Time the need was first recorded.
+%%field EquipmentMaintenance.scheduled_at help: Planned start time coordinated with site capacity.
+%%field EquipmentMaintenance.completed_at help: Time the asset was released after maintenance.
+%%field EquipmentMaintenance.cost help: Labor, parts, and vendor cost attributable to the job.
+%%field EquipmentMaintenance.downtime_minutes help: Unavailable minutes used in reliability and lost-capacity analysis.
+%%field EquipmentMaintenance.work_notes help: Fault, diagnosis, work performed, test, and release evidence.
+%%section entity: EquipmentMaintenance; name: Maintenance job; help: Which asset needs what work and who owns it.; rows: maintenance_number, equipment_id | maintenance_type, employee_id | requested_at, scheduled_at
+%%section entity: EquipmentMaintenance; name: Completion; help: Cost, downtime, and evidence required before returning the asset to service.; rows: completed_at,cost | downtime_minutes | work_notes
+%%entity Incident help: A safety, damage, spill, equipment, or service incident that requires investigation, corrective action, and closure evidence.
+%%entity Incident icon: ShieldAlert
+%%field Incident.site_id help: Location responsible for response and reporting.
+%%field Incident.work_order_id help: Customer job involved; empty for general site incidents.
+%%field Incident.equipment_id help: Asset involved or suspected in the event.
+%%field Incident.employee_id help: Worker who reported or initially owned the response.
+%%field Incident.incident_number help: Stable reference for investigation, insurance, and follow-up.
+%%field Incident.incident_type help: Nature of the event and response path.
+%%field Incident.incident_type enum: IncidentType
+%%field Incident.severity help: Potential or actual impact used for escalation.
+%%field Incident.severity enum: IncidentSeverity
+%%field Incident.status help: Investigation and corrective-action standing.
+%%field Incident.status enum: IncidentStatus
+%%field Incident.occurred_at help: Best known time of the event.
+%%field Incident.description help: Objective facts observed, avoiding unsupported conclusions.
+%%field Incident.immediate_action help: Containment, first aid, shutdown, or customer-care action taken at once.
+%%field Incident.root_cause help: Verified underlying cause after investigation.
+%%field Incident.corrective_action help: Action that prevents recurrence and identifies evidence of completion.
+%%field Incident.resolved_at help: Time required corrective action and review were completed.
+%%section entity: Incident; name: Event; help: Where, when, what, and who first recorded the incident.; rows: incident_number,site_id | work_order_id,equipment_id | employee_id,occurred_at | incident_type,severity | description
+%%section entity: Incident; name: Response and learning; help: Containment, verified cause, corrective action, and resolution evidence.; rows: immediate_action | root_cause | corrective_action | resolved_at,status
+%%entity UtilityReading help: A period meter reading for water, reclaimed water, electricity, or gas. It supports consumption, cost, leakage, sustainability, and compliance analysis.
+%%entity UtilityReading icon: Gauge
+%%field UtilityReading.site_id help: Location whose resource consumption is measured.
+%%field UtilityReading.meter_type help: Resource or recovery stream represented by the meter.
+%%field UtilityReading.meter_type enum: MeterType
+%%field UtilityReading.meter_number help: Physical or provider meter reference used to prevent mixing readings.
+%%field UtilityReading.reading_at help: Time the cumulative value was observed.
+%%field UtilityReading.reading_value help: Cumulative meter value in the declared unit.
+%%field UtilityReading.unit_of_measure help: Unit such as litre, cubic metre, kWh, or therm.
+%%field UtilityReading.period_cost help: Supplier or allocated cost for the period ending at this reading.
+%%field UtilityReading.employee_id help: Worker who captured or verified the reading.
+%%section entity: UtilityReading; name: Meter reading; help: Which site and meter were read, by whom, when, and in what unit.; rows: site_id,meter_type | meter_number,reading_at | reading_value,unit_of_measure | employee_id,period_cost
+%%entity LoyaltyEntry help: An auditable earn, redemption, expiry, or adjustment to a customer loyalty balance, optionally tied to the sale that caused it.
+%%entity LoyaltyEntry icon: Gift
+%%field LoyaltyEntry.customer_id help: Account whose points change.
+%%field LoyaltyEntry.work_order_id help: Sale or service responsible for the change; empty for expiry or manual adjustment.
+%%field LoyaltyEntry.employee_id help: Worker authorizing a manual change.
+%%field LoyaltyEntry.entry_type help: Business reason for changing the balance.
+%%field LoyaltyEntry.entry_type enum: LoyaltyEntryType
+%%field LoyaltyEntry.points help: Signed points added to or removed from the balance.
+%%field LoyaltyEntry.posted_at help: Time the balance change became effective.
+%%field LoyaltyEntry.expires_on help: Expiry date for earned points where policy applies.
+%%field LoyaltyEntry.reason help: Required explanation for manual adjustments and dispute corrections.
+%%section entity: LoyaltyEntry; name: Loyalty movement; help: Whose balance changes, why, by how much, and what sale supports it.; rows: customer_id,entry_type | work_order_id,employee_id | points,posted_at | expires_on
+%%section entity: LoyaltyEntry; name: Adjustment evidence; help: Explanation reviewers need when the change is not automatically derived.; rows: reason; collapsed: true
+%%entity StockAlert help: An actionable warning created when a stock balance crosses its reorder threshold. It separates detection from acknowledgment and resolution.
+%%entity StockAlert icon: BellRing
+%%field StockAlert.inventory_stock_id help: Site-item balance requiring attention.
+%%field StockAlert.alert_type help: Reason the warning was raised.
+%%field StockAlert.alert_type enum: AlertType
+%%field StockAlert.status help: Whether the warning is awaiting action, acknowledged, or resolved.
+%%field StockAlert.status enum: AlertStatus
+%%field StockAlert.message help: Clear explanation of the condition and expected next action.
+%%field StockAlert.resolved_at help: Time staff confirmed the underlying condition was corrected.
+%%section entity: StockAlert; name: Alert; help: Which stock position needs action and what the receiver should do.; rows: inventory_stock_id,alert_type | message
+%%section entity: StockAlert; name: Resolution; help: Evidence that the warning was handled rather than merely seen.; rows: resolved_at,status
+%%entity ConditionEvidence help: A timestamped media record of vehicle condition linked to a particular wash; use this when resolving customer damage complaints, not as a general photo library.
+%%entity ConditionEvidence icon: Camera
+%%entity ConditionEvidence parent: WorkOrder
+%%field ConditionEvidence.work_order_id help: The wash job this evidence or decision belongs to.
+%%field ConditionEvidence.vehicle_inspection_id help: Optional inspection during which the evidence was collected.
+%%field ConditionEvidence.employee_id help: Employee accountable for entering or witnessing the record.
+%%field ConditionEvidence.phase help: Whether the vehicle was photographed before washing, afterward or during corrective work.
+%%field ConditionEvidence.phase enum: ConditionPhase
+%%field ConditionEvidence.captured_at help: Exact timestamp the media was created, retained for evidence sequencing.
+%%field ConditionEvidence.media_url help: Controlled storage reference to the original media, not a public sharing link.
+%%field ConditionEvidence.description help: Specific condition or defect visible in the evidence.
+%%field ConditionEvidence.customer_visible help: Whether this media is approved for customer disclosure.
+%%field ConditionEvidence.retention_until help: Review date for secure retention; legal evidence holds take priority.
+%%section entity: ConditionEvidence; name: Identity and decision; help: Scan the image and its phase before relying on it as evidence for a dispute.; rows: work_order_id, vehicle_inspection_id | employee_id, phase | captured_at, media_url
+%%section entity: ConditionEvidence; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: description, customer_visible | retention_until
+%%entity AdditionalWorkApproval help: Customer permission for extra work that was not included in the accepted wash order. Do not charge or start the extra service before approval.
+%%entity AdditionalWorkApproval icon: BadgeCheck
+%%field AdditionalWorkApproval.work_order_id help: The wash job this evidence or decision belongs to.
+%%field AdditionalWorkApproval.customer_id help: Customer responsible for the service or account.
+%%field AdditionalWorkApproval.service_id help: The specific additional service being proposed.
+%%field AdditionalWorkApproval.employee_id help: Employee accountable for entering or witnessing the record.
+%%field AdditionalWorkApproval.approved_by_id help: Employee who recorded the customer approval evidence.
+%%field AdditionalWorkApproval.approval_number help: Unique reference used in customer authorization and dispute tracking.
+%%field AdditionalWorkApproval.status help: Current lifecycle state changed by an authorized action, never by typing into the form.
+%%field AdditionalWorkApproval.status enum: AdditionalApprovalStatus
+%%field AdditionalWorkApproval.requested_at help: Time the authorization request was presented.
+%%field AdditionalWorkApproval.responded_at help: Time a decision was received from the customer.
+%%field AdditionalWorkApproval.quoted_amount help: Total additional charge clearly presented before authorization.
+%%field AdditionalWorkApproval.authorization_reference help: Customer consent token, signed form or verifiable message reference.
+%%field AdditionalWorkApproval.reason help: Why the added work or customer request arose.
+%%field AdditionalWorkApproval.decision_notes help: Explanation for approval, rejection or withdrawal, including exceptions.
+%%section entity: AdditionalWorkApproval; name: Identity and decision; help: Record the price presented to the customer and the evidence of their decision.; rows: work_order_id, customer_id | service_id, employee_id | approved_by_id, approval_number
+%%section entity: AdditionalWorkApproval; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: requested_at, responded_at | quoted_amount, authorization_reference | reason, decision_notes
+%%entity SiteChecklist help: A safety and readiness inspection at a site, recorded by the person performing it. A failed item requires immediate escalation and corrective ownership.
+%%entity SiteChecklist icon: ClipboardList
+%%field SiteChecklist.site_id help: Physical car wash location where the record applies.
+%%field SiteChecklist.employee_id help: Employee accountable for entering or witnessing the record.
+%%field SiteChecklist.wash_bay_id help: Optional bay or station inspected by this checklist.
+%%field SiteChecklist.checklist_code help: Unique checklist identifier for shift handover and audit.
+%%field SiteChecklist.kind help: Which operational inspection procedure this record documents.
+%%field SiteChecklist.kind enum: ChecklistKind
+%%field SiteChecklist.outcome help: Overall observed outcome, including items requiring immediate action.
+%%field SiteChecklist.outcome enum: ChecklistOutcome
+%%field SiteChecklist.completed_at help: When the employee finished performing the inspection.
+%%field SiteChecklist.ppe_checked help: Whether required protective equipment was observed and available.
+%%field SiteChecklist.emergency_stop_tested help: Whether the emergency stop was checked under the approved safe procedure.
+%%field SiteChecklist.drain_trap_checked help: Whether drain and oil-grit traps were visually inspected.
+%%field SiteChecklist.findings help: Observed problems, their locations, and any immediate safety hold.
+%%field SiteChecklist.corrective_due_at help: Deadline for the assigned corrective action to be verified.
+%%section entity: SiteChecklist; name: Identity and decision; help: Record what was actually tested; a checked box is not a substitute for observed evidence.; rows: site_id, employee_id | wash_bay_id, checklist_code | kind, outcome
+%%section entity: SiteChecklist; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: completed_at, ppe_checked | emergency_stop_tested, drain_trap_checked | findings, corrective_due_at
+%%entity EnvironmentalPermit help: A location-specific permit, license or consent regulating wastewater and other environmental obligations; the issuing authority sets the applicable limits.
+%%entity EnvironmentalPermit icon: FileCheck
+%%field EnvironmentalPermit.site_id help: Physical car wash location where the record applies.
+%%field EnvironmentalPermit.permit_number help: Exact reference assigned by the environmental authority.
+%%field EnvironmentalPermit.issuing_authority help: Name of regulator or permit-granting body for this location.
+%%field EnvironmentalPermit.permit_result help: Current standing of this permit at review time.
+%%field EnvironmentalPermit.permit_result enum: PermitResult
+%%field EnvironmentalPermit.effective_on help: Date the permit authority says operating permission starts.
+%%field EnvironmentalPermit.expires_on help: Date permission expires unless legally renewed.
+%%field EnvironmentalPermit.daily_discharge_limit_liters help: Site-specific permitted discharge volume, if prescribed; do not infer it.
+%%field EnvironmentalPermit.special_conditions help: Site-specific limits, disposal restrictions and permit reporting obligations.
+%%field EnvironmentalPermit.renewal_reference help: Regulator acknowledgment or pending renewal filing reference.
+%%section entity: EnvironmentalPermit; name: Identity and decision; help: Copy the exact authority reference and expiration date before treating a site as permitted.; rows: site_id, permit_number | issuing_authority, permit_result | effective_on, expires_on
+%%section entity: EnvironmentalPermit; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: daily_discharge_limit_liters, special_conditions | renewal_reference
+%%entity EffluentSample help: Measured wastewater or discharge sample at a specific wash site. Review actual lab evidence against that site’s current permit; do not assume nationwide thresholds.
+%%entity EffluentSample icon: FlaskConical
+%%field EffluentSample.site_id help: Physical car wash location where the record applies.
+%%field EffluentSample.environmental_permit_id help: Permit whose limits are used to assess this sample, where available.
+%%field EffluentSample.employee_id help: Employee accountable for entering or witnessing the record.
+%%field EffluentSample.sample_code help: Unique specimen identifier matching the physical lab sample.
+%%field EffluentSample.sampled_at help: Date and time wastewater was collected for testing.
+%%field EffluentSample.ph help: Laboratory measured pH of the sampled wastewater.
+%%field EffluentSample.suspended_solids_mg_l help: Measured total suspended solids concentration in milligrams per litre.
+%%field EffluentSample.oil_grease_mg_l help: Measured oil-and-grease concentration in milligrams per litre.
+%%field EffluentSample.flow_liters help: Metered wastewater volume during the measurement interval.
+%%field EffluentSample.result help: Review outcome against the applicable permit and lab evidence.
+%%field EffluentSample.result enum: EffluentResult
+%%field EffluentSample.laboratory_reference help: Laboratory report reference for the original test certificate.
+%%field EffluentSample.corrective_action help: Required remediation and evidence of the follow-up test, if any.
+%%section entity: EffluentSample; name: Identity and decision; help: Record raw measurements and review any exceedance before allowing an unsafe discharge.; rows: site_id, environmental_permit_id | employee_id, sample_code | sampled_at, ph
+%%section entity: EffluentSample; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: suspended_solids_mg_l, oil_grease_mg_l | flow_liters, result | laboratory_reference, corrective_action
+%%entity WasteDisposal help: Traceability record for sludge, oil, spent filters and chemical containers handed to a waste receiver.
+%%entity WasteDisposal icon: Recycle
+%%field WasteDisposal.site_id help: Physical car wash location where the record applies.
+%%field WasteDisposal.vendor_id help: Waste service provider receiving this material, when registered.
+%%field WasteDisposal.employee_id help: Employee accountable for entering or witnessing the record.
+%%field WasteDisposal.manifest_number help: Unique manifest or transfer reference for the collection.
+%%field WasteDisposal.category help: Classification of the waste stream being collected.
+%%field WasteDisposal.category enum: WasteCategory
+%%field WasteDisposal.quantity_kg help: Weighed material in kilograms; use a consistent measurement basis.
+%%field WasteDisposal.collected_at help: Timestamp the material left the site’s custody.
+%%field WasteDisposal.destination help: Named waste transfer, recycling or disposal destination.
+%%field WasteDisposal.authorized_receiver_reference help: Permit or license number of the receiving disposal company.
+%%field WasteDisposal.receipt_url help: Secure copy of the receiver’s handover certificate or disposal receipt.
+%%section entity: WasteDisposal; name: Identity and decision; help: Keep the manifest and licensed destination details so disposal can be proven later.; rows: site_id, vendor_id | employee_id, manifest_number | category, quantity_kg
+%%section entity: WasteDisposal; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: collected_at, destination | authorized_receiver_reference, receipt_url
+%%entity FleetAccount help: Contractual billing terms for a business customer operating multiple eligible vehicles.
+%%entity FleetAccount icon: Building2
+%%field FleetAccount.customer_id help: Customer responsible for the service or account.
+%%field FleetAccount.account_code help: Fleet customer account identifier used across statements.
+%%field FleetAccount.billing_cycle help: Cadence at which fleet work is consolidated for invoicing.
+%%field FleetAccount.billing_cycle enum: FleetBillingCycle
+%%field FleetAccount.credit_limit help: Agreed unpaid exposure threshold for this fleet account.
+%%field FleetAccount.payment_terms_days help: Days after invoice issue before payment is contractually due.
+%%field FleetAccount.billing_contact_email help: Accounts-payable address to receive consolidated statements.
+%%field FleetAccount.purchase_order_required help: Whether this account must supply a customer PO before invoicing.
+%%field FleetAccount.is_active help: Whether new transactions may be booked against this account.
+%%field FleetAccount.contract_reference help: Signed fleet service agreement or pricing schedule identifier.
+%%section entity: FleetAccount; name: Identity and decision; help: Check the agreed billing cycle, credit limit and purchase-order policy before extending credit.; rows: customer_id, account_code | billing_cycle, credit_limit | payment_terms_days, billing_contact_email
+%%section entity: FleetAccount; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: purchase_order_required, is_active | contract_reference
+%%entity FleetInvoice help: Period-end consolidated fleet charge subject to customer purchase order, payment and reconciliation controls.
+%%entity FleetInvoice icon: Receipt
+%%field FleetInvoice.fleet_account_id help: Business fleet account that must settle this invoice.
+%%field FleetInvoice.site_id help: Physical car wash location where the record applies.
+%%field FleetInvoice.invoice_number help: Unique consolidated invoice number for customer reconciliation.
+%%field FleetInvoice.status help: Current lifecycle state changed by an authorized action, never by typing into the form.
+%%field FleetInvoice.status enum: FleetInvoiceStatus
+%%field FleetInvoice.period_start help: First service date included in the billing period.
+%%field FleetInvoice.period_end help: Last service date included in the billing period.
+%%field FleetInvoice.issued_on help: Date the finalized invoice was sent to the payer.
+%%field FleetInvoice.due_on help: Contractual settlement due date for the billed amount.
+%%field FleetInvoice.subtotal help: Service charge before applicable tax for this billing period.
+%%field FleetInvoice.tax_total help: Tax shown on the invoice using jurisdiction-specific settings.
+%%field FleetInvoice.total_amount help: Final amount owed including charges and tax.
+%%field FleetInvoice.amount_paid help: Amount already settled against the invoice; excludes failed attempts.
+%%field FleetInvoice.purchase_order_reference help: Customer authorization number needed for payment processing.
+%%field FleetInvoice.dispute_reason help: Open invoice dispute details requiring resolution before collection.
+%%section entity: FleetInvoice; name: Identity and decision; help: Reconcile all work orders in the period before issuing the customer statement.; rows: fleet_account_id, site_id | invoice_number, period_start | period_end, issued_on
+%%section entity: FleetInvoice; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: due_on, subtotal | tax_total, total_amount | amount_paid, purchase_order_reference | dispute_reason
+%%entity PaymentAttempt help: Immutable record of one processor attempt to collect a payment, including failures and retries, without storing card credentials.
+%%entity PaymentAttempt icon: CreditCard
+%%entity PaymentAttempt parent: Payment
+%%field PaymentAttempt.payment_id help: Payment record whose processor attempt is being traced.
+%%field PaymentAttempt.attempt_reference help: Idempotency reference unique to this collection attempt.
+%%field PaymentAttempt.attempted_at help: Time the provider was contacted or the collection was attempted.
+%%field PaymentAttempt.amount help: Amount attempted or scheduled, in the parent record currency.
+%%field PaymentAttempt.result help: Review outcome against the applicable permit and lab evidence.
+%%field PaymentAttempt.result enum: AttemptResult
+%%field PaymentAttempt.provider_reference help: Gateway or bank transaction ID used for reconciliation.
+%%field PaymentAttempt.failure_code help: Machine-readable processor decline code, without any secret payment data.
+%%field PaymentAttempt.failure_detail help: Sanitized explanation for finance and support staff.
+%%section entity: PaymentAttempt; name: Identity and decision; help: Match the external processor reference and avoid counting retries as separate payments.; rows: payment_id, attempt_reference | attempted_at, amount | result, provider_reference
+%%section entity: PaymentAttempt; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: failure_code, failure_detail
+%%entity MembershipBillingEvent help: One scheduled membership renewal and its collection outcome, including retries or waivers.
+%%entity MembershipBillingEvent icon: RefreshCw
+%%field MembershipBillingEvent.membership_id help: Recurring subscription whose invoice or collection event occurred.
+%%field MembershipBillingEvent.payment_id help: Payment record whose processor attempt is being traced.
+%%field MembershipBillingEvent.billing_reference help: Unique renewal-cycle reference to prevent double billing.
+%%field MembershipBillingEvent.scheduled_on help: Contractually scheduled date for renewal collection.
+%%field MembershipBillingEvent.attempted_at help: Time the provider was contacted or the collection was attempted.
+%%field MembershipBillingEvent.amount help: Amount attempted or scheduled, in the parent record currency.
+%%field MembershipBillingEvent.result help: Review outcome against the applicable permit and lab evidence.
+%%field MembershipBillingEvent.result enum: BillingEventResult
+%%field MembershipBillingEvent.retry_count help: Number of earlier collection attempts during this billing cycle.
+%%field MembershipBillingEvent.failure_reason help: Reason a renewal remains unpaid or was waived.
+%%section entity: MembershipBillingEvent; name: Identity and decision; help: Use this ledger to explain why a membership is paid, pending or past due.; rows: membership_id, payment_id | billing_reference, scheduled_on | attempted_at, amount
+%%section entity: MembershipBillingEvent; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: result, retry_count | failure_reason
+%%entity CustomerFeedback help: Post-service customer rating or complaint with a documented recovery outcome.
+%%entity CustomerFeedback icon: MessageSquareHeart
+%%field CustomerFeedback.work_order_id help: The wash job this evidence or decision belongs to.
+%%field CustomerFeedback.customer_id help: Customer responsible for the service or account.
+%%field CustomerFeedback.feedback_reference help: Unique identifier for this post-service response.
+%%field CustomerFeedback.received_at help: Date and time the customer submitted feedback.
+%%field CustomerFeedback.channel help: Where this customer response was received.
+%%field CustomerFeedback.channel enum: FeedbackChannel
+%%field CustomerFeedback.rating help: Optional customer rating on a configured one-to-five scale.
+%%field CustomerFeedback.comments help: Customer observations in their own words, retained for follow-up.
+%%field CustomerFeedback.recovery_outcome help: What the business offered or did to resolve dissatisfaction.
+%%field CustomerFeedback.recovery_outcome enum: RecoveryOutcome
+%%field CustomerFeedback.resolved_at help: When the customer recovery commitment was completed.
+%%section entity: CustomerFeedback; name: Identity and decision; help: Follow up on dissatisfied customers and close the loop after promised recovery.; rows: work_order_id, customer_id | feedback_reference, received_at | channel, rating
+%%section entity: CustomerFeedback; name: Follow through and evidence; help: Complete the follow-up and retain evidence linking the action to the source record.; rows: comments, recovery_outcome | resolved_at
+%%category name: Customer Assurance; description: Evidenced approvals and customer quality recovery records.; icon: ShieldCheck; color: #7c3aed; entities: AdditionalWorkApproval, CustomerFeedback
+%%category name: Environmental Stewardship; description: Permits, effluent lab results, waste manifests and operating checklists.; icon: Leaf; color: #0d9488; entities: SiteChecklist, EnvironmentalPermit, EffluentSample, WasteDisposal
+%%category name: Fleet and Billing Control; description: Fleet agreements, consolidated invoices and renewal history.; icon: FileSpreadsheet; color: #0369a1; entities: FleetAccount, FleetInvoice, MembershipBillingEvent
+%%category name: Organization; description: Company, sites, people, customers, vehicles, and service definitions.; icon: Building2; color: #2563eb; entities: Organization, Site, Employee, Customer, Vehicle, Service, SitePrice
+%%category name: Customer Growth; description: Membership, promotion, loyalty, booking, and queue operations.; icon: Users; color: #7c3aed; entities: MembershipPlan, Membership, Promotion, Booking, QueueTicket, LoyaltyEntry
+%%category name: Wash Operations; description: Jobs, inspection evidence, payment, and cashier accountability.; icon: Waves; color: #0891b2; entities: WorkOrder, VehicleInspection, Payment, CashShift
+%%category name: Supply and Assets; description: Inventory, purchasing, equipment, maintenance, incidents, utilities, and alerts.; icon: PackageSearch; color: #059669; entities: InventoryItem, InventoryStock, InventoryTransaction, Vendor, PurchaseOrder, Equipment, EquipmentMaintenance, Incident, UtilityReading, StockAlert
+%%index Site(organization_id)
+%%index Employee(site_id)
+%%index Vehicle(customer_id)
+%%index SitePrice(site_id, service_id)
+%%index Membership(customer_id, vehicle_id)
+%%index Promotion(site_id)
+%%index Booking(site_id, customer_id)
+%%index QueueTicket(site_id, customer_id)
+%%index WorkOrder(site_id, customer_id)
+%%index WorkOrderLine(work_order_id, service_id)
+%%index VehicleInspection(work_order_id, employee_id)
+%%index Payment(work_order_id, cash_shift_id)
+%%index CashShift(site_id, employee_id)
+%%index InventoryStock(site_id, inventory_item_id)
+%%index InventoryTransaction(inventory_stock_id, work_order_id)
+%%index PurchaseOrder(site_id, vendor_id)
+%%index PurchaseOrderLine(purchase_order_id, inventory_item_id)
+%%index Equipment(site_id)
+%%index EquipmentMaintenance(equipment_id, employee_id)
+%%index Incident(site_id, work_order_id)
+%%index UtilityReading(site_id, employee_id)
+%%index LoyaltyEntry(customer_id, work_order_id)
+%%index StockAlert(inventory_stock_id)
+%%category name: Service Assurance; description: Bay allocations, damage claims, refund authorizations and chemical safety controls.; icon: ShieldCheck; color: #0f766e; entities: WashBay, BayAllocation, DamageClaim, RefundRequest, ChemicalSafetyCheck
+%%index WashBay(site_id, status)
+%%index BayAllocation(wash_bay_id, planned_start)
+%%index BayAllocation(vehicle_id, planned_start)
+%%index DamageClaim(incident_id, reported_at)
+%%index RefundRequest(payment_id, requested_at)
+%%index ChemicalSafetyCheck(site_id, corrective_due_on)
+%%rbac role:manager|site_operator|cashier|technician on WashBay.read
+%%rbac role:manager|site_operator on WashBay.create
+%%rbac role:manager|site_operator on WashBay.update
+%%rbac role:manager on WashBay.delete
+%%rbac role:manager|site_operator|cashier|technician on BayAllocation.read
+%%rbac role:manager|site_operator on BayAllocation.create
+%%rbac role:manager|site_operator on BayAllocation.update
+%%rbac role:manager on BayAllocation.delete
+%%rbac role:manager|site_operator|cashier|technician on DamageClaim.read
+%%rbac role:manager|site_operator on DamageClaim.create
+%%rbac role:manager|site_operator on DamageClaim.update
+%%rbac role:manager on DamageClaim.delete
+%%rbac role:manager|site_operator|cashier|technician on RefundRequest.read
+%%rbac role:manager|site_operator on RefundRequest.create
+%%rbac role:manager|site_operator on RefundRequest.update
+%%rbac role:manager on RefundRequest.delete
+%%rbac role:manager|site_operator|cashier|technician on ChemicalSafetyCheck.read
+%%rbac role:manager|site_operator on ChemicalSafetyCheck.create
+%%rbac role:manager|site_operator on ChemicalSafetyCheck.update
+%%rbac role:manager on ChemicalSafetyCheck.delete
+%%rbac role:manager|site_operator|cashier|technician on Organization.read
+%%rbac role:manager|site_operator on Organization.create
+%%rbac role:manager|site_operator on Organization.update
+%%rbac role:manager on Organization.delete
+%%rbac role:manager|site_operator|cashier|technician on Site.read
+%%rbac role:manager|site_operator on Site.create
+%%rbac role:manager|site_operator on Site.update
+%%rbac role:manager on Site.delete
+%%rbac role:manager|site_operator|cashier|technician on Employee.read
+%%rbac role:manager|site_operator on Employee.create
+%%rbac role:manager|site_operator on Employee.update
+%%rbac role:manager on Employee.delete
+%%rbac role:manager|site_operator|cashier|technician on Customer.read
+%%rbac role:manager|site_operator on Customer.create
+%%rbac role:manager|site_operator on Customer.update
+%%rbac role:manager on Customer.delete
+%%rbac role:manager|site_operator|cashier|technician on Vehicle.read
+%%rbac role:manager|site_operator on Vehicle.create
+%%rbac role:manager|site_operator on Vehicle.update
+%%rbac role:manager on Vehicle.delete
+%%rbac role:manager|site_operator|cashier|technician on Service.read
+%%rbac role:manager|site_operator on Service.create
+%%rbac role:manager|site_operator on Service.update
+%%rbac role:manager on Service.delete
+%%rbac role:manager|site_operator|cashier|technician on SitePrice.read
+%%rbac role:manager|site_operator on SitePrice.create
+%%rbac role:manager|site_operator on SitePrice.update
+%%rbac role:manager on SitePrice.delete
+%%rbac role:manager|site_operator|cashier|technician on MembershipPlan.read
+%%rbac role:manager|site_operator on MembershipPlan.create
+%%rbac role:manager|site_operator on MembershipPlan.update
+%%rbac role:manager on MembershipPlan.delete
+%%rbac role:manager|site_operator|cashier|technician on Membership.read
+%%rbac role:manager|site_operator on Membership.create
+%%rbac role:manager|site_operator on Membership.update
+%%rbac role:manager on Membership.delete
+%%rbac role:manager|site_operator|cashier|technician on Promotion.read
+%%rbac role:manager|site_operator on Promotion.create
+%%rbac role:manager|site_operator on Promotion.update
+%%rbac role:manager on Promotion.delete
+%%rbac role:manager|site_operator|cashier|technician on Booking.read
+%%rbac role:manager|site_operator on Booking.create
+%%rbac role:manager|site_operator on Booking.update
+%%rbac role:manager on Booking.delete
+%%rbac role:manager|site_operator|cashier|technician on QueueTicket.read
+%%rbac role:manager|site_operator on QueueTicket.create
+%%rbac role:manager|site_operator on QueueTicket.update
+%%rbac role:manager on QueueTicket.delete
+%%rbac role:manager|site_operator|cashier|technician on WorkOrder.read
+%%rbac role:manager|site_operator on WorkOrder.create
+%%rbac role:manager|site_operator on WorkOrder.update
+%%rbac role:manager on WorkOrder.delete
+%%rbac role:manager|site_operator|cashier|technician on WorkOrderLine.read
+%%rbac role:manager|site_operator on WorkOrderLine.create
+%%rbac role:manager|site_operator on WorkOrderLine.update
+%%rbac role:manager on WorkOrderLine.delete
+%%rbac role:manager|site_operator|cashier|technician on VehicleInspection.read
+%%rbac role:manager|site_operator on VehicleInspection.create
+%%rbac role:manager|site_operator on VehicleInspection.update
+%%rbac role:manager on VehicleInspection.delete
+%%rbac role:manager|site_operator|cashier|technician on Payment.read
+%%rbac role:manager|site_operator on Payment.create
+%%rbac role:manager|site_operator on Payment.update
+%%rbac role:manager on Payment.delete
+%%rbac role:manager|site_operator|cashier|technician on CashShift.read
+%%rbac role:manager|site_operator on CashShift.create
+%%rbac role:manager|site_operator on CashShift.update
+%%rbac role:manager on CashShift.delete
+%%rbac role:manager|site_operator|cashier|technician on InventoryItem.read
+%%rbac role:manager|site_operator on InventoryItem.create
+%%rbac role:manager|site_operator on InventoryItem.update
+%%rbac role:manager on InventoryItem.delete
+%%rbac role:manager|site_operator|cashier|technician on InventoryStock.read
+%%rbac role:manager|site_operator on InventoryStock.create
+%%rbac role:manager|site_operator on InventoryStock.update
+%%rbac role:manager on InventoryStock.delete
+%%rbac role:manager|site_operator|cashier|technician on InventoryTransaction.read
+%%rbac role:manager|site_operator on InventoryTransaction.create
+%%rbac role:manager|site_operator on InventoryTransaction.update
+%%rbac role:manager on InventoryTransaction.delete
+%%rbac role:manager|site_operator|cashier|technician on Vendor.read
+%%rbac role:manager|site_operator on Vendor.create
+%%rbac role:manager|site_operator on Vendor.update
+%%rbac role:manager on Vendor.delete
+%%rbac role:manager|site_operator|cashier|technician on PurchaseOrder.read
+%%rbac role:manager|site_operator on PurchaseOrder.create
+%%rbac role:manager|site_operator on PurchaseOrder.update
+%%rbac role:manager on PurchaseOrder.delete
+%%rbac role:manager|site_operator|cashier|technician on PurchaseOrderLine.read
+%%rbac role:manager|site_operator on PurchaseOrderLine.create
+%%rbac role:manager|site_operator on PurchaseOrderLine.update
+%%rbac role:manager on PurchaseOrderLine.delete
+%%rbac role:manager|site_operator|cashier|technician on Equipment.read
+%%rbac role:manager|site_operator on Equipment.create
+%%rbac role:manager|site_operator on Equipment.update
+%%rbac role:manager on Equipment.delete
+%%rbac role:manager|site_operator|cashier|technician on EquipmentMaintenance.read
+%%rbac role:manager|site_operator on EquipmentMaintenance.create
+%%rbac role:manager|site_operator on EquipmentMaintenance.update
+%%rbac role:manager on EquipmentMaintenance.delete
+%%rbac role:manager|site_operator|cashier|technician on Incident.read
+%%rbac role:manager|site_operator on Incident.create
+%%rbac role:manager|site_operator on Incident.update
+%%rbac role:manager on Incident.delete
+%%rbac role:manager|site_operator|cashier|technician on UtilityReading.read
+%%rbac role:manager|site_operator on UtilityReading.create
+%%rbac role:manager|site_operator on UtilityReading.update
+%%rbac role:manager on UtilityReading.delete
+%%rbac role:manager|site_operator|cashier|technician on LoyaltyEntry.read
+%%rbac role:manager|site_operator on LoyaltyEntry.create
+%%rbac role:manager|site_operator on LoyaltyEntry.update
+%%rbac role:manager on LoyaltyEntry.delete
+%%rbac role:manager|site_operator|cashier|technician on StockAlert.read
+%%rbac role:manager|site_operator on StockAlert.create
+%%rbac role:manager|site_operator on StockAlert.update
+%%rbac role:manager on StockAlert.delete
+%%index ConditionEvidence(work_order_id, vehicle_inspection_id)
+%%rbac role:manager|site_operator|technician on ConditionEvidence.read
+%%rbac role:manager|site_operator|technician on ConditionEvidence.create
+%%index AdditionalWorkApproval(work_order_id, customer_id)
+%%rbac role:manager|site_operator on AdditionalWorkApproval.read
+%%rbac role:manager|site_operator on AdditionalWorkApproval.create
+%%rbac role:manager|site_operator on AdditionalWorkApproval.update
+%%rbac role:manager on AdditionalWorkApproval.delete
+%%index SiteChecklist(site_id, employee_id)
+%%rbac role:manager|site_operator|technician on SiteChecklist.read
+%%rbac role:manager|site_operator|technician on SiteChecklist.create
+%%rbac role:manager|site_operator|technician on SiteChecklist.update
+%%rbac role:manager on SiteChecklist.delete
+%%index EnvironmentalPermit(site_id)
+%%rbac role:manager|site_operator|technician on EnvironmentalPermit.read
+%%rbac role:manager on EnvironmentalPermit.create
+%%rbac role:manager on EnvironmentalPermit.update
+%%rbac role:manager on EnvironmentalPermit.delete
+%%index EffluentSample(site_id, environmental_permit_id)
+%%rbac role:manager|site_operator on EffluentSample.read
+%%rbac role:manager|site_operator|technician on EffluentSample.create
+%%rbac role:manager|site_operator|technician on EffluentSample.update
+%%index WasteDisposal(site_id, vendor_id)
+%%rbac role:manager|site_operator on WasteDisposal.read
+%%rbac role:manager|site_operator on WasteDisposal.create
+%%index FleetAccount(customer_id)
+%%rbac role:manager|site_operator|cashier on FleetAccount.read
+%%rbac role:manager on FleetAccount.create
+%%rbac role:manager on FleetAccount.update
+%%rbac role:manager on FleetAccount.delete
+%%index FleetInvoice(fleet_account_id, site_id)
+%%rbac role:manager|site_operator|cashier on FleetInvoice.read
+%%rbac role:manager on FleetInvoice.create
+%%rbac role:manager on FleetInvoice.update
+%%rbac role:manager on FleetInvoice.delete
+%%index PaymentAttempt(payment_id)
+%%rbac role:manager|site_operator|cashier on PaymentAttempt.read
+%%rbac role:manager|site_operator on PaymentAttempt.create
+%%index MembershipBillingEvent(membership_id, payment_id)
+%%rbac role:manager|site_operator|cashier on MembershipBillingEvent.read
+%%rbac role:manager|site_operator on MembershipBillingEvent.create
+%%index CustomerFeedback(work_order_id, customer_id)
+%%rbac role:manager|site_operator|cashier|technician on CustomerFeedback.read
+%%rbac role:manager|site_operator|cashier on CustomerFeedback.create
+%%rbac role:manager|site_operator|cashier on CustomerFeedback.update
+%%rbac role:manager on CustomerFeedback.delete
+%%meta name: Booking Lifecycle
+%%meta kind: workflow
+%%workflow BookingLifecycle entity: Booking kind: state
+stateDiagram-v2
+[*] --> requested
+requested --> confirmed : confirm
+requested --> cancelled : cancel
+confirmed --> checked_in : check_in
+confirmed --> cancelled : cancel
+confirmed --> no_show : mark_no_show
+checked_in --> completed : complete
+completed --> [*]
+cancelled --> [*]
+no_show --> [*]
+completed --> requested : reopen
+cancelled --> requested : reopen
+no_show --> requested : reopen
+%%rbac role:manager|site_operator|cashier|technician on Booking.confirm
+%%rbac role:manager|site_operator|cashier|technician on Booking.cancel
+%%rbac role:manager|site_operator|cashier|technician on Booking.check_in
+%%rbac role:manager|site_operator|cashier|technician on Booking.mark_no_show
+%%rbac role:manager|site_operator|cashier|technician on Booking.complete
+%%rbac role:manager on Booking.reopen
+%%meta name: Work Order Lifecycle
+%%meta kind: workflow
+%%workflow WorkOrderLifecycle entity: WorkOrder kind: state
+stateDiagram-v2
+[*] --> opened
+opened --> assigned : assign
+opened --> cancelled : cancel
+assigned --> washing : start_wash
+assigned --> cancelled : cancel
+washing --> quality_check : send_to_quality
+quality_check --> washing : rework
+quality_check --> completed : approve_quality
+completed --> [*]
+cancelled --> [*]
+completed --> opened : reopen
+cancelled --> opened : reopen
+%%rbac role:manager|site_operator|cashier|technician on WorkOrder.assign
+%%rbac role:manager|site_operator|cashier|technician on WorkOrder.cancel
+%%rbac role:manager|site_operator|cashier|technician on WorkOrder.start_wash
+%%rbac role:manager|site_operator|cashier|technician on WorkOrder.send_to_quality
+%%rbac role:manager|site_operator|cashier|technician on WorkOrder.rework
+%%rbac role:manager|site_operator|cashier|technician on WorkOrder.approve_quality
+%%rbac role:manager on WorkOrder.reopen
+%%meta name: Purchase Order Lifecycle
+%%meta kind: workflow
+%%workflow PurchaseOrderLifecycle entity: PurchaseOrder kind: state
+stateDiagram-v2
+[*] --> drafted
+drafted --> submitted : submit
+drafted --> cancelled : cancel
+submitted --> approved : approve
+submitted --> cancelled : reject
+approved --> partially_received : receive_partial
+approved --> received : receive_full
+partially_received --> received : complete_receipt
+received --> [*]
+cancelled --> [*]
+received --> drafted : reopen
+cancelled --> drafted : reopen
+%%rbac role:manager|site_operator|cashier|technician on PurchaseOrder.submit
+%%rbac role:manager|site_operator|cashier|technician on PurchaseOrder.cancel
+%%rbac role:manager|site_operator|cashier|technician on PurchaseOrder.approve
+%%rbac role:manager|site_operator|cashier|technician on PurchaseOrder.reject
+%%rbac role:manager|site_operator|cashier|technician on PurchaseOrder.receive_partial
+%%rbac role:manager|site_operator|cashier|technician on PurchaseOrder.receive_full
+%%rbac role:manager|site_operator|cashier|technician on PurchaseOrder.complete_receipt
+%%rbac role:manager on PurchaseOrder.reopen
+%%meta name: Maintenance Lifecycle
+%%meta kind: workflow
+%%workflow MaintenanceLifecycle entity: EquipmentMaintenance kind: state
+stateDiagram-v2
+[*] --> requested
+requested --> scheduled : schedule
+requested --> cancelled : cancel
+scheduled --> in_progress : start
+scheduled --> cancelled : cancel
+in_progress --> completed : complete
+completed --> [*]
+cancelled --> [*]
+completed --> requested : reopen
+cancelled --> requested : reopen
+%%rbac role:manager|site_operator|cashier|technician on EquipmentMaintenance.schedule
+%%rbac role:manager|site_operator|cashier|technician on EquipmentMaintenance.cancel
+%%rbac role:manager|site_operator|cashier|technician on EquipmentMaintenance.start
+%%rbac role:manager|site_operator|cashier|technician on EquipmentMaintenance.complete
+%%rbac role:manager on EquipmentMaintenance.reopen
+%%meta name: Booking Governance
+%%meta kind: workflow
+%%workflow BookingGovernance entity: Booking kind: hook
+flowchart TD
+BG1[Booking request] --> BG2[Validate capacity and vehicle eligibility]
+BG2 --> BG3[Persist reservation]
+BG3 --> BG4[Send operational confirmation]
+%%hook customValidate ensureBookingCapacity on Booking[field: scheduled_start]
+%%hook afterCreate sendBookingConfirmation on Booking
+%%meta name: Low Stock Detection
+%%meta kind: rules
+%%rule lowStockDetection on InventoryStock event: afterUpdate priority: 20
+flowchart TD
+LS1([Stock changed]) --> LS2{quantity_on_hand <= reorder_level?}
+LS2 -->|Yes| LS3[Create actionable stock warning]
+LS2 -->|No| LS4[No warning required]
+LS3 --> LS5([Decision complete])
+LS4 --> LS5
+%%action createLowStockAlert trigger-workflow when: quantity_on_hand <= reorder_level workflow: CreateLowStockAlert message: Stock is at or below reorder level
+%%meta name: Create Low Stock Alert
+%%meta kind: workflow
+%%workflow CreateLowStockAlert entity: InventoryStock kind: saga trigger: rule
+flowchart TD
+SA1([Low stock confirmed]) --> SA2[Create alert for purchasing]
+SA2 --> SA3([Alert available])
+%%step SA2 CreateEntity entity: StockAlert fields: {"inventory_stock_id":"id","alert_type":"'low_stock'","status":"'open'","message":"'Stock is at or below reorder level'"}
+%%meta name: Wash Bay Availability
+%%meta kind: workflow
+%%workflow WashBayAvailability entity: WashBay kind: state
+stateDiagram-v2
+[*] --> available
+available --> occupied : occupy
+occupied --> cleaning : finish_wash
+cleaning --> available : release
+available --> maintenance : close_for_service
+occupied --> maintenance : stop_unsafe
+maintenance --> available : restore
+available --> closed : close
+closed --> available : reopen_bay
+closed --> [*]
+%%rbac role:manager|site_operator on WashBay.close
+%%rbac role:manager on WashBay.close_for_service
+%%rbac role:manager|site_operator on WashBay.finish_wash
+%%rbac role:manager|site_operator on WashBay.occupy
+%%rbac role:manager|site_operator on WashBay.release
+%%rbac role:manager|site_operator on WashBay.reopen_bay
+%%rbac role:manager on WashBay.restore
+%%rbac role:manager|site_operator on WashBay.stop_unsafe
+%%meta name: Bay Allocation Lifecycle
+%%meta kind: workflow
+%%workflow BayAllocationLifecycle entity: BayAllocation kind: state
+stateDiagram-v2
+[*] --> reserved
+reserved --> checked_in : check_in
+reserved --> cancelled : cancel
+reserved --> no_show : mark_no_show
+checked_in --> in_service : begin
+checked_in --> cancelled : cancel
+in_service --> released : release
+released --> [*]
+cancelled --> [*]
+no_show --> [*]
+released --> reserved : reopen
+cancelled --> reserved : reopen
+no_show --> reserved : reopen
+%%rbac role:manager|site_operator on BayAllocation.begin
+%%rbac role:manager|site_operator on BayAllocation.cancel
+%%rbac role:manager|site_operator on BayAllocation.check_in
+%%rbac role:manager|site_operator on BayAllocation.mark_no_show
+%%rbac role:manager|site_operator on BayAllocation.release
+%%rbac role:manager on BayAllocation.reopen
+%%meta name: Damage Claim Lifecycle
+%%meta kind: workflow
+%%workflow DamageClaimLifecycle entity: DamageClaim kind: state
+stateDiagram-v2
+[*] --> reported
+reported --> evidence_review : start_review
+evidence_review --> approved : approve
+evidence_review --> rejected : reject
+approved --> settled : settle
+settled --> closed : close
+rejected --> closed : close
+closed --> [*]
+closed --> reported : reopen
+%%rbac role:manager on DamageClaim.approve
+%%rbac role:manager|site_operator on DamageClaim.close
+%%rbac role:manager on DamageClaim.reject
+%%rbac role:manager on DamageClaim.settle
+%%rbac role:manager|site_operator on DamageClaim.start_review
+%%rbac role:manager on DamageClaim.reopen
+%%meta name: Refund Request Lifecycle
+%%meta kind: workflow
+%%workflow RefundRequestLifecycle entity: RefundRequest kind: state
+stateDiagram-v2
+[*] --> requested
+requested --> under_review : review
+requested --> cancelled : cancel
+under_review --> approved : approve
+under_review --> rejected : reject
+approved --> processed : process_refund
+processed --> [*]
+rejected --> [*]
+cancelled --> [*]
+processed --> requested : reopen
+rejected --> requested : reopen
+cancelled --> requested : reopen
+%%rbac role:manager on RefundRequest.approve
+%%rbac role:manager|site_operator on RefundRequest.cancel
+%%rbac role:manager on RefundRequest.process_refund
+%%rbac role:manager on RefundRequest.reject
+%%rbac role:manager|site_operator on RefundRequest.review
+%%rbac role:manager on RefundRequest.reopen
+%%meta name: Chemical Safety Check Lifecycle
+%%meta kind: workflow
+%%workflow ChemicalSafetyCheckLifecycle entity: ChemicalSafetyCheck kind: state
+stateDiagram-v2
+[*] --> open
+open --> remediation_required : require_remediation
+open --> verified : verify_pass
+remediation_required --> verified : verify_remediation
+verified --> closed : close
+closed --> [*]
+closed --> open : reopen
+%%rbac role:manager|site_operator on ChemicalSafetyCheck.close
+%%rbac role:manager|site_operator on ChemicalSafetyCheck.require_remediation
+%%rbac role:manager|site_operator on ChemicalSafetyCheck.verify_pass
+%%rbac role:manager|site_operator on ChemicalSafetyCheck.verify_remediation
+%%rbac role:manager on ChemicalSafetyCheck.reopen
+%%meta name: Additional Work Approval Lifecycle
+%%meta kind: workflow
+%%workflow AdditionalWorkApprovalLifecycle entity: AdditionalWorkApproval kind: state
+stateDiagram-v2
+[*] --> requested
+requested --> approved : approve
+requested --> rejected : reject
+requested --> withdrawn : withdraw
+approved --> [*]
+rejected --> [*]
+withdrawn --> [*]
+approved --> requested : reopen
+rejected --> requested : reopen
+withdrawn --> requested : reopen
+%%rbac role:manager|site_operator on AdditionalWorkApproval.approve
+%%rbac role:manager|site_operator on AdditionalWorkApproval.reject
+%%rbac role:manager|site_operator on AdditionalWorkApproval.withdraw
+%%rbac role:manager on AdditionalWorkApproval.reopen
+%%meta name: Fleet Invoice Lifecycle
+%%meta kind: workflow
+%%workflow FleetInvoiceLifecycle entity: FleetInvoice kind: state
+stateDiagram-v2
+[*] --> draft
+draft --> issued : issue
+draft --> voided : void
+issued --> partially_paid : part_pay
+issued --> paid : settle
+issued --> overdue : mark_overdue
+issued --> voided : void
+partially_paid --> paid : settle
+partially_paid --> overdue : mark_overdue
+overdue --> partially_paid : part_pay
+overdue --> paid : settle
+paid --> [*]
+voided --> [*]
+paid --> draft : reopen
+voided --> draft : reopen
+%%rbac role:manager on FleetInvoice.issue
+%%rbac role:manager on FleetInvoice.void
+%%rbac role:manager|site_operator on FleetInvoice.part_pay
+%%rbac role:manager|site_operator on FleetInvoice.settle
+%%rbac role:manager on FleetInvoice.mark_overdue
+%%rbac role:manager on FleetInvoice.reopen
+%%report sales-by-site title: Sales value by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(w.grand_total) AS total FROM bus_work_order w JOIN bus_site s ON w.site_id = s.id WHERE w.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report orders-by-site title: Work orders by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_work_order w JOIN bus_site s ON w.site_id = s.id WHERE w.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report sales-by-month title: Sales value by month chart: line x: month y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT DATE_TRUNC('month', w.opened_at) AS month, SUM(w.grand_total) AS total FROM bus_work_order w WHERE w.deleted_at IS NULL GROUP BY DATE_TRUNC('month', w.opened_at)
+%%report orders-by-month title: Work orders by month chart: line x: month y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT DATE_TRUNC('month', w.opened_at) AS month, COUNT(*) AS total FROM bus_work_order w WHERE w.deleted_at IS NULL GROUP BY DATE_TRUNC('month', w.opened_at)
+%%report average-ticket-by-site title: Average ticket by site chart: bar x: site y: average_total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, AVG(w.grand_total) AS average_total FROM bus_work_order w JOIN bus_site s ON w.site_id = s.id WHERE w.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report discount-rate-by-site title: Discount value by site chart: bar x: site y: discount_total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(w.discount_total) AS discount_total FROM bus_work_order w JOIN bus_site s ON w.site_id = s.id WHERE w.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report tax-collected-by-site title: Tax collected by site chart: bar x: site y: tax_total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(w.tax_total) AS tax_total FROM bus_work_order w JOIN bus_site s ON w.site_id = s.id WHERE w.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report orders-by-status title: Work orders by status chart: bar x: status y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT w.status AS status, COUNT(*) AS total FROM bus_work_order w WHERE w.deleted_at IS NULL GROUP BY w.status
+%%report delayed-open-orders title: Open orders past promise chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_work_order w JOIN bus_site s ON w.site_id = s.id WHERE w.deleted_at IS NULL AND s.deleted_at IS NULL AND w.completed_at IS NULL AND w.promised_at < CURRENT_TIMESTAMP GROUP BY s.name
+%%report completion-minutes-by-site title: Average completion minutes by site chart: bar x: site y: minutes help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, AVG(EXTRACT(EPOCH FROM (w.completed_at - w.opened_at))/60) AS minutes FROM bus_work_order w JOIN bus_site s ON w.site_id = s.id WHERE w.deleted_at IS NULL AND s.deleted_at IS NULL AND w.completed_at IS NOT NULL GROUP BY s.name
+%%report service-revenue-ranking title: Revenue by service chart: bar x: service y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS service, SUM(l.line_total) AS total FROM bus_work_order_line l JOIN bus_service s ON l.service_id = s.id WHERE l.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report service-volume-ranking title: Units sold by service chart: bar x: service y: quantity help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS service, SUM(l.quantity) AS quantity FROM bus_work_order_line l JOIN bus_service s ON l.service_id = s.id WHERE l.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report service-discount-ranking title: Discounts by service chart: bar x: service y: discount help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS service, SUM(l.discount_amount) AS discount FROM bus_work_order_line l JOIN bus_service s ON l.service_id = s.id WHERE l.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report customers-by-type title: Customers by relationship type chart: pie x: customer_type y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT c.customer_type AS customer_type, COUNT(*) AS total FROM bus_customer c WHERE c.deleted_at IS NULL GROUP BY c.customer_type
+%%report vehicles-by-type title: Vehicles by body type chart: bar x: vehicle_type y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT v.vehicle_type AS vehicle_type, COUNT(*) AS total FROM bus_vehicle v WHERE v.deleted_at IS NULL GROUP BY v.vehicle_type
+%%report new-customers-by-month title: New customers by month chart: line x: month y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT DATE_TRUNC('month', c.created_at) AS month, COUNT(*) AS total FROM bus_customer c WHERE c.deleted_at IS NULL GROUP BY DATE_TRUNC('month', c.created_at)
+%%report loyalty-points-by-type title: Loyalty points by movement type chart: bar x: entry_type y: points help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT l.entry_type AS entry_type, SUM(l.points) AS points FROM bus_loyalty_entry l WHERE l.deleted_at IS NULL GROUP BY l.entry_type
+%%report loyalty-adjustments-by-employee title: Manual loyalty activity by employee chart: bar x: employee y: points help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT e.full_name AS employee, SUM(l.points) AS points FROM bus_loyalty_entry l JOIN bus_employee e ON l.employee_id = e.id WHERE l.deleted_at IS NULL AND e.deleted_at IS NULL GROUP BY e.full_name
+%%report memberships-by-status title: Memberships by status chart: bar x: status y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT m.status AS status, COUNT(*) AS total FROM bus_membership m WHERE m.deleted_at IS NULL GROUP BY m.status
+%%report memberships-by-plan title: Memberships by plan chart: bar x: plan y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT p.name AS plan, COUNT(*) AS total FROM bus_membership m JOIN bus_membership_plan p ON m.membership_plan_id = p.id WHERE m.deleted_at IS NULL AND p.deleted_at IS NULL GROUP BY p.name
+%%report membership-renewals-due title: Membership renewals due by date chart: line x: billing_date y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT m.next_billing_date AS billing_date, COUNT(*) AS total FROM bus_membership m WHERE m.deleted_at IS NULL AND m.next_billing_date IS NOT NULL GROUP BY m.next_billing_date
+%%report membership-past-due-by-plan title: Past-due memberships by plan chart: bar x: plan y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT p.name AS plan, COUNT(*) AS total FROM bus_membership m JOIN bus_membership_plan p ON m.membership_plan_id = p.id WHERE m.deleted_at IS NULL AND p.deleted_at IS NULL AND m.status = 'past_due' GROUP BY p.name
+%%report bookings-by-status title: Bookings by status chart: bar x: status y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT b.status AS status, COUNT(*) AS total FROM bus_booking b WHERE b.deleted_at IS NULL GROUP BY b.status
+%%report bookings-by-site title: Bookings by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_booking b JOIN bus_site s ON b.site_id = s.id WHERE b.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report bookings-by-source title: Bookings by source chart: bar x: source y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT b.source AS source, COUNT(*) AS total FROM bus_booking b WHERE b.deleted_at IS NULL GROUP BY b.source
+%%report no-shows-by-site title: No-shows by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_booking b JOIN bus_site s ON b.site_id = s.id WHERE b.deleted_at IS NULL AND s.deleted_at IS NULL AND b.status = 'no_show' GROUP BY s.name
+%%report booking-lead-hours title: Average booking lead hours by site chart: bar x: site y: hours help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, AVG(EXTRACT(EPOCH FROM (b.scheduled_start - b.created_at))/3600) AS hours FROM bus_booking b JOIN bus_site s ON b.site_id = s.id WHERE b.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report queue-arrivals-by-site title: Queue arrivals by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_queue_ticket q JOIN bus_site s ON q.site_id = s.id WHERE q.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report queue-wait-by-site title: Quoted wait by site chart: bar x: site y: minutes help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, AVG(q.estimated_wait_minutes) AS minutes FROM bus_queue_ticket q JOIN bus_site s ON q.site_id = s.id WHERE q.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report queue-abandonment-by-site title: Queue abandonment by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_queue_ticket q JOIN bus_site s ON q.site_id = s.id WHERE q.deleted_at IS NULL AND s.deleted_at IS NULL AND q.status = 'left' GROUP BY s.name
+%%report payments-by-method title: Captured value by payment method chart: pie x: method y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT p.method AS method, SUM(p.amount) AS total FROM bus_payment p WHERE p.deleted_at IS NULL AND p.status = 'captured' GROUP BY p.method
+%%report payments-by-status title: Payments by processing status chart: bar x: status y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT p.status AS status, COUNT(*) AS total FROM bus_payment p WHERE p.deleted_at IS NULL GROUP BY p.status
+%%report refund-value-by-method title: Refund value by payment method chart: bar x: method y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT p.method AS method, SUM(ABS(p.amount)) AS total FROM bus_payment p WHERE p.deleted_at IS NULL AND p.amount < 0 GROUP BY p.method
+%%report failed-payments-by-day title: Failed payments by day chart: line x: day y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT DATE_TRUNC('day', p.processed_at) AS day, COUNT(*) AS total FROM bus_payment p WHERE p.deleted_at IS NULL AND p.status = 'failed' GROUP BY DATE_TRUNC('day', p.processed_at)
+%%report cash-variance-by-site title: Cash variance by site chart: bar x: site y: variance help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(c.variance) AS variance FROM bus_cash_shift c JOIN bus_site s ON c.site_id = s.id WHERE c.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report cash-variance-by-employee title: Cash variance by cashier chart: bar x: employee y: variance help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT e.full_name AS employee, SUM(c.variance) AS variance FROM bus_cash_shift c JOIN bus_employee e ON c.employee_id = e.id WHERE c.deleted_at IS NULL AND e.deleted_at IS NULL GROUP BY e.full_name
+%%report open-cash-shifts-by-site title: Open cash shifts by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_cash_shift c JOIN bus_site s ON c.site_id = s.id WHERE c.deleted_at IS NULL AND s.deleted_at IS NULL AND c.status = 'open' GROUP BY s.name
+%%report stock-value-by-site title: Stock value by site chart: bar x: site y: value help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(st.quantity_on_hand * i.standard_cost) AS value FROM bus_inventory_stock st JOIN bus_site s ON st.site_id = s.id JOIN bus_inventory_item i ON st.inventory_item_id = i.id WHERE st.deleted_at IS NULL AND s.deleted_at IS NULL AND i.deleted_at IS NULL GROUP BY s.name
+%%report low-stock-items-by-site title: Items at or below reorder level chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_inventory_stock st JOIN bus_site s ON st.site_id = s.id WHERE st.deleted_at IS NULL AND s.deleted_at IS NULL AND st.quantity_on_hand <= st.reorder_level GROUP BY s.name
+%%report overstock-items-by-site title: Items above maximum level chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_inventory_stock st JOIN bus_site s ON st.site_id = s.id WHERE st.deleted_at IS NULL AND s.deleted_at IS NULL AND st.maximum_level IS NOT NULL AND st.quantity_on_hand > st.maximum_level GROUP BY s.name
+%%report chemical-consumption-by-site title: Chemical consumption by site chart: bar x: site y: quantity help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(ABS(t.quantity)) AS quantity FROM bus_inventory_transaction t JOIN bus_inventory_stock st ON t.inventory_stock_id = st.id JOIN bus_site s ON st.site_id = s.id JOIN bus_inventory_item i ON st.inventory_item_id = i.id WHERE t.deleted_at IS NULL AND st.deleted_at IS NULL AND s.deleted_at IS NULL AND i.deleted_at IS NULL AND i.category = 'chemical' AND t.movement_type = 'consumption' GROUP BY s.name
+%%report inventory-adjustments-by-site title: Inventory adjustments by site chart: bar x: site y: quantity help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(ABS(t.quantity)) AS quantity FROM bus_inventory_transaction t JOIN bus_inventory_stock st ON t.inventory_stock_id = st.id JOIN bus_site s ON st.site_id = s.id WHERE t.deleted_at IS NULL AND st.deleted_at IS NULL AND s.deleted_at IS NULL AND t.movement_type = 'adjustment' GROUP BY s.name
+%%report purchase-orders-by-status title: Purchase orders by status chart: bar x: status y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT p.status AS status, COUNT(*) AS total FROM bus_purchase_order p WHERE p.deleted_at IS NULL GROUP BY p.status
+%%report purchase-value-by-vendor title: Purchase value by vendor chart: bar x: vendor y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT v.name AS vendor, SUM(p.total_amount) AS total FROM bus_purchase_order p JOIN bus_vendor v ON p.vendor_id = v.id WHERE p.deleted_at IS NULL AND v.deleted_at IS NULL GROUP BY v.name
+%%report late-purchase-orders-by-vendor title: Late open purchase orders by vendor chart: bar x: vendor y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT v.name AS vendor, COUNT(*) AS total FROM bus_purchase_order p JOIN bus_vendor v ON p.vendor_id = v.id WHERE p.deleted_at IS NULL AND v.deleted_at IS NULL AND p.expected_on < CURRENT_DATE AND p.status NOT IN ('received','cancelled') GROUP BY v.name
+%%report purchase-receipt-gap-by-item title: Unreceived quantity by inventory item chart: bar x: item y: quantity help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT i.name AS item, SUM(l.ordered_quantity - l.received_quantity) AS quantity FROM bus_purchase_order_line l JOIN bus_inventory_item i ON l.inventory_item_id = i.id WHERE l.deleted_at IS NULL AND i.deleted_at IS NULL GROUP BY i.name
+%%report equipment-by-status title: Equipment by operating status chart: bar x: status y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT e.status AS status, COUNT(*) AS total FROM bus_equipment e WHERE e.deleted_at IS NULL GROUP BY e.status
+%%report equipment-by-type title: Equipment by type chart: bar x: equipment_type y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT e.equipment_type AS equipment_type, COUNT(*) AS total FROM bus_equipment e WHERE e.deleted_at IS NULL GROUP BY e.equipment_type
+%%report maintenance-due-by-site title: Equipment due for service by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_equipment e JOIN bus_site s ON e.site_id = s.id WHERE e.deleted_at IS NULL AND s.deleted_at IS NULL AND e.next_service_date <= CURRENT_DATE GROUP BY s.name
+%%report maintenance-cost-by-equipment title: Maintenance cost by equipment chart: bar x: equipment y: cost help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT e.name AS equipment, SUM(m.cost) AS cost FROM bus_equipment_maintenance m JOIN bus_equipment e ON m.equipment_id = e.id WHERE m.deleted_at IS NULL AND e.deleted_at IS NULL GROUP BY e.name
+%%report downtime-by-equipment title: Downtime minutes by equipment chart: bar x: equipment y: minutes help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT e.name AS equipment, SUM(m.downtime_minutes) AS minutes FROM bus_equipment_maintenance m JOIN bus_equipment e ON m.equipment_id = e.id WHERE m.deleted_at IS NULL AND e.deleted_at IS NULL GROUP BY e.name
+%%report maintenance-by-status title: Maintenance work by status chart: bar x: status y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT m.status AS status, COUNT(*) AS total FROM bus_equipment_maintenance m WHERE m.deleted_at IS NULL GROUP BY m.status
+%%report incidents-by-severity title: Incidents by severity chart: pie x: severity y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT i.severity AS severity, COUNT(*) AS total FROM bus_incident i WHERE i.deleted_at IS NULL GROUP BY i.severity
+%%report incidents-by-type title: Incidents by type chart: bar x: incident_type y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT i.incident_type AS incident_type, COUNT(*) AS total FROM bus_incident i WHERE i.deleted_at IS NULL GROUP BY i.incident_type
+%%report open-incidents-by-site title: Unresolved incidents by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_incident i JOIN bus_site s ON i.site_id = s.id WHERE i.deleted_at IS NULL AND s.deleted_at IS NULL AND i.resolved_at IS NULL GROUP BY s.name
+%%report critical-incidents-by-month title: Critical incidents by month chart: line x: month y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT DATE_TRUNC('month', i.occurred_at) AS month, COUNT(*) AS total FROM bus_incident i WHERE i.deleted_at IS NULL AND i.severity = 'critical' GROUP BY DATE_TRUNC('month', i.occurred_at)
+%%report water-input-by-site title: Water input readings by site chart: bar x: site y: value help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(u.reading_value) AS value FROM bus_utility_reading u JOIN bus_site s ON u.site_id = s.id WHERE u.deleted_at IS NULL AND s.deleted_at IS NULL AND u.meter_type = 'water_input' GROUP BY s.name
+%%report water-reclaimed-by-site title: Reclaimed water readings by site chart: bar x: site y: value help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(u.reading_value) AS value FROM bus_utility_reading u JOIN bus_site s ON u.site_id = s.id WHERE u.deleted_at IS NULL AND s.deleted_at IS NULL AND u.meter_type = 'water_reclaimed' GROUP BY s.name
+%%report energy-readings-by-site title: Electricity readings by site chart: bar x: site y: value help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(u.reading_value) AS value FROM bus_utility_reading u JOIN bus_site s ON u.site_id = s.id WHERE u.deleted_at IS NULL AND s.deleted_at IS NULL AND u.meter_type = 'electricity' GROUP BY s.name
+%%report utility-cost-by-site title: Utility period cost by site chart: bar x: site y: cost help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, SUM(u.period_cost) AS cost FROM bus_utility_reading u JOIN bus_site s ON u.site_id = s.id WHERE u.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report employee-workload title: Work orders led by employee chart: bar x: employee y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT e.full_name AS employee, COUNT(*) AS total FROM bus_work_order w JOIN bus_employee e ON w.employee_id = e.id WHERE w.deleted_at IS NULL AND e.deleted_at IS NULL GROUP BY e.full_name
+%%report employee-completion-value title: Completed value by employee chart: bar x: employee y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT e.full_name AS employee, SUM(w.grand_total) AS total FROM bus_work_order w JOIN bus_employee e ON w.employee_id = e.id WHERE w.deleted_at IS NULL AND e.deleted_at IS NULL AND w.status = 'completed' GROUP BY e.full_name
+%%report inspections-by-employee title: Vehicle inspections by employee chart: bar x: employee y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT e.full_name AS employee, COUNT(*) AS total FROM bus_vehicle_inspection i JOIN bus_employee e ON i.employee_id = e.id WHERE i.deleted_at IS NULL AND e.deleted_at IS NULL GROUP BY e.full_name
+%%report preexisting-damage-by-site title: Pre-existing damage records by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_vehicle_inspection i JOIN bus_work_order w ON i.work_order_id = w.id JOIN bus_site s ON w.site_id = s.id WHERE i.deleted_at IS NULL AND w.deleted_at IS NULL AND s.deleted_at IS NULL AND i.pre_existing_damage = TRUE GROUP BY s.name
+%%report promotion-discount-by-code title: Discount value by promotion code chart: bar x: promotion y: discount help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT p.code AS promotion, SUM(l.discount_amount) AS discount FROM bus_work_order_line l JOIN bus_promotion p ON l.promotion_id = p.id WHERE l.deleted_at IS NULL AND p.deleted_at IS NULL GROUP BY p.code
+%%report active-promotions-by-site title: Active promotions by site chart: bar x: site y: total help: Management and operating roles use this result to identify the condition, assign action, and verify improvement. sql: SELECT COALESCE(s.name, 'All sites') AS site, COUNT(*) AS total FROM bus_promotion p LEFT JOIN bus_site s ON p.site_id = s.id WHERE p.deleted_at IS NULL AND p.status = 'active' GROUP BY COALESCE(s.name, 'All sites')
+%%report wash-bay-capacity-by-site title: Wash bay vehicle capacity by site chart: bar x: site y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT s.name AS site, SUM(b.capacity_vehicles) AS total FROM bus_wash_bay b JOIN bus_site s ON b.site_id = s.id WHERE b.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report wash-bays-by-status title: Wash bays by availability status chart: bar x: status y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT b.status AS status, COUNT(*) AS total FROM bus_wash_bay b WHERE b.deleted_at IS NULL GROUP BY b.status
+%%report bay-allocations-by-site title: Scheduled bay allocations by site chart: bar x: site y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_bay_allocation a JOIN bus_wash_bay b ON a.wash_bay_id = b.id JOIN bus_site s ON b.site_id = s.id WHERE a.deleted_at IS NULL AND b.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report bay-allocations-by-status title: Bay allocations by progress state chart: bar x: status y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT a.status AS status, COUNT(*) AS total FROM bus_bay_allocation a WHERE a.deleted_at IS NULL GROUP BY a.status
+%%report bay-booked-minutes-by-location title: Reserved bay minutes by site chart: bar x: site y: minutes help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT s.name AS site, SUM(EXTRACT(EPOCH FROM (a.planned_end - a.planned_start))/60) AS minutes FROM bus_bay_allocation a JOIN bus_wash_bay b ON a.wash_bay_id = b.id JOIN bus_site s ON b.site_id = s.id WHERE a.deleted_at IS NULL AND b.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report bay-actual-minutes-by-location title: Actual occupied bay minutes by site chart: bar x: site y: minutes help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT s.name AS site, SUM(EXTRACT(EPOCH FROM (a.actual_end - a.actual_start))/60) AS minutes FROM bus_bay_allocation a JOIN bus_wash_bay b ON a.wash_bay_id = b.id JOIN bus_site s ON b.site_id = s.id WHERE a.deleted_at IS NULL AND b.deleted_at IS NULL AND s.deleted_at IS NULL AND a.actual_end IS NOT NULL AND a.actual_start IS NOT NULL GROUP BY s.name
+%%report damage-claims-by-status title: Customer damage claims by resolution state chart: bar x: status y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT c.status AS status, COUNT(*) AS total FROM bus_damage_claim c WHERE c.deleted_at IS NULL GROUP BY c.status
+%%report damage-claimed-value-by-month title: Damage amount claimed per month chart: line x: month y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT DATE_TRUNC('month', c.reported_at) AS month, SUM(c.claimed_amount) AS total FROM bus_damage_claim c WHERE c.deleted_at IS NULL GROUP BY DATE_TRUNC('month', c.reported_at)
+%%report damage-approved-value-by-month title: Approved claim settlement by month chart: line x: month y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT DATE_TRUNC('month', c.reported_at) AS month, SUM(c.approved_amount) AS total FROM bus_damage_claim c WHERE c.deleted_at IS NULL AND c.approved_amount IS NOT NULL GROUP BY DATE_TRUNC('month', c.reported_at)
+%%report damage-claims-by-vehicle-type title: Claims by vehicle body type chart: bar x: vehicle_type y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT v.vehicle_type AS vehicle_type, COUNT(*) AS total FROM bus_damage_claim c JOIN bus_vehicle v ON c.vehicle_id = v.id WHERE c.deleted_at IS NULL AND v.deleted_at IS NULL GROUP BY v.vehicle_type
+%%report refund-requests-by-status title: Customer refunds by approval stage chart: bar x: status y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT r.status AS status, COUNT(*) AS total FROM bus_refund_request r WHERE r.deleted_at IS NULL GROUP BY r.status
+%%report refund-requests-by-month title: Refund requests raised each month chart: line x: month y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT DATE_TRUNC('month', r.requested_at) AS month, COUNT(*) AS total FROM bus_refund_request r WHERE r.deleted_at IS NULL GROUP BY DATE_TRUNC('month', r.requested_at)
+%%report refund-amount-requested-by-month title: Requested refund amount by month chart: line x: month y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT DATE_TRUNC('month', r.requested_at) AS month, SUM(r.requested_amount) AS total FROM bus_refund_request r WHERE r.deleted_at IS NULL GROUP BY DATE_TRUNC('month', r.requested_at)
+%%report refund-approved-by-employee title: Refund value approved by reviewer chart: bar x: reviewer y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT e.full_name AS reviewer, SUM(r.approved_amount) AS total FROM bus_refund_request r JOIN bus_employee e ON r.approved_by_id = e.id WHERE r.deleted_at IS NULL AND e.deleted_at IS NULL GROUP BY e.full_name
+%%report chemical-checks-by-result title: Chemical safety check outcomes chart: bar x: result y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT c.result AS result, COUNT(*) AS total FROM bus_chemical_safety_check c WHERE c.deleted_at IS NULL GROUP BY c.result
+%%report chemical-checks-by-site title: Chemical safety inspections by site chart: bar x: site y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_chemical_safety_check c JOIN bus_site s ON c.site_id = s.id WHERE c.deleted_at IS NULL AND s.deleted_at IS NULL GROUP BY s.name
+%%report open-chemical-remediation-by-site title: Unclosed chemical safety findings by location chart: bar x: site y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_chemical_safety_check c JOIN bus_site s ON c.site_id = s.id WHERE c.deleted_at IS NULL AND s.deleted_at IS NULL AND c.status IN ('open', 'remediation_required') GROUP BY s.name
+%%report overdue-chemical-corrections-by-site title: Chemical corrective actions past due by site chart: bar x: site y: total help: Site management reviews this measure to assign responsibility, verify service quality, and close exceptions with evidence. sql: SELECT s.name AS site, COUNT(*) AS total FROM bus_chemical_safety_check c JOIN bus_site s ON c.site_id = s.id WHERE c.deleted_at IS NULL AND s.deleted_at IS NULL AND c.corrective_due_on < CURRENT_DATE AND c.status NOT IN ('verified', 'closed') GROUP BY s.name
+%%dashboard manager-executive-performance title: Executive Performance - manager role: manager reports: sales-by-site, sales-by-month, average-ticket-by-site, orders-by-status, completion-minutes-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard manager-site-operations title: Site Operations - manager role: manager reports: orders-by-site, delayed-open-orders, queue-arrivals-by-site, queue-wait-by-site, employee-workload help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard manager-customer-growth title: Customer Growth - manager role: manager reports: new-customers-by-month, customers-by-type, memberships-by-status, memberships-by-plan, loyalty-points-by-type help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard manager-booking-capacity title: Booking and Capacity - manager role: manager reports: bookings-by-site, bookings-by-status, no-shows-by-site, booking-lead-hours, queue-abandonment-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard manager-revenue-control title: Revenue Control - manager role: manager reports: service-revenue-ranking, discount-rate-by-site, tax-collected-by-site, promotion-discount-by-code, payments-by-method help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard manager-cash-reconciliation title: Cash and Payments - manager role: manager reports: payments-by-status, refund-value-by-method, failed-payments-by-day, cash-variance-by-site, open-cash-shifts-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard manager-inventory-control title: Inventory Control - manager role: manager reports: stock-value-by-site, low-stock-items-by-site, overstock-items-by-site, chemical-consumption-by-site, inventory-adjustments-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard manager-procurement title: Procurement - manager role: manager reports: purchase-orders-by-status, purchase-value-by-vendor, late-purchase-orders-by-vendor, purchase-receipt-gap-by-item, low-stock-items-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard manager-asset-reliability title: Asset Reliability - manager role: manager reports: equipment-by-status, maintenance-due-by-site, maintenance-cost-by-equipment, downtime-by-equipment, maintenance-by-status help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard manager-safety-sustainability title: Safety and Sustainability - manager role: manager reports: incidents-by-severity, open-incidents-by-site, critical-incidents-by-month, water-input-by-site, utility-cost-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard site_operator-executive-performance title: Executive Performance - site operator role: site_operator reports: sales-by-site, sales-by-month, average-ticket-by-site, orders-by-status, completion-minutes-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard site_operator-site-operations title: Site Operations - site operator role: site_operator reports: orders-by-site, delayed-open-orders, queue-arrivals-by-site, queue-wait-by-site, employee-workload help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard site_operator-customer-growth title: Customer Growth - site operator role: site_operator reports: new-customers-by-month, customers-by-type, memberships-by-status, memberships-by-plan, loyalty-points-by-type help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard site_operator-booking-capacity title: Booking and Capacity - site operator role: site_operator reports: bookings-by-site, bookings-by-status, no-shows-by-site, booking-lead-hours, queue-abandonment-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard site_operator-revenue-control title: Revenue Control - site operator role: site_operator reports: service-revenue-ranking, discount-rate-by-site, tax-collected-by-site, promotion-discount-by-code, payments-by-method help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard site_operator-cash-reconciliation title: Cash and Payments - site operator role: site_operator reports: payments-by-status, refund-value-by-method, failed-payments-by-day, cash-variance-by-site, open-cash-shifts-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard site_operator-inventory-control title: Inventory Control - site operator role: site_operator reports: stock-value-by-site, low-stock-items-by-site, overstock-items-by-site, chemical-consumption-by-site, inventory-adjustments-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard site_operator-procurement title: Procurement - site operator role: site_operator reports: purchase-orders-by-status, purchase-value-by-vendor, late-purchase-orders-by-vendor, purchase-receipt-gap-by-item, low-stock-items-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard site_operator-asset-reliability title: Asset Reliability - site operator role: site_operator reports: equipment-by-status, maintenance-due-by-site, maintenance-cost-by-equipment, downtime-by-equipment, maintenance-by-status help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard site_operator-safety-sustainability title: Safety and Sustainability - site operator role: site_operator reports: incidents-by-severity, open-incidents-by-site, critical-incidents-by-month, water-input-by-site, utility-cost-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard cashier-executive-performance title: Executive Performance - cashier role: cashier reports: sales-by-site, sales-by-month, average-ticket-by-site, orders-by-status, completion-minutes-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard cashier-site-operations title: Site Operations - cashier role: cashier reports: orders-by-site, delayed-open-orders, queue-arrivals-by-site, queue-wait-by-site, employee-workload help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard cashier-customer-growth title: Customer Growth - cashier role: cashier reports: new-customers-by-month, customers-by-type, memberships-by-status, memberships-by-plan, loyalty-points-by-type help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard cashier-booking-capacity title: Booking and Capacity - cashier role: cashier reports: bookings-by-site, bookings-by-status, no-shows-by-site, booking-lead-hours, queue-abandonment-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard cashier-revenue-control title: Revenue Control - cashier role: cashier reports: service-revenue-ranking, discount-rate-by-site, tax-collected-by-site, promotion-discount-by-code, payments-by-method help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard cashier-cash-reconciliation title: Cash and Payments - cashier role: cashier reports: payments-by-status, refund-value-by-method, failed-payments-by-day, cash-variance-by-site, open-cash-shifts-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard cashier-inventory-control title: Inventory Control - cashier role: cashier reports: stock-value-by-site, low-stock-items-by-site, overstock-items-by-site, chemical-consumption-by-site, inventory-adjustments-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard cashier-procurement title: Procurement - cashier role: cashier reports: purchase-orders-by-status, purchase-value-by-vendor, late-purchase-orders-by-vendor, purchase-receipt-gap-by-item, low-stock-items-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard cashier-asset-reliability title: Asset Reliability - cashier role: cashier reports: equipment-by-status, maintenance-due-by-site, maintenance-cost-by-equipment, downtime-by-equipment, maintenance-by-status help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard cashier-safety-sustainability title: Safety and Sustainability - cashier role: cashier reports: incidents-by-severity, open-incidents-by-site, critical-incidents-by-month, water-input-by-site, utility-cost-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard technician-executive-performance title: Executive Performance - technician role: technician reports: sales-by-site, sales-by-month, average-ticket-by-site, orders-by-status, completion-minutes-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard technician-site-operations title: Site Operations - technician role: technician reports: orders-by-site, delayed-open-orders, queue-arrivals-by-site, queue-wait-by-site, employee-workload help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard technician-customer-growth title: Customer Growth - technician role: technician reports: new-customers-by-month, customers-by-type, memberships-by-status, memberships-by-plan, loyalty-points-by-type help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard technician-booking-capacity title: Booking and Capacity - technician role: technician reports: bookings-by-site, bookings-by-status, no-shows-by-site, booking-lead-hours, queue-abandonment-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard technician-revenue-control title: Revenue Control - technician role: technician reports: service-revenue-ranking, discount-rate-by-site, tax-collected-by-site, promotion-discount-by-code, payments-by-method help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard technician-cash-reconciliation title: Cash and Payments - technician role: technician reports: payments-by-status, refund-value-by-method, failed-payments-by-day, cash-variance-by-site, open-cash-shifts-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard technician-inventory-control title: Inventory Control - technician role: technician reports: stock-value-by-site, low-stock-items-by-site, overstock-items-by-site, chemical-consumption-by-site, inventory-adjustments-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard technician-procurement title: Procurement - technician role: technician reports: purchase-orders-by-status, purchase-value-by-vendor, late-purchase-orders-by-vendor, purchase-receipt-gap-by-item, low-stock-items-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard technician-asset-reliability title: Asset Reliability - technician role: technician reports: equipment-by-status, maintenance-due-by-site, maintenance-cost-by-equipment, downtime-by-equipment, maintenance-by-status help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+%%dashboard technician-safety-sustainability title: Safety and Sustainability - technician role: technician reports: incidents-by-severity, open-incidents-by-site, critical-incidents-by-month, water-input-by-site, utility-cost-by-site help: This role opens the dashboard to review exceptions, decide ownership, and follow through on the named operational job.
+
+%%dashboard manager-bay-capacity-review title: Bay Capacity Review - manager role: manager reports: wash-bay-capacity-by-site, wash-bays-by-status, bay-allocations-by-site, bay-booked-minutes-by-location, bay-actual-minutes-by-location help: The role checks lane utilization and unserved customer demand before setting the shift plan.
+%%dashboard manager-claims-and-safety-review title: Claims and Safety Review - manager role: manager reports: damage-claims-by-status, damage-claimed-value-by-month, refund-requests-by-status, chemical-checks-by-result, overdue-chemical-corrections-by-site help: The role reviews disputed service outcomes and unresolved chemical hazards requiring action.
+%%dashboard site_operator-bay-capacity-review title: Bay Capacity Review - site_operator role: site_operator reports: wash-bay-capacity-by-site, wash-bays-by-status, bay-allocations-by-site, bay-booked-minutes-by-location, bay-actual-minutes-by-location help: The role checks lane utilization and unserved customer demand before setting the shift plan.
+%%dashboard site_operator-claims-and-safety-review title: Claims and Safety Review - site_operator role: site_operator reports: damage-claims-by-status, damage-claimed-value-by-month, refund-requests-by-status, chemical-checks-by-result, overdue-chemical-corrections-by-site help: The role reviews disputed service outcomes and unresolved chemical hazards requiring action.
+%%dashboard cashier-bay-capacity-review title: Bay Capacity Review - cashier role: cashier reports: wash-bay-capacity-by-site, wash-bays-by-status, bay-allocations-by-site, bay-booked-minutes-by-location, bay-actual-minutes-by-location help: The role checks lane utilization and unserved customer demand before setting the shift plan.
+%%dashboard cashier-claims-and-safety-review title: Claims and Safety Review - cashier role: cashier reports: damage-claims-by-status, damage-claimed-value-by-month, refund-requests-by-status, chemical-checks-by-result, overdue-chemical-corrections-by-site help: The role reviews disputed service outcomes and unresolved chemical hazards requiring action.
+%%dashboard technician-bay-capacity-review title: Bay Capacity Review - technician role: technician reports: wash-bay-capacity-by-site, wash-bays-by-status, bay-allocations-by-site, bay-booked-minutes-by-location, bay-actual-minutes-by-location help: The role checks lane utilization and unserved customer demand before setting the shift plan.
+%%dashboard technician-claims-and-safety-review title: Claims and Safety Review - technician role: technician reports: damage-claims-by-status, damage-claimed-value-by-month, refund-requests-by-status, chemical-checks-by-result, overdue-chemical-corrections-by-site help: The role reviews disputed service outcomes and unresolved chemical hazards requiring action.
+
+%%report condition-images-by-phase title: Vehicle condition evidence by phase chart: bar x: phase y: total help: Claims staff verify whether photographs were taken before washing, afterward or at recovery. sql: SELECT ce.phase AS phase, COUNT(*) AS total FROM bus_condition_evidence ce  WHERE ce.deleted_at IS NULL GROUP BY ce.phase
+%%report condition-images-by-employee title: Condition photographs recorded per employee chart: bar x: employee y: total help: Quality leads audit traceability of images captured by the team. sql: SELECT ce.employee_id AS employee, COUNT(*) AS total FROM bus_condition_evidence ce  WHERE ce.deleted_at IS NULL GROUP BY ce.employee_id
+%%report evidence-holds-pending title: Condition evidence retained for review chart: bar x: retention y: total help: Compliance leads review whether potentially relevant images have a recorded retention plan. sql: SELECT COALESCE(ce.retention_until::text, 'indefinite') AS retention, COUNT(*) AS total FROM bus_condition_evidence ce  WHERE ce.deleted_at IS NULL GROUP BY COALESCE(ce.retention_until::text, 'indefinite')
+%%report additional-work-by-status title: Additional work requests by authorization state chart: bar x: status y: total help: Customer service identifies extras awaiting an explicit customer decision. sql: SELECT a.status AS status, COUNT(*) AS total FROM bus_additional_work_approval a  WHERE a.deleted_at IS NULL GROUP BY a.status
+%%report additional-quoted-value-by-state title: Additional service value by authorization chart: bar x: status y: value help: Finance reviews authorized additional revenue separately from refused requests. sql: SELECT a.status AS status, SUM(a.quoted_amount) AS value FROM bus_additional_work_approval a  WHERE a.deleted_at IS NULL GROUP BY a.status
+%%report additional-work-by-service title: Extra work requested by service chart: bar x: service y: total help: Service managers review commonly proposed additions and whether package design needs adjustment. sql: SELECT a.service_id AS service, COUNT(*) AS total FROM bus_additional_work_approval a  WHERE a.deleted_at IS NULL GROUP BY a.service_id
+%%report checklist-outcomes title: Shift checklists by observed result chart: bar x: outcome y: total help: Site management identifies failed start-of-shift safety checks. sql: SELECT sc.outcome AS outcome, COUNT(*) AS total FROM bus_site_checklist sc  WHERE sc.deleted_at IS NULL GROUP BY sc.outcome
+%%report checklist-kinds title: Completed operational checks by type chart: bar x: kind y: total help: Operations checks coverage of required opening and closing procedures. sql: SELECT sc.kind AS kind, COUNT(*) AS total FROM bus_site_checklist sc  WHERE sc.deleted_at IS NULL GROUP BY sc.kind
+%%report failed-checklists-by-site title: Safety checklist failures per location chart: bar x: site y: total help: Safety leads prioritize sites reporting readiness failures. sql: SELECT sc.site_id AS site, COUNT(*) AS total FROM bus_site_checklist sc  WHERE sc.deleted_at IS NULL AND sc.outcome = 'fail' GROUP BY sc.site_id
+%%report checklist-unsafe-stop title: Emergency stop tests not passed by site chart: bar x: site y: total help: Technical teams escalate missing emergency-stop verification before operation. sql: SELECT sc.site_id AS site, COUNT(*) AS total FROM bus_site_checklist sc  WHERE sc.deleted_at IS NULL AND sc.emergency_stop_tested = false GROUP BY sc.site_id
+%%report permits-by-result title: Environmental permits by standing chart: bar x: standing y: total help: Compliance staff review permits needing renewal or regulator follow-up. sql: SELECT ep.permit_result AS standing, COUNT(*) AS total FROM bus_environmental_permit ep  WHERE ep.deleted_at IS NULL GROUP BY ep.permit_result
+%%report permits-expiring-by-site title: Environmental permits expiring in 60 days chart: bar x: site y: total help: Location management starts renewal before an operating permit expires. sql: SELECT ep.site_id AS site, COUNT(*) AS total FROM bus_environmental_permit ep  WHERE ep.deleted_at IS NULL AND ep.expires_on <= CURRENT_DATE + INTERVAL '60 days' GROUP BY ep.site_id
+%%report wastewater-results title: Wastewater test outcomes chart: bar x: result y: total help: Environmental leads monitor exceedances against permit-specific limits. sql: SELECT es.result AS result, COUNT(*) AS total FROM bus_effluent_sample es  WHERE es.deleted_at IS NULL GROUP BY es.result
+%%report wastewater-ph-by-site title: Measured mean wastewater pH by site chart: bar x: site y: avg_ph help: Operators examine pH drift and investigate conditions outside permit requirements. sql: SELECT es.site_id AS site, AVG(es.ph) AS avg_ph FROM bus_effluent_sample es  WHERE es.deleted_at IS NULL GROUP BY es.site_id
+%%report wastewater-solids-by-site title: Measured suspended solids by site chart: bar x: site y: avg_tss help: Treatment engineers compare sampled solids concentrations across sites. sql: SELECT es.site_id AS site, AVG(es.suspended_solids_mg_l) AS avg_tss FROM bus_effluent_sample es  WHERE es.deleted_at IS NULL GROUP BY es.site_id
+%%report wastewater-oil-by-site title: Measured wastewater oil and grease by site chart: bar x: site y: avg_oil help: Environmental teams find sites needing grease separation improvements. sql: SELECT es.site_id AS site, AVG(es.oil_grease_mg_l) AS avg_oil FROM bus_effluent_sample es  WHERE es.deleted_at IS NULL GROUP BY es.site_id
+%%report waste-exit-by-type title: Waste disposed by material class chart: bar x: category y: kilograms help: Managers confirm the mix and mass of removed waste streams. sql: SELECT wd.category AS category, SUM(wd.quantity_kg) AS kilograms FROM bus_waste_disposal wd  WHERE wd.deleted_at IS NULL GROUP BY wd.category
+%%report waste-exit-by-site title: Disposal quantity by site chart: bar x: site y: kilograms help: Site supervisors reconcile manifest quantities with collection records. sql: SELECT wd.site_id AS site, SUM(wd.quantity_kg) AS kilograms FROM bus_waste_disposal wd  WHERE wd.deleted_at IS NULL GROUP BY wd.site_id
+%%report fleet-accounts-by-cycle title: Fleet accounts by billing cadence chart: bar x: cycle y: total help: Account staff plan invoicing workload and customer statement cycles. sql: SELECT fa.billing_cycle AS cycle, COUNT(*) AS total FROM bus_fleet_account fa  WHERE fa.deleted_at IS NULL GROUP BY fa.billing_cycle
+%%report fleet-credit-by-cycle title: Contracted fleet credit exposure by cycle chart: bar x: cycle y: limit_total help: Credit control reviews authorized exposure by billing cycle. sql: SELECT fa.billing_cycle AS cycle, SUM(fa.credit_limit) AS limit_total FROM bus_fleet_account fa  WHERE fa.deleted_at IS NULL GROUP BY fa.billing_cycle
+%%report fleet-invoices-by-status title: Consolidated fleet invoices by state chart: bar x: status y: total help: Collections identifies issued, overdue and partly paid fleet statements. sql: SELECT fi.status AS status, COUNT(*) AS total FROM bus_fleet_invoice fi  WHERE fi.deleted_at IS NULL GROUP BY fi.status
+%%report fleet-receivable-by-status title: Fleet outstanding amount by invoice state chart: bar x: status y: receivable help: Finance ranks unresolved business account receivables. sql: SELECT fi.status AS status, SUM(fi.total_amount - fi.amount_paid) AS receivable FROM bus_fleet_invoice fi  WHERE fi.deleted_at IS NULL GROUP BY fi.status
+%%report fleet-billed-by-site title: Fleet invoice value by billing location chart: bar x: site y: billed help: Branch management reviews fleet revenue concentrated at each location. sql: SELECT fi.site_id AS site, SUM(fi.total_amount) AS billed FROM bus_fleet_invoice fi  WHERE fi.deleted_at IS NULL GROUP BY fi.site_id
+%%report payment-attempt-outcomes title: Processor payment attempts by result chart: bar x: result y: attempts help: Finance separates settlement successes from retries and processor failures. sql: SELECT pa.result AS result, COUNT(*) AS attempts FROM bus_payment_attempt pa  WHERE pa.deleted_at IS NULL GROUP BY pa.result
+%%report payment-attempt-value title: Payment attempt value by outcome chart: bar x: result y: amount_total help: Collections compares amounts attempted with genuine successful settlement. sql: SELECT pa.result AS result, SUM(pa.amount) AS amount_total FROM bus_payment_attempt pa  WHERE pa.deleted_at IS NULL GROUP BY pa.result
+%%report membership-renewal-results title: Subscription renewal results chart: bar x: result y: total help: Membership staff identify members needing retry or manual intervention. sql: SELECT mb.result AS result, COUNT(*) AS total FROM bus_membership_billing_event mb  WHERE mb.deleted_at IS NULL GROUP BY mb.result
+%%report membership-retry-load title: Subscription retries required by outcome chart: bar x: result y: retries help: Billing teams track operational burden from payment retries. sql: SELECT mb.result AS result, SUM(mb.retry_count) AS retries FROM bus_membership_billing_event mb  WHERE mb.deleted_at IS NULL GROUP BY mb.result
+%%report customer-feedback-by-channel title: Customer responses by channel chart: bar x: channel y: total help: Service managers monitor which feedback channels customers actually use. sql: SELECT cf.channel AS channel, COUNT(*) AS total FROM bus_customer_feedback cf  WHERE cf.deleted_at IS NULL GROUP BY cf.channel
+%%report customer-recovery-outcomes title: Service recovery actions by result chart: bar x: outcome y: total help: Customer experience teams see whether promises led to completed recoveries. sql: SELECT cf.recovery_outcome AS outcome, COUNT(*) AS total FROM bus_customer_feedback cf  WHERE cf.deleted_at IS NULL GROUP BY cf.recovery_outcome
+%%report customer-ratings-by-channel title: Customer satisfaction by feedback channel chart: bar x: channel y: average_rating help: Customer experience leads compare satisfaction from different contact channels. sql: SELECT cf.channel AS channel, AVG(cf.rating) AS average_rating FROM bus_customer_feedback cf  WHERE cf.deleted_at IS NULL GROUP BY cf.channel
+%%dashboard manager-operational-readiness title: Operating Readiness - manager role: manager reports: checklist-outcomes, failed-checklists-by-site, checklist-unsafe-stop, additional-work-by-status help: The manager sees opening failures and pending service permissions before releasing bays.
+%%dashboard manager-environmental-assurance title: Environmental Assurance - manager role: manager reports: permits-by-result, permits-expiring-by-site, wastewater-results, wastewater-oil-by-site, waste-exit-by-site help: The manager reviews compliance exposure and follows up with site environmental contacts.
+%%dashboard site_operator-shift-safety title: Site Shift Safety - site_operator role: site_operator reports: checklist-outcomes, checklist-kinds, failed-checklists-by-site, checklist-unsafe-stop help: The site operator verifies daily inspection completion and follows up on failures.
+%%dashboard site_operator-customer-service-recovery title: Customer Recovery - site_operator role: site_operator reports: additional-work-by-status, additional-work-by-service, customer-feedback-by-channel, customer-recovery-outcomes help: The site operator prevents unapproved extra work and closes recovery promises.
+%%dashboard cashier-fleet-collections title: Fleet Collections - cashier role: cashier reports: fleet-invoices-by-status, fleet-receivable-by-status, fleet-billed-by-site, fleet-accounts-by-cycle help: The cashier reviews outstanding fleet statements before collection and receipting.
+%%dashboard cashier-recurring-payment-exceptions title: Subscription Payment Exceptions - cashier role: cashier reports: payment-attempt-outcomes, payment-attempt-value, membership-renewal-results, membership-retry-load help: The cashier identifies retryable failures without double-charging the member.
+%%dashboard technician-daily-safety-check title: Technical Safety Check - technician role: technician reports: checklist-outcomes, checklist-kinds, failed-checklists-by-site, checklist-unsafe-stop help: The technician finds equipment and safety concerns needing a shutdown or repair.
+%%dashboard technician-vehicle-evidence-review title: Vehicle Condition Evidence - technician role: technician reports: condition-images-by-phase, condition-images-by-employee, evidence-holds-pending, customer-feedback-by-channel help: The technician reviews pre-service condition evidence and customer concerns before releasing a vehicle.

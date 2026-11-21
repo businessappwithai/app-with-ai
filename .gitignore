@@ -55,6 +55,20 @@ out/
 .env.test.local
 .env.production.local
 
+# Keys and credentials — never commit private keys, certificates or service accounts
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+*service-account*.json
+google-credentials.json
+gcp-credentials.json
+aws-credentials
+.aws/credentials
+.netrc
+
 # Database
 *.db
 *.db-shm
@@ -225,6 +239,7 @@ scripts/e2e-rules-workflows/screenshots/
 /website/assets/js/appwithai-fullstack.js
 /website/assets/js/appwithai-wasm.js
 /website/html/models/airport-management-system.eml.mmd
+/website/html/models/car-wash-management-system.eml.mmd
 /website/html/models/construction-enterprise-management.eml.mmd
 /website/html/models/crm.eml.mmd
 /website/html/models/dance-studio.eml.mmd

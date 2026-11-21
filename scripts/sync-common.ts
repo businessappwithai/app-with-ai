@@ -40,9 +40,10 @@ const GUIDE_MODELS = [
   "drug-discovery.eml.mmd",
   "investment-planning-wealth-management-system.eml.mmd",
 ];
-/** The twelve models the website's guide publishes at /guide/models/ (the rest are language samples). */
+/** The thirteen models the website's guide publishes at /guide/models/ (the rest are language samples). */
 const SITE_MODELS = [
   "airport-management-system.eml.mmd",
+  "car-wash-management-system.eml.mmd",
   "construction-enterprise-management.eml.mmd",
   "crm.eml.mmd",
   "dance-studio.eml.mmd",

@@ -8,7 +8,7 @@ Live at **https://www.appwithai.org** (canonical; redirects to apex `appwithai.o
 
 AppWithAI takes an Entity Modeling Language (`.eml.mmd`) file and generates a complete, runnable application: a NestJS API, a TanStack Start / React 19 frontend with shadcn/UI, PostgreSQL migrations, an enterprise reporting platform, and a deployable `docker compose up --build` archive — all from a single model.
 
-This repository is the marketing and documentation site only. The generator lives in [`businessappwithai/app-with-ai-tanstack`](https://github.com/businessappwithai/app-with-ai-tanstack).
+This repository is the marketing and documentation site only. The generator lives in [`businessappwithai/app-with-ai`](https://github.com/businessappwithai/app-with-ai/tree/deploy).
 
 > **Experimental software, not fully tested.** The site says so in the hero and footer of the home page. The five items before a production-grade 1.0.0 release are listed on [`todo.html`](https://www.appwithai.org/todo.html).
 

@@ -357,6 +357,10 @@ npm-debug.log*
 # rewrites them anyway.
 test-results/
 tests/.e2e-seed-manifest.json
+
+# Seeded accounts for the sign-in screen — demo data, never commit.
+password_list.txt
+reporting/password_list.txt
 `;
     await fs.writeFile(path.join(outputDir, ".gitignore"), gitignore);
 
@@ -367,6 +371,9 @@ tests/.e2e-seed-manifest.json
 
     // The reporting application this project ships beside itself.
     await this.writeReportingFiles(outputDir);
+
+    // The file the sign-in screens read at runtime to list seeded accounts.
+    await this.writePasswordList(outputDir);
 
     // Copy GitHub Actions workflows
     await this.copyGitHubWorkflows(outputDir);
@@ -440,6 +447,62 @@ tests/.e2e-seed-manifest.json
       } catch (error) {
         console.warn(`${file.output} generation skipped: ${(error as Error).message}`);
       }
+    }
+  }
+
+  /**
+   * `password_list.txt` at the project root.
+   *
+   * Both sign-in screens (the main app and the reporting platform) read this
+   * file at runtime via their own `GET /api/sys/demo-accounts` endpoints and
+   * list the seeded accounts so a reader can click to fill the form. When the
+   * file is absent or empty those screens show no accounts — which is the
+   * right behaviour for a production deployment where someone has cleaned up.
+   *
+   * The file is never committed (`.gitignore` lists it) and must not be
+   * hardcoded in source: it is demonstration data about one generation run.
+   * The reporting directory gets a copy because its Docker build context is
+   * `./reporting` and the report container needs the file at build time.
+   */
+  private async writePasswordList(outputDir: string): Promise<void> {
+    const pack = this.options.reportingPack;
+    if (!pack) return;
+
+    const appAccounts = pack.access.roles.map((role) => ({
+      email: role.appEmail,
+      role: role.name,
+      isAdmin: role.isAdmin,
+      entities: role.isAdmin ? pack.access.entityTotal : role.tables.length,
+    }));
+
+    const reportAccounts = pack.access.roles.map((role) => ({
+      email: role.email,
+      role: role.name,
+      isAdmin: role.isAdmin,
+      tables: role.isAdmin ? pack.access.entityTotal : role.tables.length,
+    }));
+
+    const content =
+      JSON.stringify(
+        {
+          app: appAccounts,
+          appPassword: pack.access.appPassword,
+          report: reportAccounts,
+          reportPassword: pack.access.reportPassword,
+        },
+        null,
+        2
+      ) + "\n";
+
+    await fs.writeFile(path.join(outputDir, "password_list.txt"), content);
+    // Also write into reporting/ so the report Docker image (build context
+    // `./reporting`) can COPY it without needing the project root.
+    try {
+      const reportingDir = path.join(outputDir, "reporting");
+      await fs.mkdir(reportingDir, { recursive: true });
+      await fs.writeFile(path.join(reportingDir, "password_list.txt"), content);
+    } catch {
+      // Non-fatal — the reporting image falls back to showing no accounts.
     }
   }
 

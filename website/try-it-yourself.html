@@ -69,7 +69,7 @@
            an unknown one falls back to the CRM. Add a model there and here
            together, or this box offers something the page cannot select. -->
       <div style="margin-top: var(--spacing-2xl); border: 1px solid rgba(255,255,255,0.35); border-radius: var(--radius-lg); padding: var(--spacing-xl); background: rgba(255,255,255,0.07); text-align: left; max-width: 62rem; margin-left: auto; margin-right: auto;">
-        <p style="color: white; font-weight: 600; margin: 0 0 var(--spacing-xs); text-align: center;">Or start from one of the eight worked examples</p>
+        <p style="color: white; font-weight: 600; margin: 0 0 var(--spacing-xs); text-align: center;">Or start from one of the thirteen worked examples</p>
         <p style="color: rgba(255,255,255,0.75); margin: 0 0 var(--spacing-lg); text-align: center; font-size: 0.95rem;">Each one is a complete model — entities, rules, state machines, sagas, access control and the <code>%%report</code> queries a reporting layer is derived from. Pick the one nearest your business; it opens in the browser demo with the model already loaded, and nothing is installed or uploaded. Each one builds <strong>two</strong> applications: the one you click through, and Enterprise Reporting beside it, with a sign-in of its own and one reporting role per role the model declares. The demo shows reporting as a preview; the <strong>Download the deployable app (.zip)</strong> button on the same page gives you the real thing, the platform included.</p>
         <div class="grid grid-3" style="gap: var(--spacing-md);">
           <div class="example-card" style="display: flex; flex-direction: column; gap: var(--spacing-xs);">
@@ -190,6 +190,16 @@
             <div style="display: flex; gap: var(--spacing-xs); flex-wrap: wrap;">
               <a href="guide/models/construction-enterprise-management.eml.mmd" download="construction-enterprise-management.eml.mmd" data-model-download="construction" style="display:inline-block;padding:0.35rem 0.8rem;border:1px solid rgba(255,255,255,0.45);border-radius:var(--radius-md);color:white;background:rgba(0,0,0,0.15);font-size:0.85rem;font-weight:600;text-decoration:none;cursor:pointer;font-family:inherit;" aria-label="Download construction-enterprise-management.eml.mmd">&#11015; Download .mmd</a>
               <button type="button" data-model-manual="construction" data-model-path="guide/models/construction-enterprise-management.eml.mmd" style="display:inline-block;padding:0.35rem 0.8rem;border:1px solid rgba(255,255,255,0.45);border-radius:var(--radius-md);color:white;background:rgba(0,0,0,0.15);font-size:0.85rem;font-weight:600;text-decoration:none;cursor:pointer;font-family:inherit;" aria-label="Generate the manual for construction-enterprise-management in a new tab">&#128214; Generate manual</button>
+            </div>
+          </div>
+          <div class="example-card" style="display: flex; flex-direction: column; gap: var(--spacing-xs);">
+          <a href="guide/run-in-browser.html#carwash" style="display: block; flex: 1; padding: var(--spacing-md); border: 1px solid rgba(255,255,255,0.25); border-radius: var(--radius-md); text-decoration: none; background: rgba(0,0,0,0.15);">
+            <strong style="color: white; display: block;">Car wash management</strong>
+            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">94 entities. Sites, services and pricing; memberships and vehicle queues; work orders, payments and cash shift balancing; inventory, purchase orders, equipment maintenance and incident reporting. 11 state machines, 1 saga, 1 rule, 2 hooks, 4 roles, 238 access restrictions and 114 <code>%%report</code> directives. The mid-size retail-operations one.</span>
+          </a>
+            <div style="display: flex; gap: var(--spacing-xs); flex-wrap: wrap;">
+              <a href="guide/models/car-wash-management-system.eml.mmd" download="car-wash-management-system.eml.mmd" data-model-download="carwash" style="display:inline-block;padding:0.35rem 0.8rem;border:1px solid rgba(255,255,255,0.45);border-radius:var(--radius-md);color:white;background:rgba(0,0,0,0.15);font-size:0.85rem;font-weight:600;text-decoration:none;cursor:pointer;font-family:inherit;" aria-label="Download car-wash-management-system.eml.mmd">&#11015; Download .mmd</a>
+              <button type="button" data-model-manual="carwash" data-model-path="guide/models/car-wash-management-system.eml.mmd" style="display:inline-block;padding:0.35rem 0.8rem;border:1px solid rgba(255,255,255,0.45);border-radius:var(--radius-md);color:white;background:rgba(0,0,0,0.15);font-size:0.85rem;font-weight:600;text-decoration:none;cursor:pointer;font-family:inherit;" aria-label="Generate the manual for car-wash-management-system in a new tab">&#128214; Generate manual</button>
             </div>
           </div>
           <a href="guide/run-in-browser.html#upload" style="display: block; padding: var(--spacing-md); border: 1px dashed rgba(255,255,255,0.45); border-radius: var(--radius-md); text-decoration: none; background: rgba(0,0,0,0.05);">
@@ -599,7 +609,7 @@ docker compose up --build</pre>
         <div>
           <h3>AppWithAI</h3>
           <p>Open source AI-powered generator for production-ready business applications. Licensed under the Apache License 2.0.</p>
-          <p class="mt-2"><a href="https://github.com/businessappwithai/app-with-ai-tanstack" target="_blank" rel="noopener noreferrer">Source on GitHub &rarr;</a></p>
+          <p class="mt-2"><a href="https://github.com/businessappwithai/app-with-ai/tree/deploy" target="_blank" rel="noopener noreferrer">Source on GitHub &rarr;</a></p>
         </div>
         <div>
           <h3>Product</h3>

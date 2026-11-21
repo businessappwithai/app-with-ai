@@ -19828,10 +19828,15 @@ npm-debug.log*
 # rewrites them anyway.
 test-results/
 tests/.e2e-seed-manifest.json
+
+# Seeded accounts for the sign-in screen — demo data, never commit.
+password_list.txt
+reporting/password_list.txt
 `;
     await writeFile(join(outputDir, ".gitignore"), gitignore);
     await this.writeContainerFiles(outputDir);
     await this.writeReportingFiles(outputDir);
+    await this.writePasswordList(outputDir);
     await this.copyGitHubWorkflows(outputDir);
   }
   async writeContainerFiles(outputDir) {
@@ -19868,6 +19873,36 @@ tests/.e2e-seed-manifest.json
         console.warn(`${file.output} generation skipped: ${error.message}`);
       }
     }
+  }
+  async writePasswordList(outputDir) {
+    const pack = this.options.reportingPack;
+    if (!pack)
+      return;
+    const appAccounts = pack.access.roles.map((role) => ({
+      email: role.appEmail,
+      role: role.name,
+      isAdmin: role.isAdmin,
+      entities: role.isAdmin ? pack.access.entityTotal : role.tables.length
+    }));
+    const reportAccounts = pack.access.roles.map((role) => ({
+      email: role.email,
+      role: role.name,
+      isAdmin: role.isAdmin,
+      tables: role.isAdmin ? pack.access.entityTotal : role.tables.length
+    }));
+    const content = JSON.stringify({
+      app: appAccounts,
+      appPassword: pack.access.appPassword,
+      report: reportAccounts,
+      reportPassword: pack.access.reportPassword
+    }, null, 2) + `
+`;
+    await writeFile(join(outputDir, "password_list.txt"), content);
+    try {
+      const reportingDir = join(outputDir, "reporting");
+      await mkdir(reportingDir, { recursive: true });
+      await writeFile(join(reportingDir, "password_list.txt"), content);
+    } catch {}
   }
   async writeReportingFiles(outputDir) {
     const pack = this.options.reportingPack;
