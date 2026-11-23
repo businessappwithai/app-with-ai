@@ -32,6 +32,12 @@ export default defineConfig({
   },
   vite: {
     optimizeDeps: {
+      // Scan every route file at startup. Vite's default is to scan only the
+      // entry file, so a first visit to any page (e.g. /dashboard) triggers a
+      // new dep-discovery pass, forces a full reload mid-navigation and
+      // interrupts auth loading. With all routes listed here, one pass at boot
+      // discovers everything and no subsequent reload fires.
+      entries: ['./src/client.tsx', './src/routes/**/*.tsx'],
       // The rule editor's engine is WebAssembly, found next to its own script. Pre-bundled,
       // the script moves to Vite's cache and the .wasm does not stay beside it, so the dev
       // server answers the request with HTML and the editor quietly drops to its
@@ -41,10 +47,35 @@ export default defineConfig({
       // Monaco's workers, pre-bundled at start. Found only when a code box first opens — a
       // function node's body, say — Vite optimised them then and reloaded the page, which
       // threw away whatever the author had typed into the rule before saving it.
+      // Pre-include all packages Vite would otherwise discover lazily on first
+      // page load, which causes repeated reload loops that make the app appear
+      // to hang in the browser. Everything here is a direct dependency; adding
+      // it means one optimisation pass on first start rather than three or more.
       include: [
         'monaco-editor/editor/editor.worker',
         'monaco-editor/language/typescript/ts.worker',
         'monaco-editor/language/json/json.worker',
+        '@tanstack/start',
+        'react-dom/client',
+        '@tanstack/react-router',
+        'sonner',
+        'lucide-react',
+        '@tanstack/react-query',
+        '@tanstack/react-query-devtools',
+        '@radix-ui/react-dialog',
+        '@tanstack/react-db',
+        '@tanstack/electric-db-collection',
+        'clsx',
+        'tailwind-merge',
+        'class-variance-authority',
+        '@radix-ui/react-scroll-area',
+        '@radix-ui/react-tooltip',
+        '@radix-ui/react-avatar',
+        '@radix-ui/react-dropdown-menu',
+        '@radix-ui/react-checkbox',
+        '@radix-ui/react-label',
+        'react/jsx-dev-runtime',
+        'react',
       ],
     },
     esbuild: {

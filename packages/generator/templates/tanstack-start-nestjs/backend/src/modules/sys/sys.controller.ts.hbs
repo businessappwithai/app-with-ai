@@ -594,6 +594,24 @@ export class SysController {
     return this.sysService.findAllSysRoles();
   }
 
+  /** Entity-level permissions for one role, by role name. */
+  @Get('roles/:roleName/permissions')
+  @ApiOperation({ summary: 'List entity permissions for a role' })
+  async findRolePermissions(@Param('roleName') roleName: string) {
+    return this.sysService.findRolePermissions(roleName);
+  }
+
+  /** Update entity-level permissions for a role. Administrators only. */
+  @Patch('roles/:roleName/permissions')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Update entity permissions for a role, and patch the model file' })
+  async updateRolePermissions(
+    @Param('roleName') roleName: string,
+    @Body() body: { changes: Array<{ table_name: string; operation: string; granted: boolean }> },
+  ) {
+    return this.sysService.updateRolePermissions(roleName, body.changes ?? []);
+  }
+
   /** Create a role. Administrators only, as account creation is. */
   @Post('roles')
   @Roles('admin')

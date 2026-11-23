@@ -1,6 +1,7 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { WindowHelpButton } from '@/components/admin/window-help-button';
+import { ADBreadcrumb } from '@/components/admin/ad-breadcrumb';
 import { apiClient } from '@/lib/api-client';
 import { Settings, ArrowLeft, Loader2, AlertCircle, Save, Eye, EyeOff, Power, PowerOff } from 'lucide-react';
 import { useState } from 'react';
@@ -32,6 +33,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 function SystemConfigPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery<ConfigRow[]>({
     queryKey: ['admin', 'system-config'],
@@ -83,11 +85,17 @@ function SystemConfigPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-card border-b border-border">
+        <div className="container-swiss pt-2 pb-0">
+          <ADBreadcrumb levels={[
+            { label: 'Administration', onClick: () => void navigate({ to: '/admin' }) },
+            { label: 'System Configuration' },
+          ]} />
+        </div>
         <div className="container-swiss">
           <div className="flex h-14 items-center gap-3">
             <Link
-              to="/dashboard"
-              aria-label="Back to dashboard"
+              to="/admin"
+              aria-label="Back to administration"
               className="text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="w-4 h-4" />

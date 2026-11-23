@@ -6,7 +6,7 @@
  *
  */
 
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { ADSidebar } from '@/components/admin/ad-sidebar';
+import { ADBreadcrumb } from '@/components/admin/ad-breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
@@ -93,6 +94,7 @@ function slugify(value: string): string {
 }
 
 function CategoriesPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Category | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -224,6 +226,10 @@ function CategoriesPage() {
   return (
     <ADSidebar>
       <div className="p-6 space-y-6" data-testid="admin-categories">
+        <ADBreadcrumb levels={[
+          { label: 'Administration', onClick: () => void navigate({ to: '/admin' }) },
+          { label: 'Entity Categories' },
+        ]} />
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <Tags className="w-6 h-6 text-primary" />

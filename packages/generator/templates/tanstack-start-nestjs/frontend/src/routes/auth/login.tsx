@@ -96,12 +96,16 @@ function LoginPage() {
         return;
       }
 
-      // Persist token so api-client can send Authorization header after hard nav
+      // Persist token so api-client can send Authorization header on subsequent calls.
       const token = (data as Record<string, unknown>)?.token as string | undefined;
       if (token) sessionStorage.setItem('auth_token', token);
 
-      // Full navigation so auth-context re-initializes with the new session cookie
-      window.location.href = '/dashboard';
+      // Refresh auth-context state in-memory, then do a client-side route
+      // change. A hard window.location.href navigation triggers Vite's dep
+      // optimizer mid-load in development, which races with auth loading and
+      // leaves the dashboard stuck on the spinner until the user presses Ctrl+R.
+      await refreshSession();
+      void navigate({ to: '/dashboard' });
     } catch (err: any) {
       const errorMessage = err?.message || 'An unexpected error occurred';
       setError(errorMessage);

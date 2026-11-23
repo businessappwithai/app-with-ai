@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -30,16 +31,18 @@ export function ADBreadcrumb({ levels }: ADBreadcrumbProps) {
             : level.label;
 
           return (
-            <BreadcrumbItem key={index}>
+            <Fragment key={index}>
               {index > 0 && <BreadcrumbSeparator />}
-              {isLast ? (
-                <BreadcrumbPage className="font-medium">{displayText}</BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink className="cursor-pointer" onClick={level.onClick}>
-                  {displayText}
-                </BreadcrumbLink>
-              )}
-            </BreadcrumbItem>
+              <BreadcrumbItem>
+                {isLast ? (
+                  <BreadcrumbPage className="font-medium">{displayText}</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink className="cursor-pointer" onClick={level.onClick}>
+                    {displayText}
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </Fragment>
           );
         })}
       </BreadcrumbList>

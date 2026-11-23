@@ -1,6 +1,7 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { ADBreadcrumb } from '@/components/admin/ad-breadcrumb';
 import { apiClient } from '@/lib/api-client';
 import { Users, ArrowLeft, Shield, Loader2, AlertCircle, UserPlus } from 'lucide-react';
 import { RowActions, errorText } from '@/components/admin/row-actions';
@@ -26,6 +27,7 @@ interface SysRoleOption {
 const EMPTY_USER = { name: '', email: '', password: '', roleName: 'User' };
 
 function UsersPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery<{ data: SysUser[] }>({
     queryKey: ['admin', 'sys-users'],
@@ -62,11 +64,17 @@ function UsersPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 bg-card border-b border-border">
+        <div className="container-swiss pt-2 pb-0">
+          <ADBreadcrumb levels={[
+            { label: 'Administration', onClick: () => void navigate({ to: '/admin' }) },
+            { label: 'User Management' },
+          ]} />
+        </div>
         <div className="container-swiss">
           <div className="flex h-14 items-center gap-3">
             <Link
-              to="/dashboard"
-              aria-label="Back to dashboard"
+              to="/admin"
+              aria-label="Back to administration"
               className="text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="w-4 h-4" />
