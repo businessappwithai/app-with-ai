@@ -168,15 +168,18 @@ export class BusController {
           const operator = value.slice(0, separator);
           const searchValue = value.slice(separator + 1);
 
-          switch (operator) {
+          switch (operator.toLowerCase()) {
             case 'contains':
               parsed[fieldName] = { operator: 'ilike', value: `%${searchValue}%` };
               break;
-            case 'startsWith':
+            case 'startswith':
               parsed[fieldName] = { operator: 'ilike', value: `${searchValue}%` };
               break;
-            case 'endsWith':
+            case 'endswith':
               parsed[fieldName] = { operator: 'ilike', value: `%${searchValue}` };
+              break;
+            case 'notequals':
+              parsed[fieldName] = { operator: '!=', value: searchValue };
               break;
             case 'equals':
             case 'eq':

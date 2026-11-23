@@ -12563,8 +12563,18 @@ function attributeTypeToReferenceId(type) {
   };
   return typeMapping[type];
 }
+var SYSTEM_COLUMN_NAMES = new Set([
+  "created_at",
+  "updated_at",
+  "deleted_at",
+  "version",
+  "created_by",
+  "updated_by",
+  "is_active"
+]);
 function entityToBusEntity(entity, declared) {
   const tableName = entity.tableName.startsWith(BUS_TABLE_PREFIX) ? entity.tableName : `${BUS_TABLE_PREFIX}${entity.tableName}`;
+  const userAttributes = entity.attributes.filter((attr) => !SYSTEM_COLUMN_NAMES.has(attr.name));
   return {
     ...entity,
     tableName,
@@ -12572,7 +12582,7 @@ function entityToBusEntity(entity, declared) {
     displayName: formatDisplayName(entity.name),
     windowOwner: entity.parentEntity ?? entity.name,
     indexes: mergeIndexes(entity),
-    attributes: withIdentifiers(entity.attributes.map((attr, index) => attributeToBusAttribute(attr, index, entity.primaryKey, declared)), entity.primaryKey, entity.name, entity.identifierColumns)
+    attributes: withIdentifiers(userAttributes.map((attr, index) => attributeToBusAttribute(attr, index, entity.primaryKey, declared)), entity.primaryKey, entity.name, entity.identifierColumns)
   };
 }
 function withIdentifiers(attributes, primaryKey, entityName, declared) {

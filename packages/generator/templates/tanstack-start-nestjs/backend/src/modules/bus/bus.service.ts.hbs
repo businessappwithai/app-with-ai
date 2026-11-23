@@ -128,6 +128,10 @@ export interface EntityMetadata {
     where_clause?: string | null;
     /** The dictionary's ordering for this list. Defaults to `updated_at DESC`. */
     order_by_clause?: string | null;
+    /** The tab of this entity inside the window: its own filter, applied with the window's. */
+    tab_where_clause?: string | null;
+    /** The tab's ordering; more specific than the window's, so it wins when set. */
+    tab_order_by_clause?: string | null;
   };
 }
 
@@ -361,7 +365,8 @@ export class BusService {
     // The seed writes the default (`updated_at DESC`) into every window so the
     // Window record shows what the list does; that is the fallback, not a
     // declaration, and must not stop Sort Number from applying.
-    const declaredOrder = metadata.window?.order_by_clause?.trim() ?? '';
+    const declaredOrder =
+      metadata.window?.tab_order_by_clause?.trim() || metadata.window?.order_by_clause?.trim() || '';
     const windowOrders =
       declaredOrder !== '' &&
       declaredOrder.replace(/\s+/g, ' ').toLowerCase() !== DEFAULT_ORDER_BY_CLAUSE.toLowerCase();
@@ -376,7 +381,7 @@ export class BusService {
     }
 
     if (!nextOptions.orderBy) {
-      const clause = metadata.window?.order_by_clause?.trim() || DEFAULT_ORDER_BY_CLAUSE;
+      const clause = declaredOrder || DEFAULT_ORDER_BY_CLAUSE;
       const { terms, warnings } = parseOrderByClause(clause, queryable);
       for (const warning of warnings) {
         this.log.event('entity.window.clause_dropped', {
@@ -404,21 +409,29 @@ export class BusService {
       }
     }
 
-    const declared = metadata.window?.where_clause?.trim();
-    if (!declared) return { options: nextOptions, filters };
-
-    const { filters: windowFilters, warnings } = parseWhereClause(declared, queryable, columnTypes);
-    for (const warning of warnings) {
-      this.log.event('entity.window.clause_dropped', {
-        entity,
-        clause: warning.clause,
-        reason: warning.reason,
-      });
+    // The window's filter and the tab's both hold; on a column both name, the
+    // tab's (the more specific) wins. The caller's filters go last.
+    const declaredFilters: Record<string, any> = {};
+    for (const [source, declared] of [
+      ['window', metadata.window?.where_clause?.trim()],
+      ['tab', metadata.window?.tab_where_clause?.trim()],
+    ] as const) {
+      if (!declared) continue;
+      const { filters: parsed, warnings } = parseWhereClause(declared, queryable, columnTypes);
+      for (const warning of warnings) {
+        this.log.event('entity.window.clause_dropped', {
+          entity,
+          clause: `${source}: ${warning.clause}`,
+          reason: warning.reason,
+        });
+      }
+      Object.assign(declaredFilters, parsed);
     }
+    if (Object.keys(declaredFilters).length === 0) return { options: nextOptions, filters };
 
     // The caller's filters go last, so a column both of them name keeps the
-    // caller's clause rather than being overwritten by the window's.
-    return { options: nextOptions, filters: { ...windowFilters, ...filters } };
+    // caller's clause rather than being overwritten by the declared ones.
+    return { options: nextOptions, filters: { ...declaredFilters, ...filters } };
   }
 
   async findById(entity: string, id: string): Promise<any> {
@@ -877,6 +890,19 @@ export class BusService {
           .executeTakeFirst()
       : undefined;
 
+    // The tab that shows this table inside the window: its Order By and Filter
+    // are the more specific declaration, so the list honours them too.
+    const ownTab = window
+      ? await this.kysely
+          .selectFrom('sys_tab')
+          .select(['where_clause', 'order_by_clause'])
+          .where('sys_window_id', '=', window.sys_window_id)
+          .where('sys_table_id', '=', table.sys_table_id)
+          .orderBy('tab_level', 'asc')
+          .orderBy('seq_no', 'asc')
+          .executeTakeFirst()
+      : undefined;
+
     const columns = await this.kysely
       .selectFrom('sys_column')
       .innerJoin('sys_tab', 'sys_tab.sys_table_id', 'sys_column.sys_table_id')
@@ -1129,6 +1155,8 @@ export class BusService {
             name: window.name,
             where_clause: (window as any).where_clause ?? null,
             order_by_clause: (window as any).order_by_clause ?? null,
+            tab_where_clause: (ownTab as any)?.where_clause ?? null,
+            tab_order_by_clause: (ownTab as any)?.order_by_clause ?? null,
           }
         : undefined,
     };
