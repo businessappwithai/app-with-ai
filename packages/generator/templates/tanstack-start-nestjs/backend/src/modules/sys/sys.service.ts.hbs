@@ -1537,6 +1537,131 @@ export class SysService {
     return { data: roles };
   }
 
+  /**
+   * Entity-level CRUD permissions for one role, matched case-insensitively.
+   * Returns every table that has at least one rule, with which operations the
+   * role is explicitly allowed and which are restricted to other roles.
+   */
+  async findRolePermissions(roleName: string) {
+    const foldRole = (r: string) => r.trim().toLowerCase().replace(/[\s\-_]+/g, '');
+    const folded = foldRole(roleName);
+
+    const rows = await this.db.kysely
+      .selectFrom('sys_operation_access as oa')
+      .leftJoin('sys_table as t', 't.table_name', 'oa.table_name')
+      .select([
+        'oa.table_name',
+        'oa.operation',
+        'oa.role_name',
+        'oa.is_active',
+        't.name as entity_name',
+      ])
+      .where('oa.is_active', '=', true)
+      .orderBy('t.name')
+      .orderBy('oa.operation')
+      .execute() as Array<{
+        table_name: string;
+        operation: string;
+        role_name: string;
+        is_active: boolean;
+        entity_name: string | null;
+      }>;
+
+    // Group by table: each entity shows all operations and whether this role has each.
+    const map = new Map<string, { table_name: string; entity_name: string; permissions: Record<string, boolean> }>();
+    for (const row of rows) {
+      let entry = map.get(row.table_name);
+      if (!entry) {
+        entry = { table_name: row.table_name, entity_name: row.entity_name ?? row.table_name, permissions: {} };
+        map.set(row.table_name, entry);
+      }
+      const granted = foldRole(row.role_name) === folded;
+      if (granted || !(row.operation in entry.permissions)) {
+        entry.permissions[row.operation] = granted || (entry.permissions[row.operation] ?? false);
+      }
+    }
+
+    return { data: Array.from(map.values()) };
+  }
+
+  async updateRolePermissions(
+    roleName: string,
+    changes: Array<{ table_name: string; operation: string; granted: boolean }>,
+  ): Promise<{ updated: number; modelUpdated: boolean }> {
+    const toSlug = (name: string) =>
+      name.trim().toLowerCase().replace(/[\s\-]+/g, '_').replace(/[^a-z0-9_]/g, '');
+    const roleSlug = toSlug(roleName);
+    const { v4: uuidv4 } = await import('uuid');
+    for (const change of changes) {
+      if (change.granted) {
+        await (this.db.kysely as any)
+          .insertInto('sys_access_grant')
+          .values({
+            sys_access_grant_id: uuidv4(), kind: 'op',
+            table_name: change.table_name, action: change.operation,
+            role_name: roleSlug, role_key: null,
+            status_field: '', from_state: '', to_state: '',
+            entity_type: 'D', is_active: true,
+            created_by: 'admin', updated_by: 'admin',
+            created_at: new Date(), updated_at: new Date(),
+          })
+          .onConflict((oc: any) => oc.doNothing())
+          .execute();
+      } else {
+        await (this.db.kysely as any)
+          .deleteFrom('sys_access_grant')
+          .where('kind', '=', 'op')
+          .where('table_name', '=', change.table_name)
+          .where('action', '=', change.operation)
+          .where('role_name', '=', roleSlug)
+          .execute();
+      }
+    }
+    await this.db.kysely.executeQuery({
+      sql: "select pg_notify('access_changed', 'sys_access_grant')",
+      parameters: [],
+    } as any).catch(() => {});
+    const modelUpdated = await this.patchModelFilePermissions(roleSlug, changes);
+    return { updated: changes.length, modelUpdated };
+  }
+
+  private async patchModelFilePermissions(
+    roleSlug: string,
+    changes: Array<{ table_name: string; operation: string; granted: boolean }>,
+  ): Promise<boolean> {
+    const { resolve } = await import('path');
+    const { existsSync, readFileSync, writeFileSync } = await import('fs');
+    const modelPath = [
+      resolve(process.cwd(), '../model/model.eml.mmd'),
+      resolve(process.cwd(), 'model/model.eml.mmd'),
+    ].find((p) => existsSync(p));
+    if (!modelPath) return false;
+    let content = readFileSync(modelPath, 'utf-8');
+    for (const change of changes) {
+      const entityName = change.table_name
+        .replace(/^bus_/, '').split('_')
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+      const lineRe = new RegExp(
+        `^(%%rbac role:)([^\\s]+)( on ${entityName}\\.${change.operation}\\b.*)$`,
+        'm',
+      );
+      const match = content.match(lineRe);
+      if (!match) continue;
+      const [fullLine, prefix, rolesStr, suffix] = match;
+      const roles = rolesStr.split('|').filter(Boolean);
+      const newRoles = change.granted
+        ? roles.includes(roleSlug) ? roles : [...roles, roleSlug]
+        : roles.filter((r: string) => r !== roleSlug);
+      if (newRoles.length === 0) {
+        content = content.replace(fullLine + '\n', '').replace(fullLine, '');
+      } else {
+        content = content.replace(fullLine, `${prefix}${newRoles.join('|')}${suffix}`);
+      }
+    }
+    writeFileSync(modelPath, content, 'utf-8');
+    return true;
+  }
+
   /** The two roles every generated application has, which the platform itself relies on. */
   private static readonly BUILT_IN_ROLES = new Set(['administrator', 'user']);
 

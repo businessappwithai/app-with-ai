@@ -124,10 +124,30 @@ export interface BusRelationship extends Relationship {
 /**
  * Converts an Entity to a BusEntity with bus_ prefix
  */
+// System fields that every bus_ table gets automatically. If the model declares
+// any of these, the declaration is stripped here so the migration never emits
+// a duplicate column and the seed never seeds a redundant dictionary row.
+const SYSTEM_COLUMN_NAMES = new Set([
+  "created_at",
+  "updated_at",
+  "deleted_at",
+  "version",
+  "created_by",
+  "updated_by",
+  "is_active",
+]);
+
 export function entityToBusEntity(entity: Entity, declared?: Map<string, string>): BusEntity {
   const tableName = entity.tableName.startsWith(BUS_TABLE_PREFIX)
     ? entity.tableName
     : `${BUS_TABLE_PREFIX}${entity.tableName}`;
+
+  // Strip any user-declared attributes whose names match system-managed columns;
+  // the migration adds those columns unconditionally, so a declaration would
+  // produce a duplicate column in CREATE TABLE.
+  const userAttributes = entity.attributes.filter(
+    (attr) => !SYSTEM_COLUMN_NAMES.has(attr.name)
+  );
 
   return {
     ...entity,
@@ -145,11 +165,12 @@ export function entityToBusEntity(entity: Entity, declared?: Map<string, string>
     windowOwner: entity.parentEntity ?? entity.name,
     indexes: mergeIndexes(entity),
     attributes: withIdentifiers(
-      entity.attributes.map((attr, index) =>
+      userAttributes.map((attr, index) =>
         attributeToBusAttribute(attr, index, entity.primaryKey, declared)
       ),
       entity.primaryKey,
-      entity.name
+      entity.name,
+      entity.identifierColumns
     ),
   };
 }
@@ -158,9 +179,10 @@ export function entityToBusEntity(entity: Entity, declared?: Map<string, string>
 function withIdentifiers(
   attributes: BusEntityAttribute[],
   primaryKey?: string,
-  entityName?: string
+  entityName?: string,
+  declared?: readonly string[]
 ): BusEntityAttribute[] {
-  const identifiers = new Set(identifierColumnNames(attributes, primaryKey, entityName));
+  const identifiers = new Set(identifierColumnNames(attributes, primaryKey, entityName, declared));
   return attributes.map((attribute) => ({
     ...attribute,
     isIdentifier: identifiers.has(attribute.name),
@@ -233,6 +255,11 @@ const SEMANTIC_REFERENCE = {
  * a display value built from identifier columns begins with a uuid, which is
  * why every consumer had grown its own `!== "id"` filter.
  *
+ * A model that says what its records are called —
+ * `%%entity <E> identifier: <columns>`, passed here as `declared` — is taken at
+ * its word: the declared columns the entity has, in the order written. The
+ * derivation below is only the answer for a model that said nothing.
+ *
  * Returns the names in the order they should be concatenated.
  */
 export function identifierColumnNames(
@@ -244,10 +271,14 @@ export function identifierColumnNames(
     enumReferenceId?: number;
   }>,
   primaryKey?: string,
-  entityName?: string
+  entityName?: string,
+  declared?: readonly string[]
 ): string[] {
   const byName = new Map(attributes.map((attribute) => [attribute.name, attribute]));
   const has = (name: string) => byName.has(name);
+
+  const stated = (declared ?? []).filter(has);
+  if (stated.length > 0) return [...stated];
 
   /* The entity's own name, as its columns are prefixed with it: `department_name`
      and `department_code` on `Department`, whose key is `department_id`. A model that

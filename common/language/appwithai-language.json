@@ -333,13 +333,15 @@
     },
     "displayValue": {
       "description": "What a record is called wherever something other than the record shows it: a Table Direct dropdown, and a grid cell holding a foreign key. Stored as sys_column.is_identifier, and the display value is the identifier columns concatenated in seq_no order - the same rule in both stacks.",
+      "declared": "A model states it with `%%entity <Entity> identifier: <column>, <column>`, and a declaration wins over every step of the derivation: the named columns the entity declares are its identifiers, joined in field order (seq_no). Declare it for every entity that has no column naming it outright - no name, no person's two names, no code - because for those the derivation below is a guess (its parents, its first text column, or a parent and a date), and the checker reports which guess it would make as EML165. An administrator can still change it afterwards in the Column window (Identifier), and the running application reads sys_column.is_identifier on every request.",
       "derivation": [
+        "0. A `%%entity <Entity> identifier:` declaration, if there is one.",
         "1. A column named name, full_name, display_name, title, label or subject - whichever appears first in that order - or, failing those, the entity's own <entity>_name, <entity>_title or <entity>_label (department_name on Department, key department_id). Never a reference, never an enum column.",
         "2. Otherwise first_name and last_name together, if the entity declares both. This is why the value is a concatenation and not one column.",
         "3. Otherwise code, reference or number, or the entity's own <entity>_code, <entity>_reference or <entity>_number - not a name, but what people quote at each other, and better than a uuid.",
         "4. Otherwise, if the entity declares two or more FK columns ending _id/_by, it is a join entity: its first two references are the identifiers, each resolved through the parent's own label. CampaignMember reads as `Spring Promo - Omar Kowalski`.",
         "5. Otherwise the first declared string/text column that is neither the key nor a reference.",
-        "6. Otherwise the key, so a lookup still lists something."
+        "6. Otherwise its first reference and its first date column together (`Dennis Lindgren - 2026-08-26`); failing even that, no identifier, and a lookup lists the key."
       ],
       "joinEntities": {
         "description": "An entity whose identity is the pair of records it joins - CampaignMember, OrderLine, QuoteLineItem - has no name to give it, and step 5 would pick whatever text column came first: member_status, so every campaign member read `invited`. Two or more references and no name of its own is the shape.",
@@ -540,6 +542,9 @@
       "EML147": "%%entity ... parent: names an entity that is not declared, or the entity names itself.",
       "EML148": "%%entity ... parent: is declared but the child has no foreign key back to the parent, so the detail tab has nothing to link on.",
       "EML149": "info \u2014 an entity shaped like a line item that declares no parent:. Names the candidate parent and the column a tab would link on. Never an error: identifyingAChild's three questions are about the business, not the document.",
+      "EML163": "error \u2014 `%%entity <E> identifier:` names a column the entity does not declare, or names none. The parser drops the unknown column, and a declaration left with none falls back to the derivation.",
+      "EML164": "warning \u2014 `%%entity <E> identifier:` names the primary key (a uuid, which a display value exists to hide), names only columns bound to a %%enum (every row would read the same few words), or names only optional columns of the entity's own (a record with them empty has no name of its own).",
+      "EML165": "info \u2014 an entity with no column that names it (no name, no first_name + last_name, no code/reference/number) and no `identifier:` declaration. Names the columns the derivation would choose - its first two references, its first text column, or a parent and a date - and the declaration that would fix it. Answer every one before delivering: declare what people call the record.",
       "EML155": "info \u2014 a line item of a line item: parent: names an entity that is itself declared parent:. The dictionary has two levels, so the deeper entity is generated as a top-level one (own window and dashboard card, foreign key kept) rather than as a tab. Mirrors flattenNestedLineItems in the generator's parser; only a parent: that takes effect (declared parent, foreign key to it) counts.",
       "EML150": "warning \u2014 an entity declared parent: is also named in a %%category. The category asks for a dashboard card the directive has taken away.",
       "EML151": "warning \u2014 entity or column help that restates its own name instead of describing it. See helpText.mustBeDomainKnowledge.",
@@ -1236,13 +1241,14 @@
         "form": "%%entity <Name> <key>: <value>",
         "status": "compiled",
         "consumedBy": [
-          "packages/generator/src/parsers/mermaid.parser.ts (help:/description:, icon: and parent: are compiled; prefix:, softDelete:, label: and audited: are validated only)",
-          "language/checker.ts (EML160, EML161, EML162)"
+          "packages/generator/src/parsers/mermaid.parser.ts (help:/description:, icon:, identifier: and parent: are compiled; prefix:, softDelete:, label: and audited: are validated only)",
+          "language/checker.ts (EML160, EML161, EML162, and EML163-EML165 for identifier:)"
         ],
-        "purpose": "Attach entity-level metadata not expressible in the ERD block: the sentence that explains the entity to whoever opens its screen, the icon that represents it, the parent it is a line item of, plus table prefix (bus/sys), soft delete, label, audited.",
+        "purpose": "Attach entity-level metadata not expressible in the ERD block: the sentence that explains the entity to whoever opens its screen, the icon that represents it, the columns its records are called by (identifier: - its display value, compiled to sys_column.is_identifier; see applicationDictionary.displayValue), the parent it is a line item of, plus table prefix (bus/sys), soft delete, label, audited.",
         "examples": [
           "%%entity Account help: A company you sell to. One account holds many contacts and every deal you run with them.",
           "%%entity Patient icon: stethoscope",
+          "%%entity InventoryTransaction identifier: sample_id, performed_by",
           "%%entity Order audited: true",
           "%%entity Account prefix: bus",
           "%%entity Session softDelete: false"
