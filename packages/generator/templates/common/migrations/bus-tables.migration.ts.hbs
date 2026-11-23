@@ -18,7 +18,7 @@ export async function up(db: Kysely<any>): Promise<void> {
       {{#each attributes}}
       {{!-- The four columns appended below, plus the key: declaring one in the
             model would emit it twice and PostgreSQL refuses the CREATE TABLE. --}}
-      {{#unless (or (eq name ../primaryKey) (eq name 'created_at') (eq name 'updated_at') (eq name 'deleted_at') (eq name 'version'))}}
+      {{#unless (or (eq name ../primaryKey) (eq name 'created_at') (eq name 'updated_at') (eq name 'deleted_at') (eq name 'version') (eq name 'created_by') (eq name 'updated_by') (eq name 'is_active'))}}
       {{#switch (typeToReferenceId type)}}
         {{#case 10}}
       {{#if isForeignKey}}
@@ -64,6 +64,9 @@ export async function up(db: Kysely<any>): Promise<void> {
       {{/switch}}
       {{/unless}}
       {{/each}}
+      , is_active BOOLEAN NOT NULL DEFAULT true
+      , created_by VARCHAR(255)
+      , updated_by VARCHAR(255)
       , created_at TIMESTAMPTZ DEFAULT NOW()
       , updated_at TIMESTAMPTZ DEFAULT NOW()
       , deleted_at TIMESTAMPTZ

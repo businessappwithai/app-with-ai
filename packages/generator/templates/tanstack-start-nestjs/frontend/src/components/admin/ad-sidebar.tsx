@@ -8,6 +8,7 @@ import {
   Menu,
   Printer,
   Settings,
+  Shield,
   ShieldCheck,
   SlidersHorizontal,
   Tags,
@@ -52,6 +53,11 @@ const MENU_ITEMS = [
     label: "Rules & workflows",
     to: "/admin/automations",
     icon: Settings,
+  },
+  {
+    label: "Access Controls",
+    to: "/admin/access-controls",
+    icon: Shield,
   },
   {
     label: "Audit Log",

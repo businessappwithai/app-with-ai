@@ -124,10 +124,30 @@ export interface BusRelationship extends Relationship {
 /**
  * Converts an Entity to a BusEntity with bus_ prefix
  */
+// System fields that every bus_ table gets automatically. If the model declares
+// any of these, the declaration is stripped here so the migration never emits
+// a duplicate column and the seed never seeds a redundant dictionary row.
+const SYSTEM_COLUMN_NAMES = new Set([
+  "created_at",
+  "updated_at",
+  "deleted_at",
+  "version",
+  "created_by",
+  "updated_by",
+  "is_active",
+]);
+
 export function entityToBusEntity(entity: Entity, declared?: Map<string, string>): BusEntity {
   const tableName = entity.tableName.startsWith(BUS_TABLE_PREFIX)
     ? entity.tableName
     : `${BUS_TABLE_PREFIX}${entity.tableName}`;
+
+  // Strip any user-declared attributes whose names match system-managed columns;
+  // the migration adds those columns unconditionally, so a declaration would
+  // produce a duplicate column in CREATE TABLE.
+  const userAttributes = entity.attributes.filter(
+    (attr) => !SYSTEM_COLUMN_NAMES.has(attr.name)
+  );
 
   return {
     ...entity,
@@ -145,7 +165,7 @@ export function entityToBusEntity(entity: Entity, declared?: Map<string, string>
     windowOwner: entity.parentEntity ?? entity.name,
     indexes: mergeIndexes(entity),
     attributes: withIdentifiers(
-      entity.attributes.map((attr, index) =>
+      userAttributes.map((attr, index) =>
         attributeToBusAttribute(attr, index, entity.primaryKey, declared)
       ),
       entity.primaryKey,

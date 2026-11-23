@@ -1,7 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ExternalLink, FilePlus2, FileX2, History, Home, MessageSquare, Pencil, Star } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ReportPrintModal } from "@/components/reports/ReportPrintModal";
 import { toast } from "sonner";
 import { DynamicForm } from "@/components/forms/dynamic-form";
@@ -622,6 +622,11 @@ export function ADDetailShell({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [formData, setFormData] = useState<AnyRecord>({});
   const [hasChanges, setHasChanges] = useState(false);
+  // DynamicForm's FormChangeNotifier fires onChange when the full record
+  // arrives from the API (even in view mode). Guard against that by tracking
+  // edit mode in a ref — a ref so the onChange closure always reads the
+  // latest value without needing to be recreated on every render.
+  const isEditingRef = useRef(false);
   const [activeChildTab, setActiveChildTab] = useState(() => level.childTabs?.[0]?.id ?? "");
   // The child tabs arrive with the metadata, usually after the first render, so
   // the initial value above is "" and no tab would open. Select the first one
@@ -632,6 +637,9 @@ export function ADDetailShell({
     if (!tabs.some((ct) => ct.id === activeChildTab)) setActiveChildTab(tabs[0]!.id);
   }, [level.childTabs, activeChildTab]);
   const [isEditing, setIsEditing] = useState(initialMode === "edit");
+  // Keep the ref in sync so the onChange closure (memoised away) always has
+  // the current value without a stale closure.
+  isEditingRef.current = isEditing;
   const [saveErrors, setSaveErrors] = useState<string[]>([]);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   // Optimistic locking. `editBase` is the record as it stood when editing
@@ -971,14 +979,18 @@ export function ADDetailShell({
         onRefresh={() => refetch()}
         onEdit={() => {
           setEditBase(currentRecord);
+          setHasChanges(false);
           setIsEditing(true);
         }}
         onCancelEdit={() => {
           setIsEditing(false);
           setEditBase(null);
+          setHasChanges(false);
           if (currentRecord) {
             setFormData(currentRecord);
-            setHasChanges(false);
+            // Remount DynamicForm so its internal state resets to the
+            // original record values, even when editBase === currentRecord.
+            setFormNonce((n) => n + 1);
           }
         }}
         onPrint={() => setIsPrintOpen(true)}
@@ -1162,8 +1174,9 @@ export function ADDetailShell({
                 }}
                 onChange={(fd) => {
                   setFormData(fd);
-                  setHasChanges(true);
+                  if (!isEditingRef.current) return;
                   setSaveErrors([]);
+                  setHasChanges(true);
                 }}
                 mode={isEditing ? "edit" : "view"}
                 readOnly={!isEditing}

@@ -270,8 +270,12 @@ export class BusService {
     const tableName = this.getTableName(entity);
     await this.verifyEntity(entity);
 
+    // Show only active records by default. The caller can pass is_active: false
+    // explicitly to list deactivated records (e.g., an admin audit view).
+    const baseFilters = 'is_active' in filters ? filters : { is_active: true, ...filters };
+
     const { options: windowOptions, filters: windowFilters } =
-      await this.applyWindowListDefaults(entity, options, filters);
+      await this.applyWindowListDefaults(entity, options, baseFilters);
 
     const processedOptions = await executeBeforeListHooks(entity, {
       options: windowOptions,
@@ -326,19 +330,25 @@ export class BusService {
     const queryable = new Set([
       ...metadata.columns.map((column) => column.column_name),
       'id',
+      'is_active',
+      'created_by',
+      'updated_by',
       'created_at',
       'updated_at',
     ]);
 
     // The declared type of each column, so a filter whose value the column
     // cannot be compared against is dropped rather than answered with a 400.
-    // `id` is a uuid (reference 13) and the two audit stamps are timestamps
-    // (16); none of the three is in sys_column.
+    // `id` is a uuid (reference 13), the two audit stamps are timestamps (16),
+    // the two actor columns are text (10), and is_active is boolean (20).
     const columnTypes = new Map<string, number>([
       ...metadata.columns.map(
         (column) => [column.column_name, column.sys_reference_id] as [string, number]
       ),
       ['id', 13],
+      ['is_active', 20],
+      ['created_by', 10],
+      ['updated_by', 10],
       ['created_at', 16],
       ['updated_at', 16],
     ]);
@@ -477,9 +487,18 @@ export class BusService {
     try {
       result = await this.db.transaction(async (trx) => {
         const now = new Date();
+        const actorId = currentRequestContext().actor?.id ?? null;
         const rows = await trx
           .insertInto(tableName as any)
-          .values({ ...processedData, created_at: now, updated_at: now, deleted_at: null } as any)
+          .values({
+            ...processedData,
+            is_active: processedData.is_active !== undefined ? processedData.is_active : true,
+            created_by: actorId,
+            updated_by: actorId,
+            created_at: now,
+            updated_at: now,
+            deleted_at: null,
+          } as any)
           .returningAll()
           .execute();
         return rows[0];
@@ -634,6 +653,7 @@ export class BusService {
         .set({
           ...processedData,
           updated_at: new Date(),
+          updated_by: currentRequestContext().actor?.id ?? null,
           version: currentVersion + 1,
           // A record saved from Draft or Error is a draft again until its rules
           // and workflows have been re-run against the new values, and the stale
@@ -2162,7 +2182,7 @@ ${allRulesSection}
 
 
     // 5. For each column, ensure a sys_field record exists
-    const SKIP_COLUMNS = new Set(['id', 'created_at', 'updated_at', 'deleted_at', 'version', 'is_active']);
+    const SKIP_COLUMNS = new Set(['id', 'is_active', 'created_by', 'updated_by', 'created_at', 'updated_at', 'deleted_at', 'version']);
     let seqNo = 10;
     let seqNoGrid = 10;
 

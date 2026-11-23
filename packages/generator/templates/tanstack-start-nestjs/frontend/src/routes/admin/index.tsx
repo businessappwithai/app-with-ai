@@ -14,6 +14,7 @@ import {
   Printer,
   RefreshCw,
   Settings,
+  Shield,
   ShieldCheck,
   SlidersHorizontal,
   Table2,
@@ -126,6 +127,12 @@ function AdminDashboardPage() {
       description: "Write the rules that judge a write, and the lifecycles, processes and status machines around it",
       icon: Settings,
       to: "/admin/automations" as const,
+    },
+    {
+      title: "Access Controls",
+      description: "Grant or revoke entity-level read, create, update and delete permissions per role",
+      icon: Shield,
+      to: "/admin/access-controls" as const,
     },
     {
       title: "Audit Log",
