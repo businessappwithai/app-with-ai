@@ -7772,6 +7772,7 @@ export declare function escapeLiteral(value: string): string;
  */
 
 const { PGlite } = require("@electric-sql/pglite");
+const { AsyncLocalStorage } = require("node:async_hooks");
 
 let instance = null;
 /**
@@ -7856,6 +7857,74 @@ async function run(sql, parameters) {
   };
 }
 
+
+/**
+ * Transactions on one session.
+ *
+ * Kysely and \`pg\` assume every \`pool.connect()\` is its own session, so a
+ * transaction on one connection cannot be touched by a query, a COMMIT or a
+ * ROLLBACK on another. Here every "connection" is the same PGlite session, and
+ * without care two things that a server never does happen:
+ *
+ *  - two requests' BEGIN/COMMIT interleave, so two saves from the same version
+ *    both succeed (the second BEGIN is a no-op inside the first's transaction
+ *    and the first COMMIT commits both);
+ *  - a transaction opened from inside another (a workflow step that saves a
+ *    record through the application's own service, which opens its own) ends the
+ *    outer one on COMMIT/ROLLBACK, so the outer's writes are committed while the
+ *    caller believes it can still roll them back.
+ *
+ * So a transaction owns the session. A BEGIN from an unrelated request waits for
+ * its turn; a BEGIN from inside the owner's own async chain is a SAVEPOINT, and
+ * its COMMIT/ROLLBACK releases or rolls back to it. Writes made outside any
+ * transaction by an unrelated request wait too, rather than landing in someone
+ * else's transaction and vanishing with its rollback; reads pass.
+ */
+const txContext = new AsyncLocalStorage();
+const waiters = [];
+let owner = null;
+let savepoints = 0;
+const LOCK_WAIT_MS = Number(process.env.PGLITE_TX_WAIT_MS ?? 15000);
+
+function pump() {
+  if (owner || waiters.length === 0) return;
+  const next = waiters.shift();
+  clearTimeout(next.timer);
+  owner = next.store;
+  next.resolve();
+}
+
+/** Wait for the session; after LOCK_WAIT_MS go ahead unserialized rather than hang. */
+function acquire(store) {
+  return new Promise((resolve) => {
+    const waiter = { store, resolve };
+    waiter.timer = setTimeout(() => {
+      const at = waiters.indexOf(waiter);
+      if (at >= 0) waiters.splice(at, 1);
+      console.warn("pg-wasm: waited " + LOCK_WAIT_MS + "ms for the session; continuing unserialized");
+      resolve();
+    }, LOCK_WAIT_MS);
+    waiters.push(waiter);
+    pump();
+  });
+}
+
+function unlock(store) {
+  if (owner === store) {
+    owner = null;
+    pump();
+  }
+}
+
+function txKind(text) {
+  if (/^\\s*(begin|start\\s+transaction)\\b/i.test(text)) return "begin";
+  if (/^\\s*(commit|end)\\b/i.test(text)) return "commit";
+  if (/^\\s*rollback\\b(?!\\s+to\\b)/i.test(text)) return "rollback";
+  return null;
+}
+
+const isRead = (text) => /^\\s*(select|show|explain|values)\\b/i.test(text);
+
 class Client {
   constructor(config) {
     this.config = config ?? {};
@@ -7871,14 +7940,89 @@ class Client {
       callback = parameters;
       parameters = undefined;
     }
-    const promise = run(sql, parameters);
+    const promise = this.execute(sql, parameters);
     if (!callback) return promise;
     promise.then((result) => callback(null, result), (error) => callback(error));
     return undefined;
   }
 
+  /**
+   * Run one statement, honouring who owns the session. See "Transactions on one
+   * session" above. Must call \`txContext.enterWith\` before its first await, so
+   * the transaction's store reaches the code that runs inside it.
+   */
+  execute(sql, parameters) {
+    const text = typeof sql === "string" ? sql : sql.text;
+    const kind = txKind(text);
+    const current = txContext.getStore();
+
+    if (kind === "begin") {
+      if (current && current.active) {
+        const name = "aw_sp_" + ++savepoints;
+        this.tx = { name };
+        return run("SAVEPOINT " + name);
+      }
+      const store = { active: false };
+      txContext.enterWith(store);
+      this.tx = { store };
+      return (async () => {
+        await acquire(store);
+        store.active = true;
+        try {
+          return await run(sql, parameters);
+        } catch (error) {
+          store.active = false;
+          unlock(store);
+          this.tx = null;
+          throw error;
+        }
+      })();
+    }
+
+    if (kind === "commit" || kind === "rollback") {
+      const tx = this.tx;
+      this.tx = null;
+      if (tx && tx.name) {
+        return run(
+          kind === "commit"
+            ? "RELEASE SAVEPOINT " + tx.name
+            : "ROLLBACK TO SAVEPOINT " + tx.name + "; RELEASE SAVEPOINT " + tx.name
+        );
+      }
+      return run(sql, parameters).finally(() => {
+        if (tx && tx.store) {
+          tx.store.active = false;
+          unlock(tx.store);
+        }
+      });
+    }
+
+    if (owner && !isRead(text) && current !== owner) {
+      const turn = {};
+      return (async () => {
+        await acquire(turn);
+        try {
+          return await run(sql, parameters);
+        } finally {
+          unlock(turn);
+        }
+      })();
+    }
+    return run(sql, parameters);
+  }
+
   release() {
-    // One embedded server, one connection: there is nothing to hand back.
+    // One embedded server, one connection: there is nothing to hand back. A
+    // connection handed back inside a transaction it never ended would hold the
+    // session for ever, so end it.
+    const tx = this.tx;
+    this.tx = null;
+    if (tx && tx.store && tx.store.active) {
+      run("ROLLBACK").catch(() => undefined).finally(() => {
+        tx.store.active = false;
+        unlock(tx.store);
+      });
+    }
   }
 
   async end() {
