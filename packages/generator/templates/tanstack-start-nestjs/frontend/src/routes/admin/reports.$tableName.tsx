@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { FileText, Home } from "lucide-react";
 import { useMemo } from "react";
-import { ADSidebar } from "@/components/admin/ad-sidebar";
 import { ReportDesigner } from "@/components/reports/ReportDesigner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { tabForTable, useDictionaryTabs } from "@/hooks/use-dictionary-windows";
@@ -30,7 +29,6 @@ function ReportDesignPage() {
   );
 
   return (
-    <ADSidebar>
       <div className="flex flex-col h-full">
         <header className="border-b border-border bg-card px-8 py-6 shrink-0">
           <div className="flex items-center gap-3 mb-1 text-sm text-muted-foreground">
@@ -81,6 +79,5 @@ function ReportDesignPage() {
           )}
         </div>
       </div>
-    </ADSidebar>
   );
 }

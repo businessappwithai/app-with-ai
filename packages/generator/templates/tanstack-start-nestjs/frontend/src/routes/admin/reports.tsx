@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Outlet, useChildMatches } from "@tanstack/react-router";
 import { ArrowRight, FileText, Home, Plus } from "lucide-react";
 import { useMemo } from "react";
-import { ADSidebar } from "@/components/admin/ad-sidebar";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { useDictionaryTabs } from "@/hooks/use-dictionary-windows";
@@ -54,7 +53,6 @@ function ReportsListPage() {
   );
 
   return (
-    <ADSidebar>
       <div className="flex flex-col h-full">
         <header className="border-b border-border bg-card px-8 py-8">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
@@ -133,6 +131,5 @@ function ReportsListPage() {
           )}
         </div>
       </div>
-    </ADSidebar>
   );
 }

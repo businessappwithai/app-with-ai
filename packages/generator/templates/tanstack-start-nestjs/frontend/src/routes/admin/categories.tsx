@@ -224,7 +224,6 @@ function CategoriesPage() {
   const isLoading = categoriesQuery.isLoading || tablesQuery.isLoading;
 
   return (
-    <ADSidebar>
       <div className="p-6 space-y-6" data-testid="admin-categories">
         <ADBreadcrumb levels={[
           { label: 'Administration', onClick: () => void navigate({ to: '/admin' }) },
@@ -542,6 +541,5 @@ function CategoriesPage() {
           </Card>
         )}
       </div>
-    </ADSidebar>
   );
 }

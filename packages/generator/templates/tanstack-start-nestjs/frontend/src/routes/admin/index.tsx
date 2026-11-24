@@ -11,7 +11,6 @@ import {
   RefreshCw,
   Table2,
 } from "lucide-react";
-import { ADSidebar } from "@/components/admin/ad-sidebar";
 import { ADMIN_PAGES } from "@/components/admin/admin-pages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,8 +85,7 @@ function AdminDashboardPage() {
 
 
   return (
-    <ADSidebar>
-      <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full">
         {/* Header */}
         <header className="border-b border-border bg-card px-8 py-8">
           <div className="flex items-start justify-between">
@@ -150,7 +148,6 @@ function AdminDashboardPage() {
             </div>
           </div>
         </div>
-      </div>
-    </ADSidebar>
+    </div>
   );
 }

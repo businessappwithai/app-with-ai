@@ -13,7 +13,6 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BarChart3, Home, Play, AlertTriangle } from "lucide-react";
 import { useState } from "react";
-import { ADSidebar } from "@/components/admin/ad-sidebar";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 
@@ -157,7 +156,6 @@ function AnalysisPage() {
   }
 
   return (
-    <ADSidebar>
       <div className="flex flex-col h-full">
         <header className="border-b border-border bg-card px-8 py-8">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
@@ -310,6 +308,5 @@ function AnalysisPage() {
           </div>
         </div>
       </div>
-    </ADSidebar>
   );
 }
