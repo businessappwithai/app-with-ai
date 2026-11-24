@@ -144,6 +144,17 @@ export class TemplateLoader {
       typeof name === "string" && SIGNED_COLUMN.test(name)
     );
 
+    // System columns added deterministically by the seed template for every entity —
+    // never from model declarations. Used by the sys-dictionary template to skip
+    // any LLM-declared versions in the main attributes loop, ensuring the
+    // system fields block is always the sole, authoritative source.
+    const TEMPLATE_SYSTEM_COLUMNS = new Set([
+      "is_active", "created_by", "created_at", "updated_by", "updated_at",
+    ]);
+    Handlebars.registerHelper("isSystemColumn", (name: unknown) =>
+      typeof name === "string" && TEMPLATE_SYSTEM_COLUMNS.has(name)
+    );
+
     // ========================================================================
     // Iteration Helpers
     // ========================================================================

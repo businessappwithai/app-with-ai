@@ -612,6 +612,11 @@ export async function seed(db: Kysely<any>): Promise<void> {
 
   let {{camelCase name}}ColumnSeqNo = 10;
   {{#each attributes}}
+  {{!-- Skip system columns — is_active, created_by, created_at, updated_by, updated_at are
+        added deterministically by the system fields block below, regardless of what the model
+        declares.  An LLM that writes these columns in the ERD or as %%field directives is
+        ignored here: the template is the sole authoritative source for them. --}}
+  {{#unless (isSystemColumn columnName)}}
   const {{camelCase ../name}}_{{camelCase name}}_columnId = uuidv4();
   {{camelCase ../name}}Columns.push({
     id: {{camelCase ../name}}_{{camelCase name}}_columnId,
@@ -671,6 +676,7 @@ export async function seed(db: Kysely<any>): Promise<void> {
     updated_at: now,
   }).execute();
   {{camelCase ../name}}ColumnSeqNo += 10;
+  {{/unless}}
   {{/each}}
 
   {{#if parentLinkColumn}}

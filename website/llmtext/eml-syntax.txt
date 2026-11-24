@@ -89,7 +89,6 @@ erDiagram
         string id PK
         string full_name
         string email UK
-        boolean is_active
     }
     Room {
         string id PK
@@ -116,7 +115,6 @@ erDiagram
 %%entity Instructor icon: GraduationCap
 %%field Instructor.full_name help: The name that appears on the timetable, which is how members choose a class. Use the name the studio advertises, not the one on the contract.
 %%field Instructor.email help: Where the schedule and cancellation notices are sent, and how the instructor signs in. Unique, because it identifies the person.
-%%field Instructor.is_active help: Whether the instructor is currently teaching. Cleared instead of deleting, so the timetable history and the members' attendance records stay intact.
 
 %%entity Room help: A physical studio a class can be held in. Rooms are the constraint the timetable is built against: two classes cannot share one, and capacity is what caps a class's bookings.
 %%entity Room icon: DoorOpen
@@ -132,7 +130,7 @@ erDiagram
 %%field DanceClass.starts_at help: When the session begins, in the studio's own time zone. It is what the timetable is ordered by and what a reminder is sent against.
 %%field DanceClass.capacity help: The most bookings this session will take, at or below the room's own limit. Set lower than the room where the style needs floor space.
 %%field DanceClass.price help: What a member pays for this session if they are not using a class pack. Empty where the class is included in a membership.
-%%section entity: Instructor; name: Instructor; help: Who teaches, how the studio reaches them, and whether they can be timetabled.; rows: full_name, email | is_active
+%%section entity: Instructor; name: Instructor; help: Who teaches, how the studio reaches them, and whether they can be timetabled.; rows: full_name, email
 %%section entity: Room; name: Room; help: The studio room and how many dancers it safely holds.; rows: name, capacity
 %%section entity: DanceClass; name: Class; help: What is taught, by whom, where, and whether it is going ahead.; rows: title, status | instructor_id, room_id
 %%section entity: DanceClass; name: Session; help: When it runs, how many it takes, and what a drop-in pays.; rows: starts_at, capacity | price
@@ -145,21 +143,32 @@ Entity names are `PascalCase` or `SNAKE_CASE`; attribute names are `snake_case`.
 declaring one yourself is better — `EML117` warns when you do not, and the repair
 prepends `string id PK`, which may not be the column you wanted.
 
-**Seven column names are the generator's — do not declare them.** Every
+**Eight column names are the generator's — do not declare them.** Every
 generated table carries them already, in both stacks:
 
 ```
-id  version  created_at  updated_at  created_by  updated_by  deleted_at  deleted_by
+id  version  is_active  created_at  updated_at  created_by  updated_by  deleted_at  deleted_by
 ```
 
-Writing `datetime created_at` in an entity block says something the generator
-already guarantees. `EML103` reports the line, `checkAndFix` deletes it (§8.3),
-and the generator keeps its own definition regardless. Until it learned to, the duplicate reached
-PostgreSQL as a `CREATE TABLE` naming one column twice — which is rejected
-outright, so the *application failed to open*, with a message
+Writing `datetime created_at` or `boolean is_active` in an entity block says
+something the generator already guarantees. `EML103` reports the line,
+`checkAndFix` deletes it (§8.3), and the generator keeps its own definition
+regardless. Until it learned to, the duplicate reached PostgreSQL as a
+`CREATE TABLE` naming one column twice — which is rejected outright, so the
+*application failed to open*, with a message
 (`column "created_at" specified more than once`) that named no model line at
 all. Model what your business knows; the record-keeping columns are already
 there.
+
+**Five of these columns are mandatory system fields added to every entity's
+Application Dictionary by the generator templates, never from the model.**
+`is_active`, `created_by`, `created_at`, `updated_by`, and `updated_at` appear
+in a collapsed "System" group on every entity's form under the labels **Active**,
+**Created By**, **Created Date**, **Updated By**, and **Updated Date**. The audit
+fields are read-only; Active is editable. Do not declare them as columns, do not
+write `%%field <E>.is_active` or any `%%field` for these names, and do not place
+them in `%%section` rows — the template adds the correct versions deterministically
+and any model declaration is ignored and replaced.
 
 The `_id` spelling is a different column and a legitimate one:
 `created_by` is the generator's audit stamp — a bare UUID with no lookup —

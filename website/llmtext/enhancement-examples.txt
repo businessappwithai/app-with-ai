@@ -36,7 +36,6 @@ erDiagram
         string  full_name
         email   email UK
         phone   phone OPTIONAL
-        boolean is_active
     }
     Room {
         string  id PK
@@ -92,7 +91,6 @@ erDiagram
 %%field Instructor.full_name help: The name on the timetable, which is how members choose a class. Use the name the studio advertises rather than the one on the contract.
 %%field Instructor.email help: Where the schedule and any cancellation reach them, and how they sign in. Unique, because it identifies the person.
 %%field Instructor.phone help: A number reception can call on the morning of a class. Optional, and the reason a class is covered rather than cancelled when somebody is ill.
-%%field Instructor.is_active help: Whether they are currently teaching. Cleared instead of deleting; an inactive instructor should not appear when a new class is scheduled.
 
 %%entity Room help: A physical studio a class is held in. Rooms are the constraint the timetable is built against — two classes cannot share one at the same hour — and their capacity is the ceiling on every class booked into them.
 %%entity Room icon: DoorOpen
@@ -129,7 +127,7 @@ erDiagram
 %%field Booking.absent_marked_at help: When reception recorded that the member did not come. Recording it on a confirmed booking marks it a no-show, which keeps the seat counted.
 %%field Booking.cancelled_at help: When the booking was rejected or cancelled. Recording it releases the place, whether the booking was still requested or already confirmed.
 %%field Booking.cancellation_reason help: Why the place was given up, in the member's words. It is the difference between a member the studio should call and one who simply changed their mind.
-%%section entity: Instructor; name: Instructor; help: Who teaches, how the studio reaches them, and whether they can be timetabled.; rows: full_name, is_active | email, phone
+%%section entity: Instructor; name: Instructor; help: Who teaches, how the studio reaches them, and whether they can be timetabled.; rows: full_name, email | phone
 %%section entity: Room; name: Room; help: The studio room and how many dancers it safely holds.; rows: name, capacity
 %%section entity: Member; name: Member; help: Who dances here, how to reach them, and the membership they hold.; rows: full_name, email | tier, joined_on | credits
 %%section entity: DanceClass; name: Class; help: What is taught, by whom, where, and whether it is going ahead.; rows: title, status | instructor_id, room_id
