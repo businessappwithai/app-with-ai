@@ -718,6 +718,9 @@ export async function seed(db: Kysely<any>): Promise<void> {
    * column order describes — the parity with the browser build that the note
    * on GRID_NOISE is about.
    */
+  // System group id — declared before the branch so both paths can reference it
+  // when inserting the system fields (is_active, created_by/at, updated_by/at).
+  let {{camelCase name}}SystemGroupId: string;
   {{#if formGroups}}
   /*
    * The model's `%%section` groups — headed sections of two-column rows, in the
@@ -769,7 +772,26 @@ export async function seed(db: Kysely<any>): Promise<void> {
     }).execute();
   }
   {{/each}}
+  {{camelCase name}}SystemGroupId = uuidv4();
+  await db.insertInto('sys_field_group').values({
+    sys_field_group_id: {{camelCase name}}SystemGroupId,
+    sys_tab_id: {{camelCase name}}TabId,
+    name: 'System',
+    description: 'System-managed fields: active flag and audit trail (read-only).',
+    layout_type: 'single',
+    columns: 2,
+    seq_no: 9000,
+    field_group_type: 'C',
+    is_collapsed_by_default: true,
+    entity_type: 'D',
+    is_active: true,
+    created_by: createdBy,
+    updated_by: createdBy,
+    created_at: now,
+    updated_at: now,
+  }).execute();
   {{else}}
+  {{camelCase name}}SystemGroupId = uuidv4();
   await db.insertInto('sys_field_group').values([
     {
       sys_field_group_id: uuidv4(),
@@ -824,10 +846,10 @@ export async function seed(db: Kysely<any>): Promise<void> {
       updated_at: now,
     },
     {
-      sys_field_group_id: uuidv4(),
+      sys_field_group_id: {{camelCase name}}SystemGroupId,
       sys_tab_id: {{camelCase name}}TabId,
       name: 'System',
-      description: 'System fields (audit trail)',
+      description: 'System-managed fields: active flag and audit trail (read-only).',
       layout_type: 'single',
       columns: 2,
       seq_no: 40,
@@ -873,6 +895,303 @@ export async function seed(db: Kysely<any>): Promise<void> {
       read_only_logic: col.readOnlyLogic,
       mandatory_logic: col.mandatoryLogic,
       entity_type: 'U',
+      is_active: true,
+      created_by: createdBy,
+      updated_by: createdBy,
+      created_at: now,
+      updated_at: now,
+    }).execute();
+  }
+
+  // ============================================================================
+  // System fields — added deterministically to every entity's Application
+  // Dictionary, regardless of what the model declares.  The migration adds the
+  // columns unconditionally; these entries make them visible and labelled in
+  // the form.  The five fields are: is_active, created_by, created_at,
+  // updated_by, updated_at.  created_at / updated_at are exposed as
+  // "Created Date" / "Updated Date" for readability.
+  // ============================================================================
+  {
+    const sysSeq = ({{camelCase name}}Columns.length + 1) * 10;
+
+    // is_active — user-editable boolean; shown in form, hidden from grid
+    const {{camelCase name}}_isActive_colId = uuidv4();
+    await db.insertInto('sys_column').values({
+      sys_column_id: {{camelCase name}}_isActive_colId,
+      sys_table_id: {{camelCase name}}TableId,
+      column_name: 'is_active',
+      name: 'Active',
+      description: 'Whether this record is active. Inactive records are excluded from lists by default.',
+      sys_reference_id: 20, // YES_NO
+      is_key: false,
+      is_parent: false,
+      is_mandatory: false,
+      is_updateable: true,
+      is_identifier: false,
+      read_only_logic: null,
+      mandatory_logic: null,
+      is_selection_column: false,
+      is_translated: false,
+      is_encrypted: false,
+      is_allow_logging: true,
+      is_allow_copy: true,
+      seq_no: sysSeq,
+      entity_type: 'D',
+      is_active: true,
+      created_by: createdBy,
+      updated_by: createdBy,
+      created_at: now,
+      updated_at: now,
+    }).execute();
+    await db.insertInto('sys_field').values({
+      sys_field_id: uuidv4(),
+      sys_tab_id: {{camelCase name}}TabId,
+      sys_column_id: {{camelCase name}}_isActive_colId,
+      sys_field_group_id: {{camelCase name}}SystemGroupId,
+      name: 'Active',
+      help: 'Controls whether this record is active. Inactive records are hidden from normal list views but their data is preserved.',
+      seq_no: sysSeq,
+      seq_no_grid: sysSeq,
+      is_displayed: true,
+      is_displayed_grid: false,
+      is_read_only: false,
+      is_encrypted: false,
+      is_same_line: false,
+      column_span: null,
+      is_heading: false,
+      is_field_only: false,
+      display_logic: null,
+      read_only_logic: null,
+      mandatory_logic: null,
+      entity_type: 'D',
+      is_active: true,
+      created_by: createdBy,
+      updated_by: createdBy,
+      created_at: now,
+      updated_at: now,
+    }).execute();
+
+    // created_by — read-only audit column
+    const {{camelCase name}}_createdBy_colId = uuidv4();
+    await db.insertInto('sys_column').values({
+      sys_column_id: {{camelCase name}}_createdBy_colId,
+      sys_table_id: {{camelCase name}}TableId,
+      column_name: 'created_by',
+      name: 'Created By',
+      description: 'The user who created this record. Set automatically by the system.',
+      sys_reference_id: 10, // STRING
+      is_key: false,
+      is_parent: false,
+      is_mandatory: false,
+      is_updateable: false,
+      is_identifier: false,
+      read_only_logic: null,
+      mandatory_logic: null,
+      is_selection_column: false,
+      is_translated: false,
+      is_encrypted: false,
+      is_allow_logging: false,
+      is_allow_copy: false,
+      seq_no: sysSeq + 10,
+      entity_type: 'D',
+      is_active: true,
+      created_by: createdBy,
+      updated_by: createdBy,
+      created_at: now,
+      updated_at: now,
+    }).execute();
+    await db.insertInto('sys_field').values({
+      sys_field_id: uuidv4(),
+      sys_tab_id: {{camelCase name}}TabId,
+      sys_column_id: {{camelCase name}}_createdBy_colId,
+      sys_field_group_id: {{camelCase name}}SystemGroupId,
+      name: 'Created By',
+      help: 'Maintained by the system as part of the audit trail. It is set automatically, not entered here.',
+      seq_no: sysSeq + 10,
+      seq_no_grid: sysSeq + 10,
+      is_displayed: true,
+      is_displayed_grid: false,
+      is_read_only: true,
+      is_encrypted: false,
+      is_same_line: true,
+      column_span: null,
+      is_heading: false,
+      is_field_only: false,
+      display_logic: null,
+      read_only_logic: null,
+      mandatory_logic: null,
+      entity_type: 'D',
+      is_active: true,
+      created_by: createdBy,
+      updated_by: createdBy,
+      created_at: now,
+      updated_at: now,
+    }).execute();
+
+    // created_at — read-only, exposed as "Created Date"
+    const {{camelCase name}}_createdAt_colId = uuidv4();
+    await db.insertInto('sys_column').values({
+      sys_column_id: {{camelCase name}}_createdAt_colId,
+      sys_table_id: {{camelCase name}}TableId,
+      column_name: 'created_at',
+      name: 'Created Date',
+      description: 'The date and time this record was first saved. Set automatically by the system.',
+      sys_reference_id: 16, // DATETIME
+      is_key: false,
+      is_parent: false,
+      is_mandatory: false,
+      is_updateable: false,
+      is_identifier: false,
+      read_only_logic: null,
+      mandatory_logic: null,
+      is_selection_column: false,
+      is_translated: false,
+      is_encrypted: false,
+      is_allow_logging: false,
+      is_allow_copy: false,
+      seq_no: sysSeq + 20,
+      entity_type: 'D',
+      is_active: true,
+      created_by: createdBy,
+      updated_by: createdBy,
+      created_at: now,
+      updated_at: now,
+    }).execute();
+    await db.insertInto('sys_field').values({
+      sys_field_id: uuidv4(),
+      sys_tab_id: {{camelCase name}}TabId,
+      sys_column_id: {{camelCase name}}_createdAt_colId,
+      sys_field_group_id: {{camelCase name}}SystemGroupId,
+      name: 'Created Date',
+      help: 'Maintained by the system as part of the audit trail. It is set automatically, not entered here.',
+      seq_no: sysSeq + 20,
+      seq_no_grid: sysSeq + 20,
+      is_displayed: true,
+      is_displayed_grid: false,
+      is_read_only: true,
+      is_encrypted: false,
+      is_same_line: false,
+      column_span: null,
+      is_heading: false,
+      is_field_only: false,
+      display_logic: null,
+      read_only_logic: null,
+      mandatory_logic: null,
+      entity_type: 'D',
+      is_active: true,
+      created_by: createdBy,
+      updated_by: createdBy,
+      created_at: now,
+      updated_at: now,
+    }).execute();
+
+    // updated_by — read-only audit column
+    const {{camelCase name}}_updatedBy_colId = uuidv4();
+    await db.insertInto('sys_column').values({
+      sys_column_id: {{camelCase name}}_updatedBy_colId,
+      sys_table_id: {{camelCase name}}TableId,
+      column_name: 'updated_by',
+      name: 'Updated By',
+      description: 'The user who last modified this record. Updated automatically by the system.',
+      sys_reference_id: 10, // STRING
+      is_key: false,
+      is_parent: false,
+      is_mandatory: false,
+      is_updateable: false,
+      is_identifier: false,
+      read_only_logic: null,
+      mandatory_logic: null,
+      is_selection_column: false,
+      is_translated: false,
+      is_encrypted: false,
+      is_allow_logging: false,
+      is_allow_copy: false,
+      seq_no: sysSeq + 30,
+      entity_type: 'D',
+      is_active: true,
+      created_by: createdBy,
+      updated_by: createdBy,
+      created_at: now,
+      updated_at: now,
+    }).execute();
+    await db.insertInto('sys_field').values({
+      sys_field_id: uuidv4(),
+      sys_tab_id: {{camelCase name}}TabId,
+      sys_column_id: {{camelCase name}}_updatedBy_colId,
+      sys_field_group_id: {{camelCase name}}SystemGroupId,
+      name: 'Updated By',
+      help: 'Maintained by the system as part of the audit trail. It is set automatically, not entered here.',
+      seq_no: sysSeq + 30,
+      seq_no_grid: sysSeq + 30,
+      is_displayed: true,
+      is_displayed_grid: false,
+      is_read_only: true,
+      is_encrypted: false,
+      is_same_line: false,
+      column_span: null,
+      is_heading: false,
+      is_field_only: false,
+      display_logic: null,
+      read_only_logic: null,
+      mandatory_logic: null,
+      entity_type: 'D',
+      is_active: true,
+      created_by: createdBy,
+      updated_by: createdBy,
+      created_at: now,
+      updated_at: now,
+    }).execute();
+
+    // updated_at — read-only, exposed as "Updated Date"
+    const {{camelCase name}}_updatedAt_colId = uuidv4();
+    await db.insertInto('sys_column').values({
+      sys_column_id: {{camelCase name}}_updatedAt_colId,
+      sys_table_id: {{camelCase name}}TableId,
+      column_name: 'updated_at',
+      name: 'Updated Date',
+      description: 'The date and time this record was last modified. Updated automatically by the system.',
+      sys_reference_id: 16, // DATETIME
+      is_key: false,
+      is_parent: false,
+      is_mandatory: false,
+      is_updateable: false,
+      is_identifier: false,
+      read_only_logic: null,
+      mandatory_logic: null,
+      is_selection_column: false,
+      is_translated: false,
+      is_encrypted: false,
+      is_allow_logging: false,
+      is_allow_copy: false,
+      seq_no: sysSeq + 40,
+      entity_type: 'D',
+      is_active: true,
+      created_by: createdBy,
+      updated_by: createdBy,
+      created_at: now,
+      updated_at: now,
+    }).execute();
+    await db.insertInto('sys_field').values({
+      sys_field_id: uuidv4(),
+      sys_tab_id: {{camelCase name}}TabId,
+      sys_column_id: {{camelCase name}}_updatedAt_colId,
+      sys_field_group_id: {{camelCase name}}SystemGroupId,
+      name: 'Updated Date',
+      help: 'Maintained by the system as part of the audit trail. It is set automatically, not entered here.',
+      seq_no: sysSeq + 40,
+      seq_no_grid: sysSeq + 40,
+      is_displayed: true,
+      is_displayed_grid: false,
+      is_read_only: true,
+      is_encrypted: false,
+      is_same_line: true,
+      column_span: null,
+      is_heading: false,
+      is_field_only: false,
+      display_logic: null,
+      read_only_logic: null,
+      mandatory_logic: null,
+      entity_type: 'D',
       is_active: true,
       created_by: createdBy,
       updated_by: createdBy,
