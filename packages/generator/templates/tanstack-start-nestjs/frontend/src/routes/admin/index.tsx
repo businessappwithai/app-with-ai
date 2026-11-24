@@ -4,8 +4,10 @@ import {
   AppWindow,
   ArrowRight,
   Columns,
+  Hash,
   Home,
   Layers,
+  LayoutList,
   RefreshCw,
   Table2,
 } from "lucide-react";
