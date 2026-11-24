@@ -2,10 +2,11 @@ import type { ElementType } from "react";
 import {
   AppWindow,
   BarChart3,
-  Columns,
   Database,
   FileText,
+  GitBranch,
   Hash,
+  History,
   LayoutList,
   Printer,
   Settings,
@@ -27,6 +28,9 @@ export interface AdminPage {
 /**
  * The single list of admin pages — drives both the dashboard cards and the
  * sidebar navigation so the two are always identical.
+ *
+ * Order here is the order shown on the dashboard and in the sidebar.
+ * Every top-level route under /admin/ has an entry here.
  */
 export const ADMIN_PAGES: AdminPage[] = [
   {
@@ -66,11 +70,23 @@ export const ADMIN_PAGES: AdminPage[] = [
     to: "/admin/fields",
   },
   {
-    title: "Rules & workflows",
+    title: "Rules & Workflows",
     description:
       "Write the rules that judge a write, and the lifecycles, processes and status machines around it",
     icon: Settings,
     to: "/admin/automations",
+  },
+  {
+    title: "Workflow Definitions",
+    description: "View the workflows declared in the model — sagas, lifecycles and state machines",
+    icon: GitBranch,
+    to: "/admin/workflow-definitions",
+  },
+  {
+    title: "Workflow Run History",
+    description: "Monitor workflow execution history, status and step-level details",
+    icon: History,
+    to: "/admin/workflows",
   },
   {
     title: "User Management",
@@ -108,12 +124,6 @@ export const ADMIN_PAGES: AdminPage[] = [
     description: "The questions this model declared with %%report, answered against this database",
     icon: BarChart3,
     to: "/admin/analysis",
-  },
-  {
-    title: "Column",
-    description: "Manage individual column metadata — labels, help text and reference types",
-    icon: Columns,
-    to: "/admin/columns",
   },
   {
     title: "System Configuration",
