@@ -152,7 +152,6 @@ erDiagram
         string country_code
         string time_zone
         string currency_code
-        boolean is_active
     }
     DEPARTMENT {
         string department_id PK FK
@@ -168,7 +167,6 @@ erDiagram
         string budget_code OPTIONAL
         phone phone OPTIONAL
         email email OPTIONAL
-        boolean is_active
     }
     EMPLOYEE {
         string employee_id PK FK
@@ -208,7 +206,6 @@ erDiagram
         string bank_ifsc
         string bank_name
         string payment_method
-        boolean is_active
     }
     DOCTOR {
         string doctor_id PK FK
@@ -223,7 +220,6 @@ erDiagram
         text qualification OPTIONAL
         email contact_email OPTIONAL
         phone contact_phone OPTIONAL
-        boolean is_active
     }
     USER_ACCOUNT {
         string user_account_id PK FK
@@ -249,7 +245,6 @@ erDiagram
         date ends_on OPTIONAL
         string approved_by_id FK
         text reason
-        boolean is_active
     }
     SESSION_LOG {
         string log_id PK FK
@@ -410,7 +405,6 @@ erDiagram
         string location_description
         phone nursing_station_phone OPTIONAL
         boolean isolation_capable
-        boolean is_active
     }
     BED {
         string bed_id PK FK
@@ -425,7 +419,6 @@ erDiagram
         string service_catalog_id FK OPTIONAL
         text blocked_reason OPTIONAL
         datetime last_cleaned_at OPTIONAL
-        boolean is_active
         datetime reserved_at OPTIONAL
         datetime occupied_at OPTIONAL
         datetime cleaning_at OPTIONAL
@@ -586,7 +579,6 @@ erDiagram
         string dosage_form
         string strength
         string schedule_class
-        boolean is_active
     }
     PRESCRIPTION {
         string prescription_id PK FK
@@ -671,7 +663,6 @@ erDiagram
         decimal reorder_level
         boolean lot_controlled
         boolean expiry_controlled
-        boolean is_active
     }
     STORE {
         string store_id PK FK
@@ -680,7 +671,6 @@ erDiagram
         string facility_id FK
         string department_id FK OPTIONAL
         string store_type
-        boolean is_active
     }
     STOCK_LOT {
         string stock_lot_id PK FK
@@ -845,7 +835,6 @@ erDiagram
         string service_type
         decimal standard_price
         boolean taxable
-        boolean is_active
     }
     INVOICE {
         string invoice_id PK FK
@@ -919,7 +908,6 @@ erDiagram
         phone phone OPTIONAL
         email email OPTIONAL
         text address OPTIONAL
-        boolean is_active
     }
     COVERAGE {
         string coverage_id PK FK
@@ -1018,7 +1006,6 @@ erDiagram
         string start_time
         string end_time
         decimal paid_hours
-        boolean is_active
     }
     ROSTER_ASSIGNMENT {
         string roster_assignment_id PK FK
@@ -1108,7 +1095,6 @@ erDiagram
         string employee_type
         date effective_from
         date effective_to OPTIONAL
-        boolean is_active
     }
     SALARY_COMPONENT {
         string salary_component_id PK FK
@@ -1117,7 +1103,6 @@ erDiagram
         string component_type
         string calculation_type
         boolean taxable
-        boolean is_active
     }
     EMPLOYEE_SALARY_COMPONENT {
         string employee_salary_component_id PK FK
@@ -1127,7 +1112,6 @@ erDiagram
         decimal amount
         date effective_from
         date effective_to OPTIONAL
-        boolean is_active
     }
     ACCOUNT {
         string account_id PK FK
@@ -1136,7 +1120,6 @@ erDiagram
         string account_type
         string parent_id FK OPTIONAL
         boolean allow_posting
-        boolean is_active
     }
     FISCAL_PERIOD {
         string fiscal_period_id PK FK
@@ -1180,7 +1163,6 @@ erDiagram
         string facility_id FK
         string department_id FK OPTIONAL
         string parent_id FK OPTIONAL
-        boolean is_active
     }
     BANK_ACCOUNT {
         string bank_account_id PK FK
@@ -1190,7 +1172,6 @@ erDiagram
         string ifsc_code
         string currency_code
         string ledger_account_id FK
-        boolean is_active
     }
     BANK_TRANSACTION {
         string bank_transaction_id PK FK
@@ -1238,7 +1219,6 @@ erDiagram
         string depreciation_method
         decimal useful_life_years
         boolean requires_calibration
-        boolean is_active
     }
     FIXED_ASSET {
         string fixed_asset_id PK FK
@@ -1790,9 +1770,8 @@ erDiagram
 %%field FACILITY.country_code help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
 %%field FACILITY.time_zone help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
 %%field FACILITY.currency_code help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
-%%field FACILITY.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: FACILITY; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: facility_code, name | facility_type, registration_number | tax_identifier, phone | email, address_line_1
-%%section entity: FACILITY; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: address_line_2, city | state, postal_code | country_code, time_zone | currency_code, is_active
+%%section entity: FACILITY; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: address_line_2, city | state, postal_code | country_code, time_zone | currency_code
 %%rbac role:admin|facility_manager|medical_director|hr_officer|finance_officer|auditor on FACILITY.read
 %%entity DEPARTMENT help: Operational Department record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
 %%field DEPARTMENT.facility_id help: Selects the related Facility record needed to process this Department accurately and navigate its source context.
@@ -1807,9 +1786,8 @@ erDiagram
 %%field DEPARTMENT.budget_code help: Operational value required to identify, classify or process this Department consistently across hospital workflows and reports.
 %%field DEPARTMENT.phone help: Operational value required to identify, classify or process this Department consistently across hospital workflows and reports.
 %%field DEPARTMENT.email help: Operational value required to identify, classify or process this Department consistently across hospital workflows and reports.
-%%field DEPARTMENT.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: DEPARTMENT; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: facility_id, parent_id | department_code, department_name | department_type, head_doctor_id | manager_id
-%%section entity: DEPARTMENT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: location_wing, cost_center_id | budget_code, phone | email, is_active
+%%section entity: DEPARTMENT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: location_wing, cost_center_id | budget_code, phone | email
 %%index DEPARTMENT(facility_id)
 %%rbac role:admin|facility_manager|medical_director|hr_officer|finance_officer|auditor on DEPARTMENT.read
 %%entity EMPLOYEE help: Operational Employee record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -1847,9 +1825,8 @@ erDiagram
 %%field EMPLOYEE_PAYROLL_PROFILE.bank_ifsc help: Operational value required to identify, classify or process this Employee Payroll Profile consistently across hospital workflows and reports.
 %%field EMPLOYEE_PAYROLL_PROFILE.bank_name help: Operational value required to identify, classify or process this Employee Payroll Profile consistently across hospital workflows and reports.
 %%field EMPLOYEE_PAYROLL_PROFILE.payment_method help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
-%%field EMPLOYEE_PAYROLL_PROFILE.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: EMPLOYEE_PAYROLL_PROFILE; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: employee_id, tax_identifier | provident_fund_number, insurance_number | bank_account_number
-%%section entity: EMPLOYEE_PAYROLL_PROFILE; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: bank_ifsc, bank_name | payment_method, is_active
+%%section entity: EMPLOYEE_PAYROLL_PROFILE; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: bank_ifsc, bank_name | payment_method
 %%index EMPLOYEE_PAYROLL_PROFILE(employee_id)
 %%rbac role:admin|hr_officer|payroll_officer|finance_officer|auditor on EMPLOYEE_PAYROLL_PROFILE.read
 %%entity DOCTOR help: Operational Doctor record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -1864,9 +1841,8 @@ erDiagram
 %%field DOCTOR.qualification help: Operational explanation recorded for handover, review and audit so later staff understand the decision and its context.
 %%field DOCTOR.contact_email help: Operational value required to identify, classify or process this Doctor consistently across hospital workflows and reports.
 %%field DOCTOR.contact_phone help: Operational value required to identify, classify or process this Doctor consistently across hospital workflows and reports.
-%%field DOCTOR.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: DOCTOR; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: employee_id, department_id | full_name, specialization | doctor_type, license_number
-%%section entity: DOCTOR; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: medical_council, license_expiry_date | qualification, contact_email | contact_phone, is_active
+%%section entity: DOCTOR; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: medical_council, license_expiry_date | qualification, contact_email | contact_phone
 %%index DOCTOR(employee_id)
 %%rbac role:admin|medical_director|doctor|nurse|receptionist on DOCTOR.read
 %%entity USER_ACCOUNT help: Operational User Account record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -1891,9 +1867,8 @@ erDiagram
 %%field USER_ROLE_ASSIGNMENT.ends_on help: Business-effective date or time used for sequencing, deadlines, audit evidence and period reporting.
 %%field USER_ROLE_ASSIGNMENT.approved_by_id help: Selects the related Employee record needed to process this User Role Assignment accurately and navigate its source context.
 %%field USER_ROLE_ASSIGNMENT.reason help: Operational explanation recorded for handover, review and audit so later staff understand the decision and its context.
-%%field USER_ROLE_ASSIGNMENT.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: USER_ROLE_ASSIGNMENT; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: user_account_id, role | starts_on, ends_on
-%%section entity: USER_ROLE_ASSIGNMENT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: approved_by_id, reason | is_active
+%%section entity: USER_ROLE_ASSIGNMENT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: approved_by_id, reason
 %%index USER_ROLE_ASSIGNMENT(user_account_id)
 %%rbac role:admin|quality_manager|auditor on USER_ROLE_ASSIGNMENT.read
 %%entity SESSION_LOG help: Operational Session Log record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2048,9 +2023,8 @@ erDiagram
 %%field WARD.location_description help: Operational value required to identify, classify or process this Ward consistently across hospital workflows and reports.
 %%field WARD.nursing_station_phone help: Operational value required to identify, classify or process this Ward consistently across hospital workflows and reports.
 %%field WARD.isolation_capable help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
-%%field WARD.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: WARD; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: ward_code, name | facility_id, department_id | ward_type, care_level
-%%section entity: WARD; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: gender_restriction, licensed_capacity | location_description, nursing_station_phone | isolation_capable, is_active
+%%section entity: WARD; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: gender_restriction, licensed_capacity | location_description, nursing_station_phone | isolation_capable
 %%index WARD(facility_id)
 %%rbac role:admin|doctor|nurse|ward_clerk|bed_manager|billing_clerk|medical_director on WARD.read
 %%entity BED help: Operational Bed record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2065,9 +2039,8 @@ erDiagram
 %%field BED.service_catalog_id help: Selects the related Service Catalog record needed to process this Bed accurately and navigate its source context.
 %%field BED.blocked_reason help: Operational explanation recorded for handover, review and audit so later staff understand the decision and its context.
 %%field BED.last_cleaned_at help: Business-effective date or time used for sequencing, deadlines, audit evidence and period reporting.
-%%field BED.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: BED; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: bed_code, ward_id | room_number, bed_type | is_isolation_capable
-%%section entity: BED; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: has_oxygen, has_monitoring | service_catalog_id, blocked_reason | last_cleaned_at, is_active
+%%section entity: BED; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: has_oxygen, has_monitoring | service_catalog_id, blocked_reason | last_cleaned_at
 %%index BED(ward_id)
 %%rbac role:admin|doctor|nurse|ward_clerk|bed_manager|billing_clerk|medical_director on BED.read
 %%entity BED_ASSIGNMENT help: Operational Bed Assignment record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2219,9 +2192,8 @@ erDiagram
 %%field MEDICATION.dosage_form help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
 %%field MEDICATION.strength help: Operational value required to identify, classify or process this Medication consistently across hospital workflows and reports.
 %%field MEDICATION.schedule_class help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
-%%field MEDICATION.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: MEDICATION; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: medication_code, name | generic_name, dosage_form
-%%section entity: MEDICATION; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: strength, schedule_class | is_active
+%%section entity: MEDICATION; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: strength, schedule_class
 %%rbac role:admin|doctor|nurse|pharmacist|billing_clerk|medical_director on MEDICATION.read
 %%entity PRESCRIPTION help: Operational Prescription record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
 %%field PRESCRIPTION.prescription_number help: Operational value required to identify, classify or process this Prescription consistently across hospital workflows and reports.
@@ -2302,9 +2274,8 @@ erDiagram
 %%field ITEM.reorder_level help: Operational value required to identify, classify or process this Item consistently across hospital workflows and reports.
 %%field ITEM.lot_controlled help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%field ITEM.expiry_controlled help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
-%%field ITEM.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: ITEM; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: item_code, name | item_type, unit_of_measure
-%%section entity: ITEM; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: reorder_level, lot_controlled | expiry_controlled, is_active
+%%section entity: ITEM; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: reorder_level, lot_controlled | expiry_controlled
 %%rbac role:admin|pharmacist|stores_officer|procurement_officer|auditor on ITEM.read
 %%entity STORE help: Operational Store record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
 %%field STORE.store_code help: Operational value required to identify, classify or process this Store consistently across hospital workflows and reports.
@@ -2312,9 +2283,8 @@ erDiagram
 %%field STORE.facility_id help: Selects the related Facility record needed to process this Store accurately and navigate its source context.
 %%field STORE.department_id help: Selects the related Department record needed to process this Store accurately and navigate its source context.
 %%field STORE.store_type help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
-%%field STORE.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: STORE; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: store_code, name | facility_id
-%%section entity: STORE; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: department_id, store_type | is_active
+%%section entity: STORE; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: department_id, store_type
 %%index STORE(facility_id)
 %%rbac role:admin|pharmacist|stores_officer|procurement_officer|auditor on STORE.read
 %%entity STOCK_LOT help: Operational Stock Lot record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2475,9 +2445,8 @@ erDiagram
 %%field SERVICE_CATALOG.service_type help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
 %%field SERVICE_CATALOG.standard_price help: Financial value used in calculation, reconciliation and audit; enter the amount in the facility currency.
 %%field SERVICE_CATALOG.taxable help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
-%%field SERVICE_CATALOG.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: SERVICE_CATALOG; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: service_code, name | department_id, service_type
-%%section entity: SERVICE_CATALOG; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: standard_price, taxable | is_active
+%%section entity: SERVICE_CATALOG; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: standard_price, taxable
 %%index SERVICE_CATALOG(department_id)
 %%rbac role:admin|billing_clerk|cashier|finance_officer|insurance_officer|auditor on SERVICE_CATALOG.read
 %%entity INVOICE help: Operational Invoice record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2547,9 +2516,8 @@ erDiagram
 %%field PAYER.phone help: Operational value required to identify, classify or process this Payer consistently across hospital workflows and reports.
 %%field PAYER.email help: Operational value required to identify, classify or process this Payer consistently across hospital workflows and reports.
 %%field PAYER.address help: Operational explanation recorded for handover, review and audit so later staff understand the decision and its context.
-%%field PAYER.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: PAYER; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: payer_code, name | payer_type, phone
-%%section entity: PAYER; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: email, address | is_active
+%%section entity: PAYER; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: email, address
 %%rbac role:admin|insurance_officer|billing_clerk|finance_officer|auditor on PAYER.read
 %%entity COVERAGE help: Operational Coverage record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
 %%field COVERAGE.patient_id help: Selects the related Patient record needed to process this Coverage accurately and navigate its source context.
@@ -2638,9 +2606,8 @@ erDiagram
 %%field SHIFT_TEMPLATE.start_time help: Operational value required to identify, classify or process this Shift Template consistently across hospital workflows and reports.
 %%field SHIFT_TEMPLATE.end_time help: Operational value required to identify, classify or process this Shift Template consistently across hospital workflows and reports.
 %%field SHIFT_TEMPLATE.paid_hours help: Operational value required to identify, classify or process this Shift Template consistently across hospital workflows and reports.
-%%field SHIFT_TEMPLATE.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: SHIFT_TEMPLATE; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: shift_code, name | facility_id, department_id
-%%section entity: SHIFT_TEMPLATE; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: start_time, end_time | paid_hours, is_active
+%%section entity: SHIFT_TEMPLATE; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: start_time, end_time | paid_hours
 %%index SHIFT_TEMPLATE(facility_id)
 %%rbac role:admin|hr_officer|roster_coordinator|department_head|auditor on SHIFT_TEMPLATE.read
 %%entity ROSTER_ASSIGNMENT help: Operational Roster Assignment record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2722,9 +2689,8 @@ erDiagram
 %%field SALARY_STRUCTURE.employee_type help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
 %%field SALARY_STRUCTURE.effective_from help: Operational value required to identify, classify or process this Salary Structure consistently across hospital workflows and reports.
 %%field SALARY_STRUCTURE.effective_to help: Operational value required to identify, classify or process this Salary Structure consistently across hospital workflows and reports.
-%%field SALARY_STRUCTURE.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: SALARY_STRUCTURE; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: structure_code, name | facility_id, employee_type
-%%section entity: SALARY_STRUCTURE; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: effective_from, effective_to | is_active
+%%section entity: SALARY_STRUCTURE; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: effective_from, effective_to
 %%index SALARY_STRUCTURE(facility_id)
 %%rbac role:admin|hr_officer|payroll_officer|finance_officer|auditor on SALARY_STRUCTURE.read
 %%entity SALARY_COMPONENT help: Operational Salary Component record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2733,9 +2699,8 @@ erDiagram
 %%field SALARY_COMPONENT.component_type help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
 %%field SALARY_COMPONENT.calculation_type help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
 %%field SALARY_COMPONENT.taxable help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
-%%field SALARY_COMPONENT.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: SALARY_COMPONENT; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: component_code, name | component_type
-%%section entity: SALARY_COMPONENT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: calculation_type, taxable | is_active
+%%section entity: SALARY_COMPONENT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: calculation_type, taxable
 %%rbac role:admin|hr_officer|payroll_officer|finance_officer|auditor on SALARY_COMPONENT.read
 %%entity EMPLOYEE_SALARY_COMPONENT help: Operational Employee Salary Component record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
 %%entity EMPLOYEE_SALARY_COMPONENT parent: EMPLOYEE
@@ -2745,9 +2710,8 @@ erDiagram
 %%field EMPLOYEE_SALARY_COMPONENT.amount help: Financial value used in calculation, reconciliation and audit; enter the amount in the facility currency.
 %%field EMPLOYEE_SALARY_COMPONENT.effective_from help: Operational value required to identify, classify or process this Employee Salary Component consistently across hospital workflows and reports.
 %%field EMPLOYEE_SALARY_COMPONENT.effective_to help: Operational value required to identify, classify or process this Employee Salary Component consistently across hospital workflows and reports.
-%%field EMPLOYEE_SALARY_COMPONENT.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: EMPLOYEE_SALARY_COMPONENT; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: employee_id, salary_structure_id | salary_component_id, amount
-%%section entity: EMPLOYEE_SALARY_COMPONENT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: effective_from, effective_to | is_active
+%%section entity: EMPLOYEE_SALARY_COMPONENT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: effective_from, effective_to
 %%index EMPLOYEE_SALARY_COMPONENT(employee_id)
 %%rbac role:admin|hr_officer|payroll_officer|finance_officer|auditor on EMPLOYEE_SALARY_COMPONENT.read
 %%entity ACCOUNT help: Operational Account record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2756,9 +2720,8 @@ erDiagram
 %%field ACCOUNT.account_type help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
 %%field ACCOUNT.parent_id help: Selects the related Account record needed to process this Account accurately and navigate its source context.
 %%field ACCOUNT.allow_posting help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
-%%field ACCOUNT.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: ACCOUNT; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: account_code, name | account_type
-%%section entity: ACCOUNT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: parent_id, allow_posting | is_active
+%%section entity: ACCOUNT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: parent_id, allow_posting
 %%index ACCOUNT(parent_id)
 %%rbac role:admin|finance_officer|accountant|auditor on ACCOUNT.read
 %%entity FISCAL_PERIOD help: Operational Fiscal Period record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2802,9 +2765,8 @@ erDiagram
 %%field COST_CENTER.facility_id help: Selects the related Facility record needed to process this Cost Center accurately and navigate its source context.
 %%field COST_CENTER.department_id help: Selects the related Department record needed to process this Cost Center accurately and navigate its source context.
 %%field COST_CENTER.parent_id help: Selects the related Cost Center record needed to process this Cost Center accurately and navigate its source context.
-%%field COST_CENTER.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: COST_CENTER; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: cost_center_code, name | facility_id
-%%section entity: COST_CENTER; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: department_id, parent_id | is_active
+%%section entity: COST_CENTER; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: department_id, parent_id
 %%index COST_CENTER(facility_id)
 %%rbac role:admin|finance_officer|accountant|auditor on COST_CENTER.read
 %%entity BANK_ACCOUNT help: Operational Bank Account record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2814,9 +2776,8 @@ erDiagram
 %%field BANK_ACCOUNT.ifsc_code help: Operational value required to identify, classify or process this Bank Account consistently across hospital workflows and reports.
 %%field BANK_ACCOUNT.currency_code help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
 %%field BANK_ACCOUNT.ledger_account_id help: Selects the related Account record needed to process this Bank Account accurately and navigate its source context.
-%%field BANK_ACCOUNT.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: BANK_ACCOUNT; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: account_name, account_number | bank_name, ifsc_code
-%%section entity: BANK_ACCOUNT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: currency_code, ledger_account_id | is_active
+%%section entity: BANK_ACCOUNT; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: currency_code, ledger_account_id
 %%index BANK_ACCOUNT(ledger_account_id)
 %%rbac role:admin|finance_officer|accountant|auditor on BANK_ACCOUNT.read
 %%entity BANK_TRANSACTION help: Operational Bank Transaction record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
@@ -2861,9 +2822,8 @@ erDiagram
 %%field ASSET_CATEGORY.depreciation_method help: Controlled business classification used consistently by forms, validations, workflows and reporting rather than free text.
 %%field ASSET_CATEGORY.useful_life_years help: Operational value required to identify, classify or process this Asset Category consistently across hospital workflows and reports.
 %%field ASSET_CATEGORY.requires_calibration help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
-%%field ASSET_CATEGORY.is_active help: Operational flag that changes eligibility, availability or processing while preserving the record's history.
 %%section entity: ASSET_CATEGORY; name: Identity and responsibility; help: The values staff verify first to identify the record, its ownership and its current operating context.; rows: category_code, name | depreciation_method
-%%section entity: ASSET_CATEGORY; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: useful_life_years, requires_calibration | is_active
+%%section entity: ASSET_CATEGORY; name: Processing and outcome; help: The details staff complete as work progresses, including timing, amounts, explanations and final outcome evidence.; rows: useful_life_years, requires_calibration
 %%rbac role:admin|biomedical_engineer|facility_manager|finance_officer|auditor on ASSET_CATEGORY.read
 %%entity FIXED_ASSET help: Operational Fixed Asset record used by hospital staff from initial capture through accountable completion, preserving the evidence needed for care, administration and audit.
 %%field FIXED_ASSET.asset_number help: Operational value required to identify, classify or process this Fixed Asset consistently across hospital workflows and reports.
