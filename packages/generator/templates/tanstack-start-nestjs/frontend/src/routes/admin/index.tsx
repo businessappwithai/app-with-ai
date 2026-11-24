@@ -3,25 +3,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   AppWindow,
   ArrowRight,
-  BarChart3,
   Columns,
-  Database,
-  FileText,
-  Hash,
   Home,
   Layers,
-  LayoutList,
-  Printer,
   RefreshCw,
-  Settings,
-  Shield,
-  ShieldCheck,
-  SlidersHorizontal,
   Table2,
-  UserCog,
-  Users,
 } from "lucide-react";
 import { ADSidebar } from "@/components/admin/ad-sidebar";
+import { ADMIN_PAGES } from "@/components/admin/admin-pages";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiClient, type PaginatedResponse } from "@/lib/api-client";
@@ -93,87 +82,6 @@ function AdminDashboardPage() {
     },
   ];
 
-  const windows = [
-    {
-      title: "Table and Column",
-      description: "Browse database tables and their column definitions in master/detail view",
-      icon: Database,
-      to: "/admin/tables" as const,
-    },
-    {
-      title: "Window, Tab and Field",
-      description: "Manage application windows with nested tabs and field configurations",
-      icon: AppWindow,
-      to: "/admin/windows" as const,
-    },
-    {
-      title: "Element",
-      description: "Manage system elements — column names, print names, and descriptions",
-      icon: FileText,
-      to: "/admin/elements" as const,
-    },
-    {
-      title: "Reference",
-      description: "Manage data types, validation rules, and lookup definitions",
-      icon: Hash,
-      to: "/admin/references" as const,
-    },
-    {
-      title: "Field Layout Manager",
-      description: "Customize field order, visibility, and grouping with drag-and-drop",
-      icon: LayoutList,
-      to: "/admin/fields" as const,
-    },
-    {
-      title: "Rules & workflows",
-      description: "Write the rules that judge a write, and the lifecycles, processes and status machines around it",
-      icon: Settings,
-      to: "/admin/automations" as const,
-    },
-    {
-      title: "User Management",
-      description: "Create and manage application users, assign roles, and control account status",
-      icon: Users,
-      to: "/admin/users" as const,
-    },
-    {
-      title: "Role Management",
-      description: "Create and manage roles that define what users may do in this application",
-      icon: UserCog,
-      to: "/admin/roles" as const,
-    },
-    {
-      title: "Access Controls",
-      description: "Grant or revoke entity-level read, create, update and delete permissions per role",
-      icon: Shield,
-      to: "/admin/access-controls" as const,
-    },
-    {
-      title: "Audit Log",
-      description: "Immutable tamper-proof audit trail of all user and system actions",
-      icon: ShieldCheck,
-      to: "/admin/audit" as const,
-    },
-    {
-      title: "Report Designs",
-      description: "Design printable document reports for each entity; users get a Print button on their records",
-      icon: Printer,
-      to: "/admin/reports" as const,
-    },
-    {
-      title: "Analysis",
-      description:
-        "The questions this model declared with %%report, answered against this database",
-      icon: BarChart3,
-      to: "/admin/analysis" as const,
-    },
-    {
-      title: "System Configuration",
-      description: "Runtime settings: AI endpoints, feature toggles, rate limits, and application identity",
-      icon: SlidersHorizontal,
-      to: "/admin/system-config" as const,
-    },
-  ];
 
   return (
     <ADSidebar>
@@ -219,20 +127,20 @@ function AdminDashboardPage() {
             ))}
           </div>
 
-          {/* Window Cards */}
+          {/* Window Cards — same list as the sidebar, from ADMIN_PAGES */}
           <div>
             <h2 className="text-lg font-semibold mb-4">Dictionary Windows</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {windows.map((win) => (
-                <Link key={win.to} to={win.to}>
+              {ADMIN_PAGES.map((page) => (
+                <Link key={page.to} to={page.to}>
                   <Card className="group hover:border-primary/50 transition-all cursor-pointer h-full">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
-                        <win.icon className="h-6 w-6 text-primary" />
+                        <page.icon className="h-6 w-6 text-primary" />
                         <ArrowRight className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                      <CardTitle className="text-lg">{win.title}</CardTitle>
-                      <CardDescription>{win.description}</CardDescription>
+                      <CardTitle className="text-lg">{page.title}</CardTitle>
+                      <CardDescription>{page.description}</CardDescription>
                     </CardHeader>
                   </Card>
                 </Link>

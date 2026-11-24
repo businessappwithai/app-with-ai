@@ -1,92 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  AppWindow,
-  Database,
-  FileText,
-  Hash,
-  LayoutList,
-  Menu,
-  Printer,
-  Settings,
-  Shield,
-  ShieldCheck,
-  SlidersHorizontal,
-  Tags,
-  UserCog,
-  Users,
-  X,
-} from "lucide-react";
+import { Menu, Settings, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const MENU_ITEMS = [
-  {
-    label: "Table and Column",
-    to: "/admin/tables",
-    icon: Database,
-  },
-  {
-    label: "Window, Tab and Field",
-    to: "/admin/windows",
-    icon: AppWindow,
-  },
-  {
-    label: "Element",
-    to: "/admin/elements",
-    icon: FileText,
-  },
-  {
-    label: "Reference",
-    to: "/admin/references",
-    icon: Hash,
-  },
-  {
-    label: "Entity Categories",
-    to: "/admin/categories",
-    icon: Tags,
-  },
-  {
-    label: "Field Layout Manager",
-    to: "/admin/fields",
-    icon: LayoutList,
-  },
-  {
-    label: "Rules & workflows",
-    to: "/admin/automations",
-    icon: Settings,
-  },
-  {
-    label: "User Management",
-    to: "/admin/users",
-    icon: Users,
-  },
-  {
-    label: "Role Management",
-    to: "/admin/roles",
-    icon: UserCog,
-  },
-  {
-    label: "Access Controls",
-    to: "/admin/access-controls",
-    icon: Shield,
-  },
-  {
-    label: "Audit Log",
-    to: "/admin/audit",
-    icon: ShieldCheck,
-  },
-  {
-    label: "Report Designs",
-    to: "/admin/reports",
-    icon: Printer,
-  },
-  {
-    label: "System Configuration",
-    to: "/admin/system-config",
-    icon: SlidersHorizontal,
-  },
-];
+import { ADMIN_PAGES } from "@/components/admin/admin-pages";
 
 interface ADSidebarProps {
   children: React.ReactNode;
@@ -125,10 +42,10 @@ export function ADSidebar({ children }: ADSidebarProps) {
             </Button>
           </div>
 
-          {/* Menu Items */}
+          {/* Menu Items — derived from ADMIN_PAGES, the same list the dashboard cards use */}
           {!collapsed && (
             <nav className="flex-1 py-2">
-              {MENU_ITEMS.map((item) => {
+              {ADMIN_PAGES.map((item) => {
                 const isActive = currentPath === item.to || currentPath.startsWith(item.to + "/");
                 return (
                   <Link
@@ -142,7 +59,7 @@ export function ADSidebar({ children }: ADSidebarProps) {
                     )}
                   >
                     <item.icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate">{item.title}</span>
                   </Link>
                 );
               })}
