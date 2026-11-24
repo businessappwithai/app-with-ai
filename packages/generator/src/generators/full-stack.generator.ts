@@ -778,24 +778,21 @@ and explains what to set before the first start.
 
 ### Prerequisites
 
-- **Bun.js 1.1.0+** (REQUIRED runtime)
-- PostgreSQL 14+ (or SQLite for development)
+- **Bun.js 1.4.4** (REQUIRED runtime — exact version)
+- PostgreSQL 14+
 
 ### Installation
 
 \`\`\`bash
-# Install dependencies
+# Install dependencies (run from the workspace root)
 bun install
 
 # Setup environment
 cp backend/.env.example backend/.env
 # Edit .env with your database credentials
 
-# Run migrations
-bun run db:migrate
-
-# Seed initial data (sys_reference, sys_table, sys_column, sys_field)
-bun run db:seed
+# Run migrations and seed
+cd backend && bun run db:setup
 \`\`\`
 
 ### Development

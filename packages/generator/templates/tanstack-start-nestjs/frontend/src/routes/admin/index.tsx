@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Table2,
+  UserCog,
+  Users,
 } from "lucide-react";
 import { ADSidebar } from "@/components/admin/ad-sidebar";
 import { Button } from "@/components/ui/button";
@@ -127,6 +129,18 @@ function AdminDashboardPage() {
       description: "Write the rules that judge a write, and the lifecycles, processes and status machines around it",
       icon: Settings,
       to: "/admin/automations" as const,
+    },
+    {
+      title: "User Management",
+      description: "Create and manage application users, assign roles, and control account status",
+      icon: Users,
+      to: "/admin/users" as const,
+    },
+    {
+      title: "Role Management",
+      description: "Create and manage roles that define what users may do in this application",
+      icon: UserCog,
+      to: "/admin/roles" as const,
     },
     {
       title: "Access Controls",

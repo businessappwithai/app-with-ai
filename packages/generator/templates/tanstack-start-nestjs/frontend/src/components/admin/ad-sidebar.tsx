@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Tags,
+  UserCog,
+  Users,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -53,6 +55,16 @@ const MENU_ITEMS = [
     label: "Rules & workflows",
     to: "/admin/automations",
     icon: Settings,
+  },
+  {
+    label: "User Management",
+    to: "/admin/users",
+    icon: Users,
+  },
+  {
+    label: "Role Management",
+    to: "/admin/roles",
+    icon: UserCog,
   },
   {
     label: "Access Controls",

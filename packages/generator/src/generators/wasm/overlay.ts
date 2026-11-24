@@ -264,25 +264,32 @@ export async function applyWasmOverlay(options: WasmOverlayOptions): Promise<Was
     rewritten.push("package.json");
   }
 
-  // Shell scripts the generator writes for a human to run.
-  for (const script of ["run-app.sh", "backend/run-app.sh", "docker-start.sh"]) {
-    const file = path.join(outputDir, script);
+  // Shell scripts and docs the generator writes for a human to run.
+  for (const file of ["run-app.sh", "backend/run-app.sh", "docker-start.sh", "README.md"]) {
+    const target = path.join(outputDir, file);
     try {
-      const source = await fs.readFile(file, "utf-8");
+      const source = await fs.readFile(target, "utf-8");
       const next = source
         .replace(/\bbunx --bun /g, "npx ")
         .replace(/\bbunx /g, "npx ")
         .replace(/\bbun install\b/g, "npm install")
         .replace(/\bbun run /g, "npm run ")
         .replace(/\bbun test\b/g, "npm test")
-        .replace(/\bbun\b(?! install)/g, "node");
+        .replace(/\bbun\b(?! install)/g, "node")
+        // The README was written for the Bun stack; update the runtime prereq.
+        .replace(/\*\*Bun\.js[^*]*\*\*[^\n]*\n/g, "**Node.js 20+** (required runtime)\n")
+        // Warn that npm install must run from the workspace root so overrides apply.
+        .replace(
+          /# Install dependencies\nnpm install/g,
+          "# Install dependencies — run from the workspace root so npm overrides apply\nnpm install"
+        );
       if (next !== source) {
-        await fs.writeFile(file, next, "utf-8");
-        rewritten.push(script);
-        debunned.push(script);
+        await fs.writeFile(target, next, "utf-8");
+        rewritten.push(file);
+        debunned.push(file);
       }
     } catch {
-      // Not every stack writes every script.
+      // Not every stack writes every file.
     }
   }
 
