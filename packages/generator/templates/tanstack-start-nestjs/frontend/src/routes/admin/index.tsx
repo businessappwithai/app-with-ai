@@ -85,7 +85,7 @@ function AdminDashboardPage() {
 
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-0">
         {/* Header */}
         <header className="border-b border-border bg-card px-8 py-8">
           <div className="flex items-start justify-between">
@@ -111,7 +111,7 @@ function AdminDashboardPage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto px-8 py-8 space-y-8">
+        <div className="px-8 py-8 space-y-8">
           {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {stats.map((stat) => (
