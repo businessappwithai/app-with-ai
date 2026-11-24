@@ -525,6 +525,7 @@ function AccessControlsBanner() {
       </div>
       <Link
         to="/admin/access-controls"
+        search={{ role: undefined }}
         className={buttonVariants({ variant: 'outline', size: 'sm' })}
       >
         Edit access controls

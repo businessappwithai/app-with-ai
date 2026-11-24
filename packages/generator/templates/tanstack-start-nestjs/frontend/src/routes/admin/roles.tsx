@@ -178,7 +178,7 @@ function RolesPage() {
           , and configure entity-level permissions per role in{' '}
           <button
             type="button"
-            onClick={() => void navigate({ to: '/admin/access-controls' })}
+            onClick={() => void navigate({ to: '/admin/access-controls', search: { role: undefined } })}
             className="underline hover:text-primary"
           >
             Access Controls

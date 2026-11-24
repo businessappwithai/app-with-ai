@@ -724,6 +724,10 @@ export class TanStackStartFrontendGenerator extends BaseGenerator {
         dest: "src/components/admin/ad-record-nav.tsx",
       },
       {
+        src: "src/components/admin/admin-pages.ts",
+        dest: "src/components/admin/admin-pages.ts",
+      },
+      {
         src: "src/components/admin/ad-sidebar.tsx",
         dest: "src/components/admin/ad-sidebar.tsx",
       },

@@ -54,7 +54,7 @@ function AccessControlsPage() {
     return (
       <RolePermissionsView
         roleName={selectedRoleName}
-        onBack={() => void navigate({ search: {} })}
+        onBack={() => void navigate({ search: { role: undefined } })}
       />
     );
   }
