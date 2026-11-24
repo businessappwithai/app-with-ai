@@ -1,3 +1,4 @@
+import type { ElementType } from "react";
 import {
   AppWindow,
   BarChart3,
@@ -19,7 +20,7 @@ import {
 export interface AdminPage {
   title: string;
   description: string;
-  icon: React.ElementType;
+  icon: ElementType;
   to: string;
 }
 
