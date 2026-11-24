@@ -855,7 +855,7 @@ export async function seed(db: Kysely<any>): Promise<void> {
       sys_field_group_id: {{camelCase name}}SystemGroupId,
       sys_tab_id: {{camelCase name}}TabId,
       name: 'System',
-      description: 'System-managed fields: active flag and audit trail (read-only).',
+      description: 'Audit trail: who created and last updated this record, and when (read-only).',
       layout_type: 'single',
       columns: 2,
       seq_no: 40,
@@ -920,14 +920,14 @@ export async function seed(db: Kysely<any>): Promise<void> {
   {
     const sysSeq = ({{camelCase name}}Columns.length + 1) * 10;
 
-    // is_active — user-editable boolean; shown in form, hidden from grid
+    // is_active — system-managed boolean; editable in the form but protected from deletion
     const {{camelCase name}}_isActive_colId = uuidv4();
     await db.insertInto('sys_column').values({
       sys_column_id: {{camelCase name}}_isActive_colId,
       sys_table_id: {{camelCase name}}TableId,
       column_name: 'is_active',
       name: 'Active',
-      description: 'Whether this record is active. Inactive records are excluded from lists by default.',
+      description: 'Whether this record is active.',
       sys_reference_id: 20, // YES_NO
       is_key: false,
       is_parent: false,
@@ -953,9 +953,9 @@ export async function seed(db: Kysely<any>): Promise<void> {
       sys_field_id: uuidv4(),
       sys_tab_id: {{camelCase name}}TabId,
       sys_column_id: {{camelCase name}}_isActive_colId,
-      sys_field_group_id: {{camelCase name}}SystemGroupId,
+      sys_field_group_id: null,
       name: 'Active',
-      help: 'Controls whether this record is active. Inactive records are hidden from normal list views but their data is preserved.',
+      help: 'Indicates whether this record is active. Inactive records are hidden from normal list views but their data is preserved.',
       seq_no: sysSeq,
       seq_no_grid: sysSeq,
       is_displayed: true,

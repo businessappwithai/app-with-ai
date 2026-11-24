@@ -57,6 +57,8 @@ interface DynamicFormProps {
   idField?: string;
   /** Data from the immediate parent record — used to filter lookup dropdowns (e.g. filter columns by parent tab's sys_table_id) */
   parentContext?: Record<string, unknown>;
+  /** Group names to omit from the form entirely — their fields are rendered elsewhere (e.g. a separate read-only card). */
+  skipGroups?: string[];
 }
 
 const REFERENCE_TYPE = {
@@ -978,6 +980,7 @@ export function DynamicForm({
   readOnlyFields = [],
   parentContext,
   idField,
+  skipGroups,
 }: DynamicFormProps) {
   const { t } = useTranslations();
   const {
@@ -1141,9 +1144,11 @@ export function DynamicForm({
       if (mode === "create" && f.column_name === pkColumnName) return false;
       return true;
     });
+    const skipped = new Set(skipGroups ?? []);
     const groups: Map<string | null, FieldMetadata[]> = new Map();
     displayFields.forEach((field) => {
       const groupName = field.group_name || null;
+      if (groupName && skipped.has(groupName)) return;
       if (!groups.has(groupName)) groups.set(groupName, []);
       groups.get(groupName)!.push(field);
     });

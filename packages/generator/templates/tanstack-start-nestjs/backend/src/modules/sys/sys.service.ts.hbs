@@ -626,6 +626,9 @@ export class SysService {
 
   async deleteColumn(id: string) {
     const column = await this.findColumnById(id);
+    if ((column as any).entity_type === 'D') {
+      throw new BadRequestException('System-managed columns cannot be deleted.');
+    }
     const parentTable = await this.findTableById(column.sys_table_id as string);
     const dbTableName = physicalTableName(parentTable.table_name);
     const now = new Date().toISOString();
@@ -825,7 +828,10 @@ export class SysService {
   }
 
   async deleteField(id: string) {
-    await this.findFieldById(id);
+    const field = await this.findFieldById(id);
+    if ((field as any).entity_type === 'D') {
+      throw new BadRequestException('System-managed fields cannot be deleted.');
+    }
     await (this.db.kysely.updateTable('sys_field' as any)
       .set({ is_active: false, updated_at: new Date().toISOString(), updated_by: 'system' } as any)
       .where('sys_field_id' as any, '=', id) as any).execute();

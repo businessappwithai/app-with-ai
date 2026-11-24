@@ -42,6 +42,49 @@ import { format } from "date-fns";
 type AnyRecord = Record<string, unknown>;
 
 // ---------------------------------------------------------------------------
+// System Audit Card — always read-only, rendered outside the main form
+// Shows the four audit-trail fields every business record carries.
+// is_active is editable and appears in the main form; only the pure
+// audit trail (who created/updated and when) goes here.
+// ---------------------------------------------------------------------------
+
+function formatSystemDate(value: unknown): string {
+  if (!value) return "—";
+  try {
+    return format(new Date(value as string), "dd MMM yyyy, HH:mm");
+  } catch {
+    return String(value);
+  }
+}
+
+function SystemAuditCard({ record }: { record: AnyRecord }) {
+  const fields: { label: string; value: React.ReactNode }[] = [
+    { label: "Created By", value: (record.created_by as string) || "—" },
+    { label: "Created Date", value: formatSystemDate(record.created_at) },
+    { label: "Updated By", value: (record.updated_by as string) || "—" },
+    { label: "Updated Date", value: formatSystemDate(record.updated_at) },
+  ];
+  return (
+    <div className="mx-6 my-4 rounded-lg border border-border bg-muted/30">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          System Information
+        </span>
+        <span className="text-xs text-muted-foreground/60 ml-auto">Read-only</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 px-4 py-3">
+        {fields.map(({ label, value }) => (
+          <div key={label} className="flex flex-col gap-0.5">
+            <span className="text-xs text-muted-foreground">{label}</span>
+            <span className="text-sm text-foreground">{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Inline child tab panel
 // Row clicks navigate to the child's detail URL (metadata-derived)
 // ---------------------------------------------------------------------------
@@ -997,11 +1040,11 @@ export function ADDetailShell({
         isSaving={saveMutation.isPending}
         isDeleting={deleteMutation.isPending}
         hasChanges={hasChanges}
-        canDelete={!!recordId && isEditing}
+        canDelete={!!recordId && isEditing && currentRecord?.entity_type !== 'D'}
         canCreate={false}
         isEditing={isEditing}
         isDetailView={true}
-        canEdit={!locked}
+        canEdit={!locked && currentRecord?.entity_type !== 'D'}
         hasPrintReport={hasReportDesign}
       />
 
@@ -1182,6 +1225,7 @@ export function ADDetailShell({
                 readOnly={!isEditing}
                 isSaving={saveMutation.isPending}
                 parentContext={immediateParentData}
+                skipGroups={["System"]}
               />
               <VersionConflictDialog
                 open={conflict !== null}
@@ -1205,6 +1249,11 @@ export function ADDetailShell({
                 </div>
               )}
             </div>
+
+            {/* System-managed fields — always read-only, separate from the editable form */}
+            {currentRecord.created_at !== undefined && (
+              <SystemAuditCard record={currentRecord} />
+            )}
 
             {/* Inline child tabs — row clicks navigate to child detail URL */}
             {level.childTabs && level.childTabs.length > 0 && (
