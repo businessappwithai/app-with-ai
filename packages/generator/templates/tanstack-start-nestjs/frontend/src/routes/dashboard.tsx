@@ -18,6 +18,7 @@ import { Icon } from '@/components/ui/icon';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { APP_NAME } from "@/lib/app-meta";
+import { ADMIN_PAGES } from '@/components/admin/admin-pages';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -135,6 +136,33 @@ function Dashlet({
   );
 }
 
+function AdminDashlet({ page }: { page: (typeof ADMIN_PAGES)[number] }) {
+  return (
+    <Link to={page.to} className="block group">
+      <div className="swiss-card p-5 hover:border-primary/50 transition-all h-full">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <page.icon className="w-5 h-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                {page.title}
+              </h3>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1" />
+        </div>
+        {page.description && (
+          <p className="text-xs text-muted-foreground mt-3 line-clamp-2 leading-relaxed">
+            {page.description}
+          </p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 function DashboardPage() {
   /*
    * One query for the business section, not three.
@@ -183,35 +211,7 @@ function DashboardPage() {
 
 
 
-  /*
-   * The admin cards, entirely from the dictionary.
-   *
-   * Name, route and icon all come off `sys_window`, and which of them appear
-   * is `sys_access` for this caller's roles — the same grant the screens
-   * themselves are guarded by, so the dashboard cannot offer a window that
-   * then refuses.
-   *
-   * This used to run each window through a hard-coded name-to-icon map and
-   * drop anything the map did not name. That is a gate, not a fallback:
-   * `System Configuration` was seeded, granted to the admin role, and missing
-   * from the dashboard for every user including master — while four entries in
-   * the map named windows that no longer existed. A window with no icon gets a
-   * default one now; it is never withheld.
-   */
-  const adminWindowsFromPerms = (dashboard?.windows ?? [])
-    .filter((w) => w.category === 'admin' && !!w.route && w.route !== '/admin/automations' && w.route !== '/admin/workflow-definitions')
-    .map((w) => ({
-      name: w.name,
-      href: w.route,
-      icon: w.icon,
-      is_read_only: w.is_read_only,
-    }));
-
   const query = searchQuery.toLowerCase().trim();
-
-  const filteredAdmin = query
-    ? adminWindowsFromPerms.filter(d => d.name.toLowerCase().includes(query))
-    : adminWindowsFromPerms;
 
   // Entities grouped by category, alphabetical by category name. The search box
   // filters within each group and drops groups that end up empty.
@@ -234,6 +234,17 @@ function DashboardPage() {
   /** True for the master role only — not for a caller the dictionary has never heard of. */
   const isAdministrator = dashboard?.isMaster === true;
   const entitiesVisible = !isAdministrator || showEntitiesAsAdmin;
+
+  /** All 16 admin pages, filtered by the search query when active. */
+  const filteredAdminPages = isAdministrator
+    ? (query
+        ? ADMIN_PAGES.filter(
+            (p) =>
+              p.title.toLowerCase().includes(query) ||
+              (p.description?.toLowerCase().includes(query) ?? false),
+          )
+        : ADMIN_PAGES)
+    : [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -385,42 +396,20 @@ function DashboardPage() {
           </div>
         )}
 
-        {/* Automations — administrator only */}
-        {isAdministrator && (
-          <section>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Dashlet
-                name="Automations"
-                description="Rules and workflows"
-                icon="zap"
-                href="/admin/automations"
-              />
-            </div>
-          </section>
-        )}
-
         {/* Access controls summary — administrator only */}
         {isAdministrator && <AccessControlsBanner />}
 
-        {/* Admin / Dictionary */}
-        {filteredAdmin.length > 0 && (
+        {/* Administration — all 16 admin pages, administrator only */}
+        {filteredAdminPages.length > 0 && (
           <section>
             <div className="flex items-center gap-2 mb-5">
               <LayoutGrid className="w-4 h-4 text-primary" />
-              <h2 className="section-header mb-0">
-                Application Dictionary
-              </h2>
-              <span className="font-mono-display text-muted-foreground">({filteredAdmin.length})</span>
+              <h2 className="section-header mb-0">Administration</h2>
+              <span className="font-mono-display text-muted-foreground">({filteredAdminPages.length})</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredAdmin.map((d) => (
-                <Dashlet
-                  key={d.href}
-                  name={d.name}
-                  description={d.is_read_only ? 'View only' : undefined}
-                  icon={d.icon}
-                  href={d.href}
-                />
+              {filteredAdminPages.map((page) => (
+                <AdminDashlet key={page.to} page={page} />
               ))}
             </div>
           </section>
@@ -442,7 +431,7 @@ function DashboardPage() {
         {dashboard?.isMaster && <PurgeBusinessData />}
 
         {/* Empty search */}
-        {!categoriesLoading && !error && query && (groupedEntityCount === 0 || !entitiesVisible) && filteredAdmin.length === 0 && (
+        {!categoriesLoading && !error && query && (groupedEntityCount === 0 || !entitiesVisible) && filteredAdminPages.length === 0 && (
           <div className="swiss-card p-12 text-center">
             <Search className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
             <p className="font-semibold">No results for &ldquo;{searchQuery}&rdquo;</p>
@@ -459,7 +448,7 @@ function DashboardPage() {
           restriction restricts. Rendered as bare emptiness it reads as a
           broken build, so it says which of the two it is.
         */}
-        {!categoriesLoading && !error && !query && groupedEntityCount === 0 && filteredAdmin.length === 0 && (
+        {!categoriesLoading && !error && !query && groupedEntityCount === 0 && filteredAdminPages.length === 0 && (
           <div className="swiss-card p-12 text-center">
             <Database className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
             <p className="font-semibold">Nothing to show</p>

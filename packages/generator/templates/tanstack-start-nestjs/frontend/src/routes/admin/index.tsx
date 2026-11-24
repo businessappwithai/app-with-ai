@@ -86,68 +86,57 @@ function AdminDashboardPage() {
 
   return (
     <div className="flex flex-col min-h-0">
-        {/* Header */}
-        <header className="border-b border-border bg-card px-8 py-8">
-          <div className="flex items-start justify-between">
+      {/* Compact header */}
+      <header className="border-b border-border bg-card px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Home className="h-3.5 w-3.5" />
+              Back
+            </Link>
             <div>
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors mb-3"
-              >
-                <Home className="h-3.5 w-3.5" />
-                Back to Dashboard
-              </Link>
-              <h1 className="text-4xl font-bold tracking-tight text-foreground font-display">
-                Application Dictionary
-              </h1>
-              <p className="text-muted-foreground mt-2 max-w-xl">
-                Manage entities, field layouts, and application configuration
-              </p>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">Application Dictionary</h1>
+              <p className="text-xs text-muted-foreground">Manage entities, field layouts, and configuration</p>
             </div>
-            <Button variant="outline" size="default" onClick={() => refetch()} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
           </div>
-        </header>
-
-        <div className="px-8 py-8 space-y-8">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {/* Stats inline */}
+          <div className="hidden lg:flex items-center gap-3">
             {stats.map((stat) => (
-              <div key={stat.label} className="border border-border rounded-lg p-4 bg-card">
-                <div className="flex items-center gap-2 mb-2">
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {stat.label}
-                  </span>
-                </div>
-                <p className="text-3xl font-bold text-foreground tabular-nums">{stat.count}</p>
+              <div key={stat.label} className="flex items-center gap-1.5 text-sm">
+                <stat.icon className={`h-3.5 w-3.5 ${stat.color}`} />
+                <span className="font-semibold tabular-nums">{stat.count}</span>
+                <span className="text-muted-foreground text-xs">{stat.label}</span>
               </div>
             ))}
-          </div>
-
-          {/* Window Cards — same list as the sidebar, from ADMIN_PAGES */}
-          <div>
-            <h2 className="text-lg font-semibold mb-4">Dictionary Windows</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {ADMIN_PAGES.map((page) => (
-                <Link key={page.to} to={page.to}>
-                  <Card className="group hover:border-primary/50 transition-all cursor-pointer h-full">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <page.icon className="h-6 w-6 text-primary" />
-                        <ArrowRight className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      <CardTitle className="text-lg">{page.title}</CardTitle>
-                      <CardDescription>{page.description}</CardDescription>
-                    </CardHeader>
-                  </Card>
-                </Link>
-              ))}
-            </div>
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            </Button>
           </div>
         </div>
+      </header>
+
+      {/* 4-column card grid — all 16 fit in 4 rows */}
+      <div className="px-6 py-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {ADMIN_PAGES.map((page) => (
+            <Link key={page.to} to={page.to}>
+              <Card className="group hover:border-primary/50 transition-all cursor-pointer h-full">
+                <CardHeader className="p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <page.icon className="h-5 w-5 text-primary" />
+                    <ArrowRight className="h-3.5 w-3.5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold leading-tight">{page.title}</CardTitle>
+                  <CardDescription className="text-xs line-clamp-2">{page.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
