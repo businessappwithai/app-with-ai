@@ -289,9 +289,10 @@ program
   Run it:
 
     cd ${path.relative(process.cwd(), outputDirEarly) || "."}
-    npm install --prefix backend && npm run --prefix backend db:setup
+    npm install                             # from workspace root — applies overrides
+    npm run --prefix backend db:setup
     npm run --prefix backend start          # NestJS on WebAssembly Postgres
-    npm install --prefix frontend && npm run --prefix frontend dev
+    npm run --prefix frontend dev
 
   There is no database to start. Sign in as ${options.adminEmail} / ${options.adminPassword}
 `);
