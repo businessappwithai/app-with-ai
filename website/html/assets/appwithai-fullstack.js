@@ -8346,15 +8346,17 @@ async function applyWasmOverlay(options) {
     await writeJson(rootManifest, root);
     rewritten.push("package.json");
   }
-  for (const script of ["run-app.sh", "backend/run-app.sh", "docker-start.sh"]) {
-    const file = join(outputDir, script);
+  for (const file of ["run-app.sh", "backend/run-app.sh", "docker-start.sh", "README.md"]) {
+    const target = join(outputDir, file);
     try {
-      const source = await readFile(file, "utf-8");
-      const next = source.replace(/\bbunx --bun /g, "npx ").replace(/\bbunx /g, "npx ").replace(/\bbun install\b/g, "npm install").replace(/\bbun run /g, "npm run ").replace(/\bbun test\b/g, "npm test").replace(/\bbun\b(?! install)/g, "node");
+      const source = await readFile(target, "utf-8");
+      const next = source.replace(/\bbunx --bun /g, "npx ").replace(/\bbunx /g, "npx ").replace(/\bbun install\b/g, "npm install").replace(/\bbun run /g, "npm run ").replace(/\bbun test\b/g, "npm test").replace(/\bbun\b(?! install)/g, "node").replace(/\*\*Bun\.js[^*]*\*\*[^\n]*\n/g, `**Node.js 20+** (required runtime)
+`).replace(/# Install dependencies\nnpm install/g, `# Install dependencies — run from the workspace root so npm overrides apply
+npm install`);
       if (next !== source) {
-        await writeFile(file, next, "utf-8");
-        rewritten.push(script);
-        debunned.push(script);
+        await writeFile(target, next, "utf-8");
+        rewritten.push(file);
+        debunned.push(file);
       }
     } catch {}
   }
@@ -12563,8 +12565,18 @@ function attributeTypeToReferenceId(type) {
   };
   return typeMapping[type];
 }
+var SYSTEM_COLUMN_NAMES = new Set([
+  "created_at",
+  "updated_at",
+  "deleted_at",
+  "version",
+  "created_by",
+  "updated_by",
+  "is_active"
+]);
 function entityToBusEntity(entity, declared) {
   const tableName = entity.tableName.startsWith(BUS_TABLE_PREFIX) ? entity.tableName : `${BUS_TABLE_PREFIX}${entity.tableName}`;
+  const userAttributes = entity.attributes.filter((attr) => !SYSTEM_COLUMN_NAMES.has(attr.name));
   return {
     ...entity,
     tableName,
@@ -12572,7 +12584,7 @@ function entityToBusEntity(entity, declared) {
     displayName: formatDisplayName(entity.name),
     windowOwner: entity.parentEntity ?? entity.name,
     indexes: mergeIndexes(entity),
-    attributes: withIdentifiers(entity.attributes.map((attr, index) => attributeToBusAttribute(attr, index, entity.primaryKey, declared)), entity.primaryKey, entity.name, entity.identifierColumns)
+    attributes: withIdentifiers(userAttributes.map((attr, index) => attributeToBusAttribute(attr, index, entity.primaryKey, declared)), entity.primaryKey, entity.name, entity.identifierColumns)
   };
 }
 function withIdentifiers(attributes, primaryKey, entityName, declared) {
@@ -15412,6 +15424,14 @@ class TemplateLoader {
     import_handlebars.default.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
     import_handlebars.default.registerHelper("not", (value) => !value);
     import_handlebars.default.registerHelper("isSignedColumn", (name) => typeof name === "string" && SIGNED_COLUMN.test(name));
+    const TEMPLATE_SYSTEM_COLUMNS = new Set([
+      "is_active",
+      "created_by",
+      "created_at",
+      "updated_by",
+      "updated_at"
+    ]);
+    import_handlebars.default.registerHelper("isSystemColumn", (name) => typeof name === "string" && TEMPLATE_SYSTEM_COLUMNS.has(name));
     import_handlebars.default.registerHelper("eachFirst", function(items, count, options) {
       if (!Array.isArray(items) || items.length === 0) {
         return options.inverse(this);
@@ -18828,6 +18848,10 @@ class TanStackStartFrontendGenerator extends BaseGenerator {
         dest: "src/components/admin/ad-record-nav.tsx"
       },
       {
+        src: "src/components/admin/admin-pages.ts",
+        dest: "src/components/admin/admin-pages.ts"
+      },
+      {
         src: "src/components/admin/ad-sidebar.tsx",
         dest: "src/components/admin/ad-sidebar.tsx"
       },
@@ -20075,24 +20099,21 @@ and explains what to set before the first start.
 
 ### Prerequisites
 
-- **Bun.js 1.1.0+** (REQUIRED runtime)
-- PostgreSQL 14+ (or SQLite for development)
+- **Bun.js 1.4.4** (REQUIRED runtime — exact version)
+- PostgreSQL 14+
 
 ### Installation
 
 \`\`\`bash
-# Install dependencies
+# Install dependencies (run from the workspace root)
 bun install
 
 # Setup environment
 cp backend/.env.example backend/.env
 # Edit .env with your database credentials
 
-# Run migrations
-bun run db:migrate
-
-# Seed initial data (sys_reference, sys_table, sys_column, sys_field)
-bun run db:seed
+# Run migrations and seed
+cd backend && bun run db:setup
 \`\`\`
 
 ### Development
