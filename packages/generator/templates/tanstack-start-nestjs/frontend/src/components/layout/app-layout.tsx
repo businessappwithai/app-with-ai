@@ -107,7 +107,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           onOpenNavigation={() => setNavigationOpen(true)}
           isNavigationOpen={isNavigationOpen}
         />
-        <main ref={mainRef} className="flex-1 overflow-auto p-6">
+        <main ref={mainRef} className="flex-1 overflow-hidden p-6">
           {children}
         </main>
       </div>
