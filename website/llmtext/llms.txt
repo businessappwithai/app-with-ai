@@ -72,10 +72,9 @@ Format (JSON):
   report       — array of reporting-platform accounts: { "email", "role", "isAdmin", "tables" }
   reportPassword — shared password for every reporting account: "admin"
 
-One account per `%%rbac` role declared in the model, plus the generated administrator. The administrator bypasses every restriction, so signing in as any other role is the only way to see the access control the model wrote. The entity count beside each address is the number of entities that role may read; if `ACCESS_IS_SCOPED` is false every role sees everything.
+One account per `%%rbac` role declared in the model, plus the generated administrator. The administrator bypasses every restriction, so signing in as any other role is the only way to see the access control the model wrote. The entity count beside each address is how many entities that role may read.
 
-Application sign-in: `GET /api/sys/demo-accounts` (public, no session required) reads `password_list.txt` and returns the `app` array.
-Reporting sign-in: `GET /api/sys/demo-accounts` on the reporting service reads the same file from its own working directory and returns the `report` array.
+Both sign-in pages call `GET /api/sys/demo-accounts` (public): the application's returns the `app` array, the reporting service's returns `report`.
 Both endpoints return `{ accounts: [], password: "" }` when the file is absent — no hardcoded fallback.
 
 Production cleanup: delete `password_list.txt` from the project root (and `reporting/password_list.txt`) before deploying anywhere real.

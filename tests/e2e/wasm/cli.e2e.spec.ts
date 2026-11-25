@@ -451,6 +451,7 @@ test.describe("@cli the WebAssembly overlay", () => {
 
     expect(changed.sort()).toEqual([
       ".appwithai.json",
+      "README.md",
       "backend/.env",
       "backend/.env.example",
       "backend/package.json",
