@@ -250,7 +250,7 @@ function TableReferenceField({
         const raw = e.target.value;
         // Preserve numeric IDs for sys_reference_id etc.
         const parsed = raw !== "" && !isNaN(Number(raw)) ? Number(raw) : raw;
-        fieldApi.handleChange(parsed || raw);
+        fieldApi.handleChange(parsed);
       }}
       onBlur={fieldApi.handleBlur}
       disabled={isDisabled || awaitingParent}
@@ -1236,10 +1236,12 @@ export function DynamicForm({
     await onSubmit(filteredValues);
   };
 
+  const formValues = form.useStore((state: any) => state.values);
   const requiredCount = fields.filter((f) => {
     if (!isInputField(f) || !f.is_mandatory || f.column_name === parentField) return false;
     if (mode === "create" && f.column_name === pkColumnName) return false;
-    return true;
+    const val = formValues[f.column_name];
+    return val === null || val === undefined || val === "";
   }).length;
   const totalDisplayed = fields.filter((f) => {
     if (!isInputField(f) || f.column_name === parentField) return false;

@@ -1286,7 +1286,13 @@ export class WorkflowService {
    */
   private resolveReference(text: string | undefined, context: Record<string, unknown>): unknown {
     const match = /^\s*\{\{\s*([\w.]+)\s*\}\}\s*$/.exec(text ?? '');
-    return match ? context[match[1]!] : text;
+    if (match) return context[match[1]!];
+    // A bare identifier present in the context is a field reference, not a literal.
+    // Without this, operand="discount_amount" was returned as the string
+    // "discount_amount", Number(...) became NaN, and arithmetic formulas that
+    // referenced record fields were skipped as non-numeric.
+    if (text && Object.prototype.hasOwnProperty.call(context, text.trim())) return context[text.trim()];
+    return text;
   }
 
   /** Replace \{{key}} placeholders with values from the workflow context. */
