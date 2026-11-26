@@ -1,0 +1,23 @@
+{
+  "$comment": [
+    "The two third-party checkouts this service builds from, and the exact commit of each.",
+    "They are Docker build contexts and the OpenBot API contract, never code of ours.",
+    "Place one with:",
+    "  git clone https://github.com/<repository> .checkouts/<name> && git -C .checkouts/<name> checkout <ref>",
+    "`.checkouts/` is gitignored. Moving a pin is deliberate: run `bun run check:openbot-operations` after."
+  ],
+  "dependencies": [
+    {
+      "name": "buzz",
+      "repository": "block/buzz",
+      "path": ".checkouts/buzz",
+      "ref": "b769d5bee81e99b8ff9189686bf6ab1856897c31"
+    },
+    {
+      "name": "openbot",
+      "repository": "CopilotKit/OpenBot",
+      "path": ".checkouts/openbot",
+      "ref": "3d8a716a73755f23fee64e0bba586cca87cf89c9"
+    }
+  ]
+}

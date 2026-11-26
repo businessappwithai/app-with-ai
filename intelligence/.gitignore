@@ -2,3 +2,9 @@ node_modules/
 dist/
 # Pinned third-party checkouts placed by ./deps.sh (block/buzz, CopilotKit/OpenBot): Docker build contexts, never code of ours.
 .checkouts/
+
+# The repository root ignores `*.test.ts` and `*.generated.*`. Both are part of this service
+# (its tests, and the OpenBot operations table), so they are re-included here. A nested
+# .gitignore takes precedence over its parent's.
+!*.test.ts
+!*.generated.json

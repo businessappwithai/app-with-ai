@@ -9,9 +9,9 @@
   "scripts": {
     "dev": "bun --bun vite dev",
     "build": "bun --bun vite build",
-    "start": "bun server-static-wrapper.mjs",
-    "type-check": "bun check",
-    "lint": "bun check",
+    "start": "bun server.ts",
+    "type-check": "bun scripts/require-bun.ts && bun check",
+    "lint": "bun scripts/require-bun.ts && bun check",
     "test": "bun test src",
     "check:all": "bun run type-check && bun run test",
     "check:openbot-operations": "bun scripts/openbot-operations.ts --check"

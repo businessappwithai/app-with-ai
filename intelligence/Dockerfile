@@ -1,6 +1,6 @@
 # The assistant: the chat front door to the generated application and the
 # reporting platform. Built for its URL prefix; see vite.config.ts.
-FROM oven/bun:1.4.4 AS build
+FROM oven/bun:1.4.6 AS build
 WORKDIR /srv
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -9,12 +9,13 @@ ARG CHAT_BASE_PATH=/chat
 ENV CHAT_BASE_PATH=${CHAT_BASE_PATH}
 RUN bun run build
 
-FROM oven/bun:1.4.4
+FROM oven/bun:1.4.6
 WORKDIR /srv
 ENV NODE_ENV=production \
     PORT=4200 \
     # Open-source CopilotKit only: nothing is sent to CopilotKit.
-    COPILOTKIT_TELEMETRY_DISABLED=true
+    COPILOTKIT_TELEMETRY_DISABLED=true \
+    DO_NOT_TRACK=1
 COPY --from=build /srv/node_modules ./node_modules
 COPY --from=build /srv/dist ./dist
 COPY --from=build /srv/src ./src

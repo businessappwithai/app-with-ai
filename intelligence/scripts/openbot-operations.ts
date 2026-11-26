@@ -19,7 +19,7 @@ import { join, resolve } from "node:path";
 const root = resolve(import.meta.dir, "..");
 const specPath = join(root, ".checkouts/openbot/api/openapi.yaml");
 const outPath = join(root, "src/openbot/operations.generated.json");
-const deps = JSON.parse(readFileSync(join(root, "../deps.json"), "utf8")) as { dependencies: Array<{ name: string; ref: string }> };
+const deps = JSON.parse(readFileSync(join(root, "deps.json"), "utf8")) as { dependencies: Array<{ name: string; ref: string }> };
 const pin = deps.dependencies.find((d) => d.name === "openbot")?.ref;
 if (!pin) throw new Error("deps.json pins no `openbot`");
 if (!existsSync(specPath)) {
