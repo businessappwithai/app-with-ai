@@ -7,6 +7,7 @@ import { join, normalize, resolve } from "node:path";
 import { createAssistant } from "./src/server/app";
 import { createAuditLog } from "./src/server/audit";
 import { loadConfig } from "./src/server/config";
+import { log } from "./src/server/log";
 import { openDatabase } from "./src/server/database";
 import { hexToBytes } from "nostr-tools/utils";
 import type { Intelligence } from "./src/interface/types";
@@ -85,4 +86,4 @@ const server = Bun.serve({
   websocket: handle.websocket,
 });
 
-console.log(`assistant listening on :${server.port}${config.basePath}`);
+log.event("assistant.started", { port: server.port, basePath: config.basePath, durable: config.buzz !== null, database: config.databaseUrl !== null });

@@ -29,6 +29,7 @@ import {
 } from "@copilotkit/runtime/v2";
 import { Observable, ReplaySubject } from "rxjs";
 import { type Intelligence, type RecordedRun, ThreadExistsError } from "../interface/types";
+import { log } from "../server/log";
 
 /** The owner a call names; a call naming none acts as the server, which no HTTP caller can be. */
 const SERVER_OWNER = "\0server";
@@ -43,7 +44,7 @@ interface LiveRun {
 }
 
 export interface IntelligenceRunnerOptions {
-  /** Called when a finished run could not be recorded after every retry. Defaults to console.error. */
+  /** Called when a finished run could not be recorded after every retry. Defaults to the `assistant.run.record_failed` log event. */
   onRecordFailure?: (error: unknown, context: { threadId: string; runId: string }) => void;
   /** Delays between record attempts, in ms. */
   retryDelaysMs?: number[];
@@ -190,7 +191,7 @@ export class IntelligenceRunner extends AgentRunner {
         return;
       } catch (error) {
         if (attempt >= delays.length) {
-          (this.options.onRecordFailure ?? ((e, c) => console.error("intelligence: could not record run", c, e)))(error, {
+          (this.options.onRecordFailure ?? ((e, c) => log.event("assistant.run.record_failed", { ...c, error: e instanceof Error ? e.message : String(e) })))(error, {
             threadId,
             runId: run.runId,
           });

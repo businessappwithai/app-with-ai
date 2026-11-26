@@ -1,0 +1,35 @@
+# The "Chat assistant" job. GitHub only reads workflows from the repository root's .github/workflows,
+# so this file is kept beside the service and copied there by whoever enables it:
+#   cp intelligence/ci/chat-assistant.workflow.yml .github/workflows/chat-assistant.yml
+name: Chat assistant
+on:
+  pull_request:
+    paths: ["intelligence/**"]
+env:
+  BUN_VERSION: "1.4.6"
+jobs:
+  assistant:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: intelligence
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run type-check
+      - run: bun run test
+      - run: bun run build
+      # The OpenBot API table must be what the pinned contract gives.
+      - name: Check the OpenBot operations table
+        run: |
+          pin=$(bun -e "console.log(JSON.parse(require('fs').readFileSync('deps.json','utf8')).dependencies.find(d=>d.name==='openbot').ref)")
+          git clone --filter=blob:none --no-checkout https://github.com/CopilotKit/OpenBot .checkouts/openbot
+          git -C .checkouts/openbot sparse-checkout set api
+          git -C .checkouts/openbot checkout "$pin"
+          bun run check:openbot-operations
+      # The Buzz provider's conformance suite needs a relay; it is skipped here and says so.
+      - name: Skipped suites
+        run: bun test src 2>&1 | grep -i skip || true

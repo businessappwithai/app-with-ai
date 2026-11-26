@@ -12,7 +12,7 @@
     "start": "bun server.ts",
     "type-check": "bun scripts/require-bun.ts && bun check",
     "lint": "bun scripts/require-bun.ts && bun check",
-    "test": "bun test src",
+    "test": "bun test",
     "check:all": "bun run type-check && bun run test",
     "check:openbot-operations": "bun scripts/openbot-operations.ts --check"
   },
