@@ -1096,6 +1096,14 @@ export class TanStackStartFrontendGenerator extends BaseGenerator {
     const fieldsContent = await this.component("src/routes/admin/fields.tsx");
     await fs.writeFile(path.join(adminDir, "fields.tsx"), fieldsContent);
 
+    // Tabs list page - renders as /admin/tabs
+    try {
+      const tabsContent = await this.component("src/routes/admin/tabs.tsx");
+      await fs.writeFile(path.join(adminDir, "tabs.tsx"), tabsContent);
+    } catch (_e) {
+      console.warn("Admin tabs page template not found");
+    }
+
     // Business rules management - renders as /admin/rules via admin/rules.tsx
     try {
       const rulesContent = await this.renderTemplate("src/routes/admin/rules.tsx.hbs", context);
@@ -1155,32 +1163,44 @@ export class TanStackStartFrontendGenerator extends BaseGenerator {
       console.warn("Admin reports page template not found");
     }
 
-    // Analysis — the model's own `%%report` questions. Written whether or not
-    // the model declared any: the admin landing page links to it from a static
-    // list, so omitting the route on an empty model is a type error in the
-    // generated frontend rather than one fewer screen. With no reports it says
-    // the model declares none.
-    try {
-      const analysisContent = await this.component("src/routes/admin/analysis.tsx");
-      await fs.writeFile(path.join(adminDir, "analysis.tsx"), analysisContent);
-    } catch (_e) {
-      console.warn("Admin analysis page template not found");
-    }
-
-    // Users page (admin/users.tsx)
+    // Users — layout wrapper + index list + detail page with edit and role assignment
     try {
       const usersContent = await this.component("src/routes/admin/users.tsx");
       await fs.writeFile(path.join(adminDir, "users.tsx"), usersContent);
     } catch (_e) {
-      console.warn("Admin users page template not found");
+      console.warn("Admin users layout template not found");
+    }
+    try {
+      const usersIndexContent = await this.component("src/routes/admin/users.index.tsx");
+      await fs.writeFile(path.join(adminDir, "users.index.tsx"), usersIndexContent);
+    } catch (_e) {
+      console.warn("Admin users index page template not found");
+    }
+    try {
+      const usersDetailContent = await this.component("src/routes/admin/users.$userId.tsx");
+      await fs.writeFile(path.join(adminDir, "users.$userId.tsx"), usersDetailContent);
+    } catch (_e) {
+      console.warn("Admin users detail page template not found");
     }
 
-    // Roles page (admin/roles.tsx)
+    // Roles — layout wrapper + index list + detail page with edit and permissions matrix
     try {
       const rolesContent = await this.component("src/routes/admin/roles.tsx");
       await fs.writeFile(path.join(adminDir, "roles.tsx"), rolesContent);
     } catch (_e) {
-      console.warn("Admin roles page template not found");
+      console.warn("Admin roles layout template not found");
+    }
+    try {
+      const rolesIndexContent = await this.component("src/routes/admin/roles.index.tsx");
+      await fs.writeFile(path.join(adminDir, "roles.index.tsx"), rolesIndexContent);
+    } catch (_e) {
+      console.warn("Admin roles index page template not found");
+    }
+    try {
+      const rolesDetailContent = await this.component("src/routes/admin/roles.$roleName.tsx");
+      await fs.writeFile(path.join(adminDir, "roles.$roleName.tsx"), rolesDetailContent);
+    } catch (_e) {
+      console.warn("Admin roles detail page template not found");
     }
 
     // System configuration page (admin/system-config.tsx). The admin index links
@@ -1205,6 +1225,8 @@ export class TanStackStartFrontendGenerator extends BaseGenerator {
     const adminSubdirs = [
       { src: "src/routes/admin/table", dest: "src/routes/admin/table" },
       { src: "src/routes/admin/window", dest: "src/routes/admin/window" },
+      { src: "src/routes/admin/tab", dest: "src/routes/admin/tab" },
+      { src: "src/routes/admin/field", dest: "src/routes/admin/field" },
       { src: "src/routes/admin/element", dest: "src/routes/admin/element" },
       { src: "src/routes/admin/reference", dest: "src/routes/admin/reference" },
       { src: "src/routes/admin/rules", dest: "src/routes/admin/rules" },

@@ -1165,6 +1165,8 @@ export function ADDetailShell({
           layout={reportDesign.layout}
           data={currentRecord}
           entityLabel={level.label}
+          recordId={recordId}
+          recordUrl={typeof window !== "undefined" ? window.location.href : undefined}
           // The dictionary columns, so the printed document resolves a foreign
           // key to the record's name and a list value to its label — the same
           // words the form beside it is showing — instead of printing the uuid

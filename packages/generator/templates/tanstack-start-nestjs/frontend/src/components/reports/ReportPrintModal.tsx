@@ -22,6 +22,10 @@ interface ReportPrintModalProps {
   /** The record data to render into the report */
   data: Record<string, unknown>;
   entityLabel?: string;
+  /** The record's primary-key value, printed in the footer. */
+  recordId?: string;
+  /** The full URL to the record, printed in the footer. */
+  recordUrl?: string;
   /**
    * The entity's dictionary columns.
    *
@@ -152,8 +156,11 @@ export function ReportPrintModal({
   layout,
   data,
   entityLabel,
+  recordId,
+  recordUrl,
   fields = [],
 }: ReportPrintModalProps) {
+  const printedAt = new Date().toLocaleString();
   /**
    * A callback ref, not `useRef`.
    *
@@ -364,6 +371,21 @@ export function ReportPrintModal({
             </p>
           )}
           <div ref={setContainer} className="mx-auto bg-card shadow-sm" />
+          {/* Document metadata footer — always printed, not part of the report design */}
+          <div className="mx-auto mt-4 pt-3 border-t border-border text-xs text-muted-foreground space-y-0.5 print:border-gray-300 print:text-gray-500">
+            {entityLabel && recordId && (
+              <p>
+                <span className="font-medium">{entityLabel}</span>
+                {" · "}
+                <span className="font-mono">{recordId}</span>
+                {" · "}
+                {printedAt}
+              </p>
+            )}
+            {recordUrl && (
+              <p className="font-mono break-all">{recordUrl}</p>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -95,6 +95,7 @@ FIRST, before any other tool. When in doubt, invoke the skill.
 | Generate, build or run an application from a model | `generate-and-run-app` |
 | QA lifecycle, workflows, rules, RBAC end-to-end | `qa-lifecycle-workflows` (same skill — it is the only QA skill) |
 | Before committing, pushing or merging | `ship-checks` |
+| Design or bulk-generate AnkaReport layouts for a generated app | `ankareport` |
 
 Use `/browse` for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
 
@@ -108,6 +109,14 @@ Use `/browse` for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
 ## Generated Application Stack Rule
 
 **MANDATORY**: When asked to build, generate, or run an application from a `.eml.mmd` model, ALWAYS use the full NestJS + TanStack stack (`bun run wasm generate -i <model> -o <dir>` **without** `--standalone`). The `--standalone` flag produces a browser-only demo — never use it unless the user explicitly asks for the browser/WASM demo. The real application runs NestJS on port 4001 and TanStack Start on port 4000.
+
+## Regenerate After Design Changes
+
+**MANDATORY — no exceptions**: After **any** change to generator templates (`packages/generator/templates/`) or the generator source (`packages/generator/src/generators/`), immediately regenerate the active generated project:
+```bash
+bun run wasm generate -i packages/web/generated/proj_1793092671630_17aoi4dli/model/model.eml.mmd -o packages/web/generated/proj_1793092671630_17aoi4dli --force
+```
+The active generated project is `packages/web/generated/proj_1793092671630_17aoi4dli` (runs on ports 4008/4009). Never leave a generated project running code the templates no longer produce. This applies to every kind of template change — routes, components, admin pages, backend controllers, services, migrations, seeds, and the generator logic itself.
 
 ## Commands
 

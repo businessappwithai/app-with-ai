@@ -15,10 +15,34 @@
  * administrator who never opens the assistant never downloads it.
  */
 
-import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
+import { createFileRoute, Outlet, redirect, useNavigate } from '@tanstack/react-router';
 import { Component, type ErrorInfo, lazy, type ReactNode, Suspense, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { getClientLogger, reportClientError } from '@/lib/logger'
+
+function AdminNotFound() {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-8">
+      <div className="text-center space-y-4 max-w-sm">
+        <AlertTriangle className="w-10 h-10 mx-auto text-muted-foreground" />
+        <h1 className="text-lg font-semibold">Page not found</h1>
+        <p className="text-sm text-muted-foreground">
+          This administration page does not exist or hasn&apos;t loaded yet.
+          If you just restarted the app, the route tree may still be regenerating — try refreshing.
+        </p>
+        <button
+          type="button"
+          onClick={() => void navigate({ to: '/admin' })}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-input text-sm hover:bg-muted/50"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to Administration
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute('/admin')({
   // Redirect non-admin users before the component tree renders
@@ -29,6 +53,7 @@ export const Route = createFileRoute('/admin')({
     }
   },
   component: AdminLayout,
+  notFoundComponent: AdminNotFound,
 });
 
 const ModelAssistant = lazy(() => import('../components/admin/model-assistant'));

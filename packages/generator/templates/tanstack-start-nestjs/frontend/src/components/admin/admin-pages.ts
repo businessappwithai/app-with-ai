@@ -1,7 +1,6 @@
 import type { ElementType } from "react";
 import {
   AppWindow,
-  BarChart3,
   Database,
   FileText,
   GitBranch,
@@ -118,12 +117,6 @@ export const ADMIN_PAGES: AdminPage[] = [
       "Design printable document reports for each entity; users get a Print button on their records",
     icon: Printer,
     to: "/admin/reports",
-  },
-  {
-    title: "Analysis",
-    description: "The questions this model declared with %%report, answered against this database",
-    icon: BarChart3,
-    to: "/admin/analysis",
   },
   {
     title: "System Configuration",
