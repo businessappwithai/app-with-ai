@@ -29,14 +29,14 @@
 
 This is the **AppWithAI** marketing website — a static site promoting an AI-powered business application generator. The site is built by **Docusaurus** and deployed to GitHub Pages by GitHub Actions — see **Docusaurus** below.
 
-## Bun 1.4.4, and only Bun 1.4.4
+## Bun 1.4.6, and only Bun 1.4.6
 
-**Every repository in this project uses Bun 1.4.4 and no other version** —
+**Every repository in this project uses Bun 1.4.6 and no other version** —
 `app-with-ai-tanstack`, `app-and-report-with-ai-rust` (the orchestrator),
 `enterprise_reporting_tanstack` and `businessappwithai.github.io`. That is the
 rule for every runtime, install, build, test, type-check and lint, in CI, in
 Docker images and locally. There are no exceptions: the WASM build and the
-`appwithai-wasm` CLI run on 1.4.4 too.
+`appwithai-wasm` CLI run on 1.4.6 too.
 
 - **Never use another Bun.** Not 1.3, not 1.4.0–1.4.3, not a newer release. Bun's
   bundler output depends on the exact version, so a committed bundle built on
@@ -46,15 +46,15 @@ Docker images and locally. There are no exceptions: the WASM build and the
   `type-check` script runs it; no repository carries Biome, ESLint, Prettier or
   any other linter or formatter, and none runs `tsc` as its static check. Style
   is kept by hand.
-- **No `package.json` may have a script named `check`.** On 1.4.4 as on every
+- **No `package.json` may have a script named `check`.** On 1.4.6 as on every
   earlier Bun, `bun check` in a directory whose manifest has a `check` script
   runs that script instead of the type checker, silently. Measured in the
   orchestrator: its `lint` (`bun check`) ran the whole `check` chain, which ran
   `lint` again. Name an aggregate script `check:all`.
 - **Never use npm, pnpm or yarn** as the package manager.
-- **Pin it exactly** wherever a version is stated: `BUN_VERSION: "1.4.4"` in CI,
-  `bun-version: 1.4.4` in a `setup-bun` step, `oven/bun:1.4.4` in Dockerfiles,
-  `"bun": ">=1.4.4"` in `engines`, `1.4.4` in `.bun-version`. Moving to a
+- **Pin it exactly** wherever a version is stated: `BUN_VERSION: "1.4.6"` in CI,
+  `bun-version: 1.4.6` in a `setup-bun` step, `oven/bun:1.4.6` in Dockerfiles,
+  `"bun": ">=1.4.6"` in `engines`, `1.4.6` in `.bun-version`. Moving to a
   different Bun is one deliberate change made in all four repositories together,
   never in one alone.
 - **What a generated application runs on is a separate question.** The browser
@@ -62,15 +62,15 @@ Docker images and locally. There are no exceptions: the WASM build and the
   swaps bun for node — and that is about the *output*, not the toolchain that
   produced it.
 
-**Here:** Bun 1.4.4 installs Docusaurus (`bun install --frozen-lockfile --ignore-scripts`,
+**Here:** Bun 1.4.6 installs Docusaurus (`bun install --frozen-lockfile --ignore-scripts`,
 `bun.lock`) and runs the build (`bun run build`); `.bun-version`, `engines` in
-`package.json` and `bun-version: 1.4.4` in both workflows pin it. The site's own
+`package.json` and `bun-version: 1.4.6` in both workflows pin it. The site's own
 checks under `scripts/` stay Node-only with no dependencies. Everything it vendors — `guide/checker.js`,
 `guide/fixer.js`, `assets/js/appwithai-*.js`, `viewers/eml-model.js`,
-`assets/vendor/stack-templates.json` — is built upstream on Bun 1.4.4. Re-vendor
+`assets/vendor/stack-templates.json` — is built upstream on Bun 1.4.6. Re-vendor
 those files from upstream rather than rebuilding them, and never rebuild one
-with any other Bun. The bundles built on 1.4.3 and on 1.4.4 are byte-identical
-(every upstream `--check` passed unchanged on 1.4.4), so the move to 1.4.4 needed
+with any other Bun. The bundles built on 1.4.3 and on 1.4.6 are byte-identical
+(every upstream `--check` passed unchanged on 1.4.6), so the move to 1.4.6 needed
 no re-vendoring. The site has no linter; were one ever added, it would be
 `bun check`.
 
@@ -189,7 +189,7 @@ businessappwithai.github.io/
 
 ## Technology Stack
 
-**Docusaurus 3.10 (`@docusaurus/core`, React 19), installed with Bun 1.4.4, over pages
+**Docusaurus 3.10 (`@docusaurus/core`, React 19), installed with Bun 1.4.6, over pages
 that are still hand-written HTML.**
 
 - HTML5 (semantic markup) — every page is a complete document, where it has always been
@@ -235,7 +235,7 @@ Five things to keep true:
 ### Local Development
 
 ```bash
-bun install          # once — Bun 1.4.4
+bun install          # once — Bun 1.4.6
 bun run build        # Docusaurus → build/
 bun run serve        # serve build/ at http://localhost:3000
 node scripts/check-build.mjs   # the build serves the site unchanged
@@ -1705,7 +1705,7 @@ every assertion rather than only failures.
 Trigger: push to main touching website/ only (or manual dispatch)
 Runner:  ubuntu-latest
 Steps:
-  1. actions/checkout@v4, Bun 1.4.4, Node 22
+  1. actions/checkout@v4, Bun 1.4.6, Node 22
   2. bun scripts/sync-common.ts            (the guide's models and the generator bundles)
   3. bun install + bun run build in website/, then scripts/check-build.mjs
   4. actions/configure-pages@v5, actions/upload-pages-artifact@v3  (uploads website/build)

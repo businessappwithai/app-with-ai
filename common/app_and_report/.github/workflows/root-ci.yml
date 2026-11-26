@@ -91,7 +91,7 @@ on:
 permissions:
   contents: read
 
-# One pin. 1.4.4 is what app-with-ai-tanstack itself requires (`engines.bun`
+# One pin. 1.4.6 is what app-with-ai-tanstack itself requires (`engines.bun`
 # in every one of its manifests, the generator that ships both CLIs included)
 # and what the Dockerfiles the `appwithai` CLI generates run on; all four
 # repositories moved to it together. The `appwithai-wasm` CLI used to be checked
@@ -101,7 +101,7 @@ permissions:
 #
 # Moving it forward is a deliberate step, taken by running the checks.
 env:
-  BUN_VERSION: "1.4.4"
+  BUN_VERSION: "1.4.6"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

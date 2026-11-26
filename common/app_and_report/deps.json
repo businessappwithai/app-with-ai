@@ -67,7 +67,7 @@
       "branch": "main",
       "ref": "3d8a716a73755f23fee64e0bba586cca87cf89c9",
       "install": false,
-      "install_note": "A Docker build context only: the assistant image builds OpenBot's MIT web app from it with Bun 1.4.4, so `./deps.sh --install` skips it.",
+      "install_note": "A Docker build context only: the assistant image builds OpenBot's MIT web app from it with Bun 1.4.6, so `./deps.sh --install` skips it.",
       "needed_for": [
         "the web client the assistant serves at /chat: OpenBot's MIT app (app/, shared/), built for the /chat base path; its server is closed and is not used — intelligence/src/openbot/ answers the part of its API the app calls",
         "api/openapi.yaml at this commit is the contract the OpenBot routes are held to"

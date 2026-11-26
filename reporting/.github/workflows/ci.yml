@@ -54,10 +54,10 @@ permissions:
   contents: read
 
 # The version these steps were verified against, including the
-# `--frozen-lockfile` install. package.json asks for `>=1.4.4`; CI pins an exact
+# `--frozen-lockfile` install. package.json asks for `>=1.4.6`; CI pins an exact
 # one so a runner and a developer's tree agree. The Dockerfiles pin the same.
 env:
-  BUN_VERSION: "1.4.4"
+  BUN_VERSION: "1.4.6"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

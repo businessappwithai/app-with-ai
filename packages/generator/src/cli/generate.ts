@@ -42,8 +42,37 @@ function log(msg: string, quiet: boolean) {
   if (!quiet) console.log(msg);
 }
 
-function getStackDescription(_stack: StackOption): string {
-  return "tanstackjs-nestjs - Modern Web (TanStack Start + NestJS)";
+type CliStackAlias = "tanstackjs-nestjs" | "local" | "docker" | "wasm" | "executable";
+
+function resolveCliStack(raw: string): { base: StackOption; alias: CliStackAlias } {
+  switch (raw) {
+    case "local":
+    case "tanstackjs-nestjs":
+      return { base: "tanstackjs-nestjs", alias: raw as CliStackAlias };
+    case "docker":
+      return { base: "tanstackjs-nestjs", alias: "docker" };
+    case "wasm":
+      return { base: "tanstackjs-nestjs", alias: "wasm" };
+    case "executable":
+      return { base: "tanstackjs-nestjs", alias: "executable" };
+    default:
+      return { base: "tanstackjs-nestjs", alias: "tanstackjs-nestjs" };
+  }
+}
+
+function getStackDescription(alias: CliStackAlias): string {
+  switch (alias) {
+    case "local":
+      return "local - NestJS + TanStack Start (run with bun run dev)";
+    case "docker":
+      return "docker - NestJS + TanStack Start (run with docker compose up)";
+    case "wasm":
+      return "wasm - NestJS + TanStack Start on WebAssembly Postgres (browser)";
+    case "executable":
+      return "executable - NestJS + TanStack Start + bun build --compile backend binary";
+    default:
+      return "tanstackjs-nestjs - NestJS + TanStack Start";
+  }
 }
 
 /** Parse an ERD / EML / Mermaid file and return entities + relationships. */
@@ -90,8 +119,30 @@ async function outputDirHasContent(outputDir: string): Promise<boolean> {
 }
 
 /**
+ * Write or replace a key in a .env file.  Creates the file if absent.
+ * Replaces the first matching `KEY=…` line; appends if no match found.
+ */
+async function setEnvVar(envPath: string, key: string, value: string): Promise<void> {
+  let content = "";
+  try {
+    content = await fs.readFile(envPath, "utf-8");
+  } catch {
+    /* file does not exist yet — start empty */
+  }
+  const pattern = new RegExp(`^${key}=.*`, "m");
+  const line = `${key}=${value}`;
+  if (pattern.test(content)) {
+    content = content.replace(pattern, line);
+  } else {
+    content = content ? `${content}\n${line}\n` : `${line}\n`;
+  }
+  await fs.writeFile(envPath, content, "utf-8");
+}
+
+/**
  * Post-generation setup: install deps, create DB, run migrations + seeds.
- * Copies .env.example → .env if .env does not already exist.
+ * Copies .env.example → .env if .env does not already exist, then applies any
+ * CLI-supplied overrides (database URL, admin credentials, etc.).
  */
 async function runSetup(opts: {
   outputDir: string;
@@ -99,6 +150,10 @@ async function runSetup(opts: {
   projectName: string;
   packageManager: string;
   quiet: boolean;
+  databaseUrl?: string;
+  adminEmail?: string;
+  adminPassword?: string;
+  logPretty?: boolean;
 }) {
   const { outputDir, dbType, packageManager: pm, quiet } = opts;
   const backendDir = path.join(outputDir, "backend");
@@ -160,7 +215,27 @@ async function runSetup(opts: {
     }
   }
 
-  // 3. Create PostgreSQL database if needed
+  // Apply CLI-supplied overrides to backend/.env.
+  // These take precedence over the .env.example defaults so the caller
+  // does not need to edit the file by hand after generation.
+  if (opts.databaseUrl) {
+    await setEnvVar(envPath, "DATABASE_URL", opts.databaseUrl);
+    log(`   ✓ DATABASE_URL set in backend/.env`, quiet);
+  }
+  if (opts.adminEmail) {
+    await setEnvVar(envPath, "ADMIN_EMAIL", opts.adminEmail);
+    log(`   ✓ ADMIN_EMAIL set in backend/.env`, quiet);
+  }
+  if (opts.adminPassword) {
+    await setEnvVar(envPath, "ADMIN_PASSWORD", opts.adminPassword);
+    log(`   ✓ ADMIN_PASSWORD set in backend/.env`, quiet);
+  }
+  if (opts.logPretty === false) {
+    await setEnvVar(envPath, "LOG_PRETTY", "false");
+    log(`   ✓ LOG_PRETTY=false set in backend/.env`, quiet);
+  }
+
+  // 4. Create PostgreSQL database if needed
   if (dbType === "postgresql") {
     log(`\n🗄️  Creating database "${dbName}"…`, quiet);
     const createDb = spawnSync("createdb", [dbName], { stdio: "pipe" });
@@ -370,7 +445,11 @@ program
   .option("-v, --version <version>", "Project version", "1.0.0")
   .option("-d, --description <desc>", "Project description", "Generated application")
   // Stack & database
-  .option("-s, --stack <stack>", "Stack: tanstackjs-nestjs", "tanstackjs-nestjs")
+  .option(
+    "-s, --stack <stack>",
+    "Stack: local | docker | wasm | executable | tanstackjs-nestjs",
+    "local"
+  )
   .option("--db <type>", "Database type: postgresql | sqlite", "postgresql")
   // Ports & URLs
   .option("--port <port>", "Backend API port", String(DEFAULT_BACKEND_PORT))
@@ -397,8 +476,14 @@ program
   // Output verbosity
   .option("--verbose", "Print each file as it is written")
   .option("--quiet", "Suppress all non-error output")
+  // Database / runtime configuration written into backend/.env
+  .option("--database-url <url>", "DATABASE_URL written into backend/.env before migration")
+  .option("--admin-email <email>", "ADMIN_EMAIL written into backend/.env (default: admin@admin.com)")
+  .option("--admin-password <pw>", "ADMIN_PASSWORD written into backend/.env (default: admin123)")
   // Post-generation setup
   .option("--no-setup", "Skip automatic install, migrate and seed after generation")
+  // Start the app after setup
+  .option("--run", "Start the generated application after setup (foreground; Ctrl-C to stop)")
   // End-to-end tests (bun:test)
   .option("--no-tests", "Skip generation of the bun:test E2E suite in tests/")
   .option(
@@ -579,10 +664,19 @@ program
       }
 
       // ── Stack validation ────────────────────────────────────────────────
-      const stackOption = options.stack as StackOption;
-      if (!["tanstackjs-nestjs"].includes(stackOption)) {
-        throw new Error('Invalid stack. Use "tanstackjs-nestjs"');
+      const validStacks: CliStackAlias[] = [
+        "local",
+        "docker",
+        "wasm",
+        "executable",
+        "tanstackjs-nestjs",
+      ];
+      if (!validStacks.includes(options.stack as CliStackAlias)) {
+        throw new Error(
+          `Invalid stack "${options.stack}". Valid options: ${validStacks.join(" | ")}`
+        );
       }
+      const { base: stackOption, alias: stackAlias } = resolveCliStack(options.stack);
 
       // ── Port / URL resolution ───────────────────────────────────────────
       const backendPort = parseInt(options.port, 10);
@@ -609,7 +703,7 @@ program
       // ── Configuration summary ───────────────────────────────────────────
       if (!quiet) {
         console.log("\n⚙️  Generation Configuration:");
-        console.log(`   • Stack:            ${getStackDescription(stackOption)}`);
+        console.log(`   • Stack:            ${getStackDescription(stackAlias)}`);
         console.log(`   • Project:          ${options.name} v${options.version}`);
         console.log(`   • Database:         ${options.db}`);
         console.log(`   • Backend port:     ${backendPort}`);
@@ -690,6 +784,65 @@ program
         },
       });
 
+      // ── Executable compile ──────────────────────────────────────────────
+      // When --stack executable, compile the generated backend into a
+      // self-contained binary that needs no bun/node runtime.  Runs
+      // independently of --no-setup because it installs its own deps.
+      if (stackAlias === "executable") {
+        const projectSlug = options.name.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+        const backendDir = path.join(outputDir, "backend");
+        const executableOut = path.join(backendDir, `${projectSlug}-server`);
+        log("\n📦 Installing backend dependencies for executable compile…", quiet);
+        const install = spawnSync(options.packageManager, ["install"], {
+          cwd: outputDir,
+          stdio: quiet ? "pipe" : "inherit",
+          shell: false,
+        });
+        if (install.status !== 0) {
+          console.warn("   ⚠️  bun install failed — skipping executable compile");
+        } else {
+          log(`\n🔨 Compiling backend: bun build --compile backend/src/main.ts…`, quiet);
+          // NestJS loads several optional peer dependencies (microservices, express
+          // adapter, websockets) via dynamic require() — Bun's bundler cannot
+          // resolve them statically. Mark them external so the compile succeeds.
+          const nestjsOptionalPeers = [
+            "@nestjs/microservices",
+            "@nestjs/platform-express",
+            "@nestjs/websockets/socket-module",
+            "@fastify/view",
+          ];
+          const compile = spawnSync(
+            "bun",
+            [
+              "build",
+              "--compile",
+              "backend/src/main.ts",
+              `--outfile=${path.relative(outputDir, executableOut)}`,
+              ...nestjsOptionalPeers.flatMap((pkg) => ["--external", pkg]),
+            ],
+            { cwd: outputDir, stdio: quiet ? "pipe" : "inherit", shell: false }
+          );
+          if (compile.status !== 0) {
+            console.warn("   ⚠️  bun build --compile failed — the full source is still runnable");
+          } else {
+            log(`   ✓ Executable: backend/${projectSlug}-server`, quiet);
+          }
+        }
+      }
+
+      // ── WASM note ───────────────────────────────────────────────────────
+      // The WASM overlay has its own generation path.  When --stack wasm is
+      // chosen via the web wizard the API uses `bun run wasm generate`; from
+      // the CLI the user should use the same command directly.
+      if (stackAlias === "wasm") {
+        log(
+          "\nℹ️  WASM stack: the generated source is the standard NestJS+TanStack stack.\n" +
+            "   To apply the WebAssembly Postgres overlay run:\n" +
+            "     bun run wasm generate -i <model> -o <output> --force",
+          quiet
+        );
+      }
+
       // ── Auto-setup (install + migrate + seed) ───────────────────────────
       if (options.setup !== false) {
         log("\n⚙️  Running automatic setup…", quiet);
@@ -699,6 +852,12 @@ program
           projectName: options.name,
           packageManager: options.packageManager,
           quiet,
+          databaseUrl: options.databaseUrl,
+          adminEmail: options.adminEmail,
+          adminPassword: options.adminPassword,
+          // Compiled executables cannot load pino-pretty dynamically — disable it
+          // automatically so the binary starts without an error on first run.
+          logPretty: stackAlias === "executable" ? false : undefined,
         });
 
         // After the install, not before it: run inside the generator there is no
@@ -737,6 +896,7 @@ program
       // ── Success ─────────────────────────────────────────────────────────
       if (!quiet) {
         const pm = options.packageManager;
+        const projectSlug = options.name.toLowerCase().replace(/[^a-z0-9-]/g, "-");
         console.log("\n═══════════════════════════════════════════");
         console.log("✅ Generation complete!\n");
         if (options.setup === false) {
@@ -745,10 +905,23 @@ program
           console.log("   2. cp backend/.env.example backend/.env");
           console.log(`   3. ${pm} install`);
           console.log(`   4. ${pm} run db:setup   # migrate + seed`);
-          console.log(`   5. ${pm} run dev\n`);
+          if (stackAlias === "docker") {
+            console.log(`   5. docker compose up --build\n`);
+          } else if (stackAlias === "executable") {
+            console.log(`   5. ${pm} install && bun build --compile backend/src/main.ts --outfile=backend/${projectSlug}-server`);
+            console.log(`   6. ./backend/${projectSlug}-server\n`);
+          } else {
+            console.log(`   5. ${pm} run dev\n`);
+          }
         } else {
           console.log(`   App ready in: ${outputDir}`);
-          console.log(`   cd ${outputDir} && ${pm} run dev\n`);
+          if (stackAlias === "docker") {
+            console.log(`   cd ${outputDir} && docker compose up --build\n`);
+          } else if (stackAlias === "executable") {
+            console.log(`   cd ${outputDir} && ./backend/${projectSlug}-server\n`);
+          } else {
+            console.log(`   cd ${outputDir} && ${pm} run dev\n`);
+          }
           // Matches the bootstrap defaults in backend/src/main.ts
           // (ADMIN_EMAIL / ADMIN_PASSWORD override them).
           console.log("   Default admin:  admin@admin.com / admin123\n");
@@ -757,6 +930,55 @@ program
           console.log(`   E2E tests:      cd ${outputDir} && ${pm} run test:e2e`);
           console.log(`                   (add :fast to skip the bulk-seed volume suite)\n`);
         }
+      }
+
+      // ── Run the app ─────────────────────────────────────────────────────
+      // --run starts the application in the foreground after setup.
+      // For executable the binary is self-contained; for local/docker we start
+      // `bun run dev` (docker compose requires a TTY and is better launched
+      // by the user, so we fall back to dev-server mode there too).
+      if (options.run && options.setup !== false) {
+        const projectSlug = options.name.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+        log("\n🚀 Starting application…", quiet);
+
+        // Build the env to pass to the child process: inherit, then overlay any
+        // CLI-supplied values so the binary picks them up even if the .env
+        // write raced (or --no-setup was not passed).
+        const childEnv: NodeJS.ProcessEnv = { ...process.env };
+        if (options.databaseUrl) childEnv.DATABASE_URL = options.databaseUrl;
+        if (options.adminEmail) childEnv.ADMIN_EMAIL = options.adminEmail;
+        if (options.adminPassword) childEnv.ADMIN_PASSWORD = options.adminPassword;
+        if (stackAlias === "executable") {
+          childEnv.LOG_PRETTY = "false";
+          childEnv.NODE_ENV = childEnv.NODE_ENV ?? "production";
+        }
+
+        let runCmd: string;
+        let runArgs: string[];
+        let runCwd: string;
+
+        if (stackAlias === "executable") {
+          const binPath = path.join(outputDir, "backend", `${projectSlug}-server`);
+          runCmd = binPath;
+          runArgs = [];
+          runCwd = outputDir;
+        } else {
+          runCmd = options.packageManager;
+          runArgs = ["run", "dev"];
+          runCwd = outputDir;
+        }
+
+        // spawnSync in inherit mode — blocks until the user hits Ctrl-C.
+        log(
+          `   ${runCmd} ${runArgs.join(" ")} (Ctrl-C to stop)`,
+          quiet
+        );
+        spawnSync(runCmd, runArgs, {
+          cwd: runCwd,
+          env: childEnv,
+          stdio: "inherit",
+          shell: false,
+        });
       }
 
       if (testsPassed === false) {

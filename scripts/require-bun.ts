@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 /**
- * Refuse to go on unless this is exactly Bun 1.4.4.
+ * Refuse to go on unless this is exactly Bun 1.4.6.
  *
  * Every script in this repository runs on Bun, and the type-check and the lint
  * *are* Bun: both are `bun check`, the type checker Bun has carried since 1.4.3.
  * An older Bun has no `check` command and would fail with a message about an
- * unknown script rather than about its own version. CI pins `BUN_VERSION: 1.4.4`
+ * unknown script rather than about its own version. CI pins `BUN_VERSION: 1.4.6`
  * (`.github/workflows/ci.yml`), and the browser bundles it builds differ byte for
  * byte between Bun versions, so a different Bun — older or newer — is a different
  * answer. Run first by `type-check`, `type-check:language` and `lint`.
@@ -13,7 +13,7 @@
  *   bun scripts/require-bun.ts
  */
 
-const REQUIRED = "1.4.4";
+const REQUIRED = "1.4.6";
 
 const bun = (globalThis as { Bun?: { version: string } }).Bun;
 if (!bun) {

@@ -6,7 +6,7 @@ finding was measured in this session, against the pinned checkouts below.
 | Project | Commit | How it was run |
 |---|---|---|
 | `block/buzz` | `b769d5b` | `cargo build -p buzz-relay -p buzz-admin` (debug, Rust 1.98.1 from `rust-toolchain.toml`, 3m48s, no pnpm), relay on local PostgreSQL 16 and Redis |
-| `CopilotKit/OpenBot` | `3d8a716` | `bun install --frozen-lockfile` and `bun run build` in `app/` on Bun 1.4.4 (42 s), served by a recording stub, driven in Chromium |
+| `CopilotKit/OpenBot` | `3d8a716` | `bun install --frozen-lockfile` and `bun run build` in `app/` on Bun 1.4.6 (42 s), served by a recording stub, driven in Chromium |
 
 ## Buzz
 

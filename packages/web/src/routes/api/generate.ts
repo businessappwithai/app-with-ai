@@ -105,8 +105,20 @@ export const Route = createFileRoute("/api/generate")({
                 return finish();
               }
 
-              const finalStackType =
-                stackOption || stackType || project.stackType || "tanstackjs-nestjs";
+              const rawStackType =
+                stackOption || stackType || project.stackType || "local";
+              // All UI stack aliases map to tanstackjs-nestjs for the CLI.
+              // "executable" and "wasm" add post-generation steps; "local" and
+              // "docker" are identical at generation time (docker files are
+              // always included in the generated output).
+              const generatorStackType =
+                rawStackType === "executable" ||
+                rawStackType === "local" ||
+                rawStackType === "docker" ||
+                rawStackType === "wasm"
+                  ? "tanstackjs-nestjs"
+                  : rawStackType;
+              const finalStackType = generatorStackType;
 
               // Parse up front so the log names what is about to be generated
               // and an unparseable model fails before anything is written.
@@ -153,7 +165,7 @@ export const Route = createFileRoute("/api/generate")({
                 "--name",
                 project.name || `project-${projectId}`,
                 "--description",
-                project.description || `Generated ${finalStackType} application`,
+                project.description || `Generated ${rawStackType} application`,
                 "--stack",
                 finalStackType,
                 // A project owns an adjacent pair: the app on the port it was
@@ -200,13 +212,110 @@ export const Route = createFileRoute("/api/generate")({
                 return finish();
               }
 
+              // Compile the backend into a standalone Bun executable when the
+              // user selected the "executable" stack option.  The generator
+              // already wrote the full NestJS source; this step bundles it into
+              // a single self-contained binary that needs no runtime.
+              if (rawStackType === "executable") {
+                const projectName = (project.name || `project-${projectId}`)
+                  .toLowerCase()
+                  .replace(/[^a-z0-9-]/g, "-");
+                const backendDir = path.join(stageOutput, "backend");
+                const executablePath = path.join(backendDir, `${projectName}-server`);
+
+                sendLog("info", "Installing backend dependencies for executable compile…");
+                const installCode = await new Promise<number>((resolve) => {
+                  const child = spawn("bun", ["install"], {
+                    cwd: stageOutput,
+                    env: process.env,
+                  });
+                  child.stdout.on("data", (chunk: Buffer) => {
+                    for (const line of chunk.toString().split("\n")) {
+                      const text = line.replace(/\s+$/, "");
+                      if (text.trim()) sendLog("info", text);
+                    }
+                  });
+                  child.stderr.on("data", (chunk: Buffer) => {
+                    for (const line of chunk.toString().split("\n")) {
+                      const text = line.replace(/\s+$/, "");
+                      if (text.trim()) sendLog("warn", text);
+                    }
+                  });
+                  child.on("error", (err) => {
+                    sendLog("error", `bun install failed: ${err.message}`);
+                    resolve(1);
+                  });
+                  child.on("close", (code) => resolve(code ?? 1));
+                });
+
+                if (installCode !== 0) {
+                  send({ error: "bun install failed; cannot compile executable" });
+                  return finish();
+                }
+
+                sendLog(
+                  "info",
+                  `Compiling backend to executable: bun build --compile backend/src/main.ts`
+                );
+                const compileCode = await new Promise<number>((resolve) => {
+                  // NestJS loads optional peer deps via dynamic require(); mark
+                  // them external so bun build --compile resolves successfully.
+                  const nestjsOptionalPeers = [
+                    "@nestjs/microservices",
+                    "@nestjs/platform-express",
+                    "@nestjs/websockets/socket-module",
+                    "@fastify/view",
+                  ];
+                  const child = spawn(
+                    "bun",
+                    [
+                      "build",
+                      "--compile",
+                      "backend/src/main.ts",
+                      `--outfile=${path.relative(stageOutput, executablePath)}`,
+                      ...nestjsOptionalPeers.flatMap((pkg) => ["--external", pkg]),
+                    ],
+                    { cwd: stageOutput, env: process.env }
+                  );
+                  child.stdout.on("data", (chunk: Buffer) => {
+                    for (const line of chunk.toString().split("\n")) {
+                      const text = line.replace(/\s+$/, "");
+                      if (text.trim()) sendLog("info", text);
+                    }
+                  });
+                  child.stderr.on("data", (chunk: Buffer) => {
+                    for (const line of chunk.toString().split("\n")) {
+                      const text = line.replace(/\s+$/, "");
+                      if (text.trim()) sendLog("warn", text);
+                    }
+                  });
+                  child.on("error", (err) => {
+                    sendLog("error", `bun build --compile failed: ${err.message}`);
+                    resolve(1);
+                  });
+                  child.on("close", (code) => resolve(code ?? 1));
+                });
+
+                if (compileCode !== 0) {
+                  sendLog(
+                    "warn",
+                    "Executable compile failed — the full source is still available to run with bun"
+                  );
+                } else {
+                  sendLog(
+                    "success",
+                    `Executable written: backend/${projectName}-server  (run it directly — no bun/node needed)`
+                  );
+                }
+              }
+
               const result = await publishGeneration(
                 projectId,
                 access.user.id,
                 prepared,
                 stageOutput,
                 {
-                  stack: finalStackType,
+                  stack: rawStackType,
                   frontendPort: appPort,
                   backendPort: appPort + 1,
                   database: project.databaseType === "sqlite" ? "sqlite" : "postgresql",

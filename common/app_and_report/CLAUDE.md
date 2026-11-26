@@ -42,14 +42,14 @@ smoke-test                 /app and /report answer, and the seeder finished
 
 ---
 
-## Bun 1.4.4, and only Bun 1.4.4
+## Bun 1.4.6, and only Bun 1.4.6
 
-**Every repository in this project uses Bun 1.4.4 and no other version** —
+**Every repository in this project uses Bun 1.4.6 and no other version** —
 `app-with-ai-tanstack`, `app-and-report-with-ai-tanstack`,
 `enterprise_reporting_tanstack` and `businessappwithai.github.io`. That is the
 rule for every runtime, install, build, test and type-check, in CI, in Docker
 images and locally. There are no exceptions: the WASM build and the
-`appwithai-wasm` CLI run on 1.4.4 too (the second 1.3.11 pin they used to have
+`appwithai-wasm` CLI run on 1.4.6 too (the second 1.3.11 pin they used to have
 is gone).
 
 - **Never use another Bun.** Not 1.3, not 1.4.0–1.4.3, not a newer release. Bun's
@@ -58,14 +58,14 @@ is gone).
   checker behind `bun check` at all.
 - **The static check is `bun check`, and only `bun check`.** There is no linter
   or formatter, and nothing runs `tsc` as the type checker.
-- **No `package.json` may have a script named `check`.** On 1.4.4 as on every
+- **No `package.json` may have a script named `check`.** On 1.4.6 as on every
   earlier Bun, `bun check` in a directory whose manifest has a `check` script runs
   that script instead of the type checker, silently. This repository's aggregate
   used to be called `check` — which is why `type-check` once had to `cd ..` to
   reach the real checker. It is `check:all` now.
 - **Never use npm, pnpm or yarn** as the package manager.
-- **Pin it exactly** wherever a version is stated: `BUN_VERSION: "1.4.4"` in CI,
-  `oven/bun:1.4.4` in Dockerfiles, `"bun": ">=1.4.4"` in `engines`, `1.4.4` in
+- **Pin it exactly** wherever a version is stated: `BUN_VERSION: "1.4.6"` in CI,
+  `oven/bun:1.4.6` in Dockerfiles, `"bun": ">=1.4.6"` in `engines`, `1.4.6` in
   `.bun-version`. Moving to a different Bun is one deliberate change made in all
   four repositories together, never in one alone.
 - **What a generated application runs on is a separate question.** The browser
@@ -77,7 +77,7 @@ is gone).
 CLI's job included) and `build-and-run.yml`, the `report` and `seeder` images,
 `engines` in `common/package.json` and `common/language/cli/package.json`, and
 `.bun-version`, which the `SessionStart` hook installs. If `bun --version` prints
-anything else, install 1.4.4 before believing any check: the bundle `--check`
+anything else, install 1.4.6 before believing any check: the bundle `--check`
 steps name the mismatch.
 
 ---
@@ -273,13 +273,13 @@ missing `./deps.sh`, not a broken repository.
 ### Use bun, never npm or pnpm
 
 Bun is the runtime, the package manager and the test runner. Everything runs
-on **Bun 1.4.4** — CI's `BUN_VERSION`, the `report` and `seeder` images, the
-nightly build, and both CLIs. The manifest's floor is `>=1.4.4`.
+on **Bun 1.4.6** — CI's `BUN_VERSION`, the `report` and `seeder` images, the
+nightly build, and both CLIs. The manifest's floor is `>=1.4.6`.
 
 The `appwithai-wasm` CLI used to be the exception, checked on a second pin
-(`BUN_VERSION_WASM: "1.3.11"`). `app-with-ai-tanstack` requires 1.4.4 in every
+(`BUN_VERSION_WASM: "1.3.11"`). `app-with-ai-tanstack` requires 1.4.6 in every
 manifest — the generator that ships that CLI included — and builds and tests its
-WASM stack on 1.4.4, so the second pin was proving the CLI on a runtime its own
+WASM stack on 1.4.6, so the second pin was proving the CLI on a runtime its own
 package no longer supports. It is gone. What the WASM path *generates* is still
 Bun-free: the overlay swaps bun for node in the application it writes, and that
 has nothing to do with the bun the CLI itself runs on.
@@ -464,7 +464,7 @@ the built one contains both.
 Two things make it easy to get wrong:
 
 - **`Bun.build` output depends on the bun version *and* the platform.** `root-ci.yml`
-  pins `BUN_VERSION: 1.4.4` and runs on `linux-x64`; a bundle built on anything else is
+  pins `BUN_VERSION: 1.4.6` and runs on `linux-x64`; a bundle built on anything else is
   byte-wrong for CI while looking right locally. `scripts/lib/build-env.ts` reads that
   pin out of the workflow and says which case a mismatch is, rather than "out of date"
   — which is true of a stale build and misleading about a foreign one. The branch this

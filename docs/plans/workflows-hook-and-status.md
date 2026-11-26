@@ -326,7 +326,7 @@ Use the `run-modelling-tool` skill:
 - **`sw.js`:** no change. A 422 has a body.
 - Run `bun run build:wasm-runtime`.
 
-### 7. Committed artifacts (Bun 1.4.4 on linux-x64; this container qualifies)
+### 7. Committed artifacts (Bun 1.4.6 on linux-x64; this container qualifies)
 Rebuild every artifact whose sources this change touches, then run all five `--check`s:
 - `build:wasm-runtime` (`templates/wasm`)
 - `build:wasm-browser`

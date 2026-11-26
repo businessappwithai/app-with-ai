@@ -20,14 +20,14 @@ git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.cl
 
 ---
 
-## Bun 1.4.4, and only Bun 1.4.4
+## Bun 1.4.6, and only Bun 1.4.6
 
-**Every repository in this project uses Bun 1.4.4 and no other version** —
+**Every repository in this project uses Bun 1.4.6 and no other version** —
 `app-with-ai-tanstack`, `app-and-report-with-ai-rust` (the orchestrator),
 `enterprise_reporting_tanstack` and `businessappwithai.github.io`. That is the
 rule for every runtime, install, build, test, type-check and lint, in CI, in
 Docker images and locally. There are no exceptions: the WASM build and the
-`appwithai-wasm` CLI run on 1.4.4 too.
+`appwithai-wasm` CLI run on 1.4.6 too.
 
 - **Never use another Bun.** Not 1.3, not 1.4.0–1.4.3, not a newer release. Bun's
   bundler output depends on the exact version, so a committed bundle built on
@@ -37,15 +37,15 @@ Docker images and locally. There are no exceptions: the WASM build and the
   `type-check` script runs it; no repository carries Biome, ESLint, Prettier or
   any other linter or formatter, and none runs `tsc` as its static check. Style
   is kept by hand.
-- **No `package.json` may have a script named `check`.** On 1.4.4 as on every
+- **No `package.json` may have a script named `check`.** On 1.4.6 as on every
   earlier Bun, `bun check` in a directory whose manifest has a `check` script
   runs that script instead of the type checker, silently. Measured in the
   orchestrator: its `lint` (`bun check`) ran the whole `check` chain, which ran
   `lint` again. Name an aggregate script `check:all`.
 - **Never use npm, pnpm or yarn** as the package manager.
-- **Pin it exactly** wherever a version is stated: `BUN_VERSION: "1.4.4"` in CI,
-  `bun-version: 1.4.4` in a `setup-bun` step, `oven/bun:1.4.4` in Dockerfiles,
-  `"bun": ">=1.4.4"` in `engines`, `1.4.4` in `.bun-version`. Moving to a
+- **Pin it exactly** wherever a version is stated: `BUN_VERSION: "1.4.6"` in CI,
+  `bun-version: 1.4.6` in a `setup-bun` step, `oven/bun:1.4.6` in Dockerfiles,
+  `"bun": ">=1.4.6"` in `engines`, `1.4.6` in `.bun-version`. Moving to a
   different Bun is one deliberate change made in all four repositories together,
   never in one alone.
 - **What a generated application runs on is a separate question.** The browser
@@ -56,9 +56,9 @@ Docker images and locally. There are no exceptions: the WASM build and the
 **Here:** `BUN_VERSION` in `.github/workflows/ci.yml` (every job, the WASM ones
 included), `engines` in every manifest, and `scripts/require-bun.ts`, which
 every `type-check` and `lint` script runs first and which refuses anything but
-exactly 1.4.4. The NestJS + TanStack application the generator writes pins 1.4.4
-too — its `engines`, its CI (`bun-version: 1.4.4`) and its Dockerfiles. The five
-committed bundles must be rebuilt on 1.4.4 on `linux-x64`, or CI rejects their
+exactly 1.4.6. The NestJS + TanStack application the generator writes pins 1.4.6
+too — its `engines`, its CI (`bun-version: 1.4.6`) and its Dockerfiles. The five
+committed bundles must be rebuilt on 1.4.6 on `linux-x64`, or CI rejects their
 bytes.
 
 ---
@@ -104,7 +104,7 @@ Use `/browse` for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
 # APPWITHAI
 
 **Project**: AI-powered ERD design + full-stack code generation  
-**Version**: 5.1.1 | **Runtime**: Bun.js 1.4.4 (pinned — see below)
+**Version**: 5.1.1 | **Runtime**: Bun.js 1.4.6 (pinned — see below)
 
 ## Generated Application Stack Rule
 
@@ -126,7 +126,7 @@ The active generated project is `packages/web/generated/proj_1793092671630_17aoi
 | `bun run dev:mastra` | Mastra AI → http://localhost:4111 |
 | `./scripts/start-llm.sh` | Local model server → :8000 |
 | `bun run build` | Build all packages |
-| `bun run type-check` | TypeScript (root tsconfig only) — `bun check`, Bun's own type checker, after `scripts/require-bun.ts` refuses anything but Bun 1.4.4 |
+| `bun run type-check` | TypeScript (root tsconfig only) — `bun check`, Bun's own type checker, after `scripts/require-bun.ts` refuses anything but Bun 1.4.6 |
 | `bun run type-check:language` | Type-check `common/language/**` (separate config) |
 | `bun run test` | Vitest unit tests (runs `packages/web/vitest.config.ts`) |
 | `bun run test:e2e:server` | Playwright E2E with server startup |
@@ -207,7 +207,7 @@ Two traps worth knowing. The job's steps **fail fast**, so the first stale
 artifact hides the rest — run all five locally or you will fix one per CI cycle.
 And if `--check` reports your runtime differs from CI's, do not rebuild locally:
 build where CI builds, e.g.
-`docker run --rm -v "$PWD":/w -w /w oven/bun:1.4.4 sh -c 'bun install --frozen-lockfile && bun run build:fullstack-browser'`.
+`docker run --rm -v "$PWD":/w -w /w oven/bun:1.4.6 sh -c 'bun install --frozen-lockfile && bun run build:fullstack-browser'`.
 
 ### `bun run dev` builds the workspace packages first
 `packages/web` imports `@appwithai/core`, `@appwithai/generator` and
@@ -299,7 +299,7 @@ formatting, not just after a change you think of as behavioural.
 
 | Layer | Technology |
 |-------|------------|
-| Runtime | Bun.js 1.4.4 (pinned) |
+| Runtime | Bun.js 1.4.6 (pinned) |
 | AI Orchestration | Mastra.ai v1.59+, CopilotKit v1.68+ |
 | AI Model | Local OpenAI-compatible endpoint (:8000) |
 | Retrieval | `@mastra/pg` PgVector (HNSW) |
@@ -649,7 +649,7 @@ TypeScript directly under Bun. Two exceptions, both measured rather than assumed
 
 | Script | Why it is not plain `bun --bun …` |
 |---|---|
-| frontend `build` | `NODE_OPTIONS=--max-old-space-size=8192 vinxi build`, on Node. **In the Dockerfiles it is run by an explicit `node` in a `node:22-alpine` stage** (bun copied in from `oven/bun:1.4.4-alpine`, heap from `BUILD_HEAP_MB`, default 4096; peak RSS ≈ 5.5 GB): `oven/bun` has no Node, so `bun run build` there ran vinxi on Bun, ignored the heap flag and was OOM-killed on Docker Desktop (client manifest never written, then `ENOENT .vite/manifest.json`). Held by `templates/__tests__/frontend-build-runtime.test.ts`. Bundling Monaco and the GoRules editor peaks at ~6.7 GB on Node with the heap raised (its default ~4 GB ceiling is what turned CI's "Generate an application and build it" red); under `bun --bun` the same build climbed past 10 GB and was killed on a 15 GB machine. Revisit when the editor bundle is trimmed (`@gorules/jdm-editor` imports the whole `monaco-editor`) |
+| frontend `build` | `NODE_OPTIONS=--max-old-space-size=8192 vinxi build`, on Node. **In the Dockerfiles it is run by an explicit `node` in a `node:22-alpine` stage** (bun copied in from `oven/bun:1.4.6-alpine`, heap from `BUILD_HEAP_MB`, default 4096; peak RSS ≈ 5.5 GB): `oven/bun` has no Node, so `bun run build` there ran vinxi on Bun, ignored the heap flag and was OOM-killed on Docker Desktop (client manifest never written, then `ENOENT .vite/manifest.json`). Held by `templates/__tests__/frontend-build-runtime.test.ts`. Bundling Monaco and the GoRules editor peaks at ~6.7 GB on Node with the heap raised (its default ~4 GB ceiling is what turned CI's "Generate an application and build it" red); under `bun --bun` the same build climbed past 10 GB and was killed on a 15 GB machine. Revisit when the editor bundle is trimmed (`@gorules/jdm-editor` imports the whole `monaco-editor`) |
 | frontend `dev` | `HOST=127.0.0.1 bun --bun vinxi dev`. vinxi asks get-port-please for a port, which binds `::` first; on a host with no IPv6 (this container) Node falls back to IPv4 and Bun throws "Failed to listen at ::", so the dev server never starts. With `HOST` set it probes that host only |
 
 The WASM overlay strips both prefixes (`bun --bun `, `HOST=127.0.0.1 bun --bun `), so the
@@ -959,7 +959,7 @@ report). `harness/reporting.ts` reads the pack off disk; **never re-derive what 
 
 `docker compose run --rm e2e-ui` is the browser layer (`tests/ui`, Playwright 1.62 on `mcr.microsoft.com/playwright`):
 sign-in and dashboard, an entity list, the rules & workflows editor, a record's action buttons and the reporting
-platform's dashboards. Its image copies a **Debian** bun (`oven/bun:1.4.4`) in to install — an Alpine one fails with
+platform's dashboards. Its image copies a **Debian** bun (`oven/bun:1.4.6`) in to install — an Alpine one fails with
 exit 127 in the glibc Playwright image — and the backend's compose `CORS_ORIGIN` default lists `http://frontend:<port>`
 because that is the origin its browser signs in from.
 

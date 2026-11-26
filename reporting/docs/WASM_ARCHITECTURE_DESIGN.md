@@ -127,7 +127,7 @@ Transform to a **WASM-centric architecture** where:
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Server-Side (Node/Bun)                       │
 ├─────────────────────────────────────────────────────────────────┤
-│ Runtime         │ Bun >= 1.4.4                                  │
+│ Runtime         │ Bun >= 1.4.6                                  │
 │ Framework       │ TanStack Start (App Router)                       │
 │ Config DB       │ SQLite via better-sqlite3                     │
 │ Export Engine   │ Apache Arrow JS + Parquet-Wasm                │

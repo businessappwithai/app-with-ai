@@ -7,7 +7,7 @@
 # bun is only the installer — copied in rather than installed, because
 # `oven/bun` carries no Node and `node:22-alpine` carries no bun, and this repo
 # installs with bun.
-FROM oven/bun:1.4.4-alpine AS bun
+FROM oven/bun:1.4.6-alpine AS bun
 
 FROM node:22-alpine
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun

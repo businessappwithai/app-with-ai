@@ -11,7 +11,7 @@ export interface Project {
   ownerId?: string;
 
   // Configuration (Step 1)
-  stackType: "tanstackjs-nestjs";
+  stackType: "tanstackjs-nestjs" | "local" | "docker" | "wasm" | "executable";
   port: number;
   databaseUrl?: string;
 
@@ -91,5 +91,9 @@ export interface MermaidFile {
 }
 
 export const STACK_LABELS: Record<Project["stackType"], string> = {
-  "tanstackjs-nestjs": "tanstackjs-nestjs: NestJS + TanStack Start",
+  "tanstackjs-nestjs": "NestJS + TanStack Start",
+  "local": "Local: NestJS + TanStack Start",
+  "docker": "Docker: NestJS + TanStack Start",
+  "wasm": "WASM: Browser (WebAssembly Postgres)",
+  "executable": "Executable: Bun Standalone Binary",
 };

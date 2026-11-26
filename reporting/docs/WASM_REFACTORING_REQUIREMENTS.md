@@ -98,7 +98,7 @@ The current system is a **TanStack Start** application using **Bun runtime** wit
 | `recharts@2.12.7` | SVG-based charting (8 types: bar, line, area, pie, scatter, column, doughnut, composed) | Limited chart types, SVG performance degrades with large datasets, no maps/heatmaps/trees |
 | `@tanstack/react-table@8.20.5` | Table rendering with virtual scrolling | Not canvas-based; DOM-based virtualization has limits at millions of rows |
 | `@tanstack/react-virtual@3.10.7` | Row virtualization for QueryResults | Replaced by Glide's native canvas virtualization |
-| `react-grid-layout@1.4.4` | Dashboard grid layout | **Retained** — orthogonal to data rendering concerns |
+| `react-grid-layout@1.4.6` | Dashboard grid layout | **Retained** — orthogonal to data rendering concerns |
 | `kysely@0.29.0` | Server-side SQL query builder | **Retained for config DB — DuckDB-Wasm handles analytical queries client-side |
 | `better-sqlite3@11.3.0` | Server-side SQLite access | **Retained for config DB** — stores metadata, users, roles, permissions |
 | `node-sql-parser@5.4.0` | SQL validation/AST parsing | Partially replaced — DuckDB-Wasm has its own SQL parser; server-side validation still needed for config queries |

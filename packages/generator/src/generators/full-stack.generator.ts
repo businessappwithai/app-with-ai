@@ -778,7 +778,7 @@ and explains what to set before the first start.
 
 ### Prerequisites
 
-- **Bun.js 1.4.4** (REQUIRED runtime — exact version)
+- **Bun.js 1.4.6** (REQUIRED runtime — exact version)
 - PostgreSQL 14+
 
 ### Installation

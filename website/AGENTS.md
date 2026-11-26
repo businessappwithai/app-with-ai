@@ -141,7 +141,7 @@ businessappwithai.github.io/
 
 ## Technology Stack
 
-**Docusaurus 3.10 (`@docusaurus/core`, React 19), installed with Bun 1.4.4, over pages
+**Docusaurus 3.10 (`@docusaurus/core`, React 19), installed with Bun 1.4.6, over pages
 that are still hand-written HTML.**
 
 - HTML5 (semantic markup) — every page is a complete document, where it has always been
@@ -187,7 +187,7 @@ Five things to keep true:
 ### Local Development
 
 ```bash
-bun install          # once — Bun 1.4.4
+bun install          # once — Bun 1.4.6
 bun run build        # Docusaurus → build/
 bun run serve        # serve build/ at http://localhost:3000
 node scripts/check-build.mjs   # the build serves the site unchanged
@@ -1513,7 +1513,7 @@ every assertion rather than only failures.
 Trigger: push to main touching website/ only (or manual dispatch)
 Runner:  ubuntu-latest
 Steps:
-  1. actions/checkout@v4, Bun 1.4.4, Node 22
+  1. actions/checkout@v4, Bun 1.4.6, Node 22
   2. bun scripts/sync-common.ts            (the guide's models and the generator bundles)
   3. bun install + bun run build in website/, then scripts/check-build.mjs
   4. actions/configure-pages@v5, actions/upload-pages-artifact@v3  (uploads website/build)

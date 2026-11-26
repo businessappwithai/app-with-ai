@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { CheckCircle2, Database, Loader2, Zap } from "lucide-react";
+import { CheckCircle2, Container, Globe, Loader2, Monitor, PackageOpen, Zap } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { JourneyArc } from "@/components/JourneyArc";
@@ -40,18 +40,58 @@ interface StackOption {
 
 const stackOptions: StackOption[] = [
   {
-    id: "tanstackjs-nestjs",
-    title: "tanstackjs-nestjs: NestJS + TanStack Start",
-    description: "Enterprise-grade backend with modern React frontend",
-    icon: <Database className="w-8 h-8" />,
+    id: "local",
+    title: "Local",
+    description: "Run directly with Bun — the fastest way to develop and iterate",
+    icon: <Monitor className="w-8 h-8" />,
     features: [
+      "bun run dev",
       "NestJS REST API",
-      "Kysely with PostgreSQL",
       "TanStack Start Frontend",
-      "Monorepo Architecture",
-      // Matches DEFAULT_FRONTEND_PORT / DEFAULT_BACKEND_PORT in
-      // packages/generator/src/generators/ports.ts. 3000 is this tool.
       "Frontend on 4000, API on 4001",
+      "Hot-reload out of the box",
+    ],
+    category: "fullstack",
+  },
+  {
+    id: "docker",
+    title: "Docker",
+    description: "Ship as a Docker Compose stack — portable across any machine or cloud",
+    icon: <Container className="w-8 h-8" />,
+    features: [
+      "docker compose up --build",
+      "Dockerfile for each service",
+      "Postgres included",
+      "Production-ready images",
+      "One command to run anywhere",
+    ],
+    category: "fullstack",
+  },
+  {
+    id: "wasm",
+    title: "WASM",
+    description: "Runs entirely in the browser — no server or database installation needed",
+    icon: <Globe className="w-8 h-8" />,
+    features: [
+      "WebAssembly Postgres (PGlite)",
+      "No backend server required",
+      "Service Worker powered",
+      "Share a single HTML file",
+      "Zero infrastructure",
+    ],
+    category: "fullstack",
+  },
+  {
+    id: "executable",
+    title: "Executable",
+    description: "Compile the backend into a single self-contained binary — no runtime needed",
+    icon: <PackageOpen className="w-8 h-8" />,
+    features: [
+      "bun build --compile",
+      "Single binary — no bun/node required",
+      "macOS, Linux, Windows targets",
+      "Ships as one file",
+      "NestJS + TanStack source included",
     ],
     category: "fullstack",
   },

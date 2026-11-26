@@ -34,7 +34,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BUN_VERSION: "1.4.4"
+  BUN_VERSION: "1.4.6"
 
 jobs:
   build:

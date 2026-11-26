@@ -188,7 +188,7 @@ browser ── /chat/*  ──────────────────�
 | `src/openbot/` | The OpenBot API subset, and serving the built app |
 | `src/server/` | The existing server: identity, tools, tickets, proposals, switches, audit |
 | `docker/buzz-relay.Dockerfile` | Builds the relay from the pinned Buzz checkout with cargo |
-| `docker/openbot-app.Dockerfile` | Builds OpenBot's app from the pinned checkout with Bun 1.4.4 |
+| `docker/openbot-app.Dockerfile` | Builds OpenBot's app from the pinned checkout with Bun 1.4.6 |
 | `docs/` | Phase-7 findings (`docs/phase-7-findings.md`) |
 
 ### The Intelligence interface (`src/interface/`)
@@ -248,7 +248,7 @@ Buzz:
 - What is `web/`, the Buzz web client in that repository?
 
 OpenBot:
-- Build the app with Bun 1.4.4.
+- Build the app with Bun 1.4.6.
 - Run it against a recording stub that answers every OpenBot route with a minimal valid response and logs the call.
 - In Chromium, exercise sign-in, home, a new conversation, chat and memory.
 - Record:
@@ -261,7 +261,7 @@ OpenBot:
 The output is `docs/phase-7-findings.md`, plus updates to this file.
 
 **Done.** The relay runs on PostgreSQL and Redis with `BUZZ_GIT_CONFORMANCE_PROBE=false` (no S3), and the whole Buzz
-mapping was proven against it. OpenBot's app built on Bun 1.4.4 and chatted against a CopilotKit 1.88.0 runtime with
+mapping was proven against it. OpenBot's app built on Bun 1.4.6 and chatted against a CopilotKit 1.88.0 runtime with
 no Intelligence. The roughly 35 operations its core paths call are listed in the findings.
 
 ### 8. The interface and the in-memory provider — done
@@ -368,7 +368,7 @@ Phase 7 showed that OpenBot's client chats over CopilotKit's local mode, so no I
 
 ## Rules that do not change
 
-- **Bun 1.4.4 only.** No npm, pnpm or yarn in this repository. `bun check` is the only static check, and no script is
+- **Bun 1.4.6 only.** No npm, pnpm or yarn in this repository. `bun check` is the only static check, and no script is
   named `check`.
 - **Third-party checkouts** are built by our own Dockerfiles: Buzz with cargo, OpenBot with Bun.
 - **Access:** the person's own session is forwarded, and the assistant decides nothing about access.

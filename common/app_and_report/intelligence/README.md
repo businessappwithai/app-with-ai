@@ -47,7 +47,7 @@ provided.
 ## Run it
 
 ```bash
-bun install                 # Bun 1.4.4
+bun install                 # Bun 1.4.6
 bun run check:all           # type-check (bun check) and tests
 bun run build
 bun scripts/preview.ts      # http://localhost:4300/chat/ with stand-in products and model

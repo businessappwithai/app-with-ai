@@ -14,7 +14,7 @@ This repository is the marketing and documentation site only. The generator live
 
 ## Tech stack
 
-Built with [Docusaurus](https://docusaurus.io) 3.10, installed with Bun 1.4.4, over pages that are
+Built with [Docusaurus](https://docusaurus.io) 3.10, installed with Bun 1.4.6, over pages that are
 still hand-written HTML.
 
 - HTML5 / CSS3 (Lunaris Design System, custom properties throughout) — the pages are where they have always been
@@ -26,7 +26,7 @@ still hand-written HTML.
 ## Local development
 
 ```bash
-bun install        # Bun 1.4.4
+bun install        # Bun 1.4.6
 bun run build      # Docusaurus → build/
 bun run serve      # http://localhost:3000
 node scripts/check-build.mjs   # every page and published file is served unchanged
@@ -38,7 +38,7 @@ A Service Worker on `guide/run-in-browser.html` and `guide/run-real-stack.html` 
 
 ```
 businessappwithai.github.io/
-├── package.json, bun.lock        # Docusaurus, installed with Bun 1.4.4
+├── package.json, bun.lock        # Docusaurus, installed with Bun 1.4.6
 ├── docusaurus.config.mjs         # trailingSlash: false — pages keep their .html URLs
 ├── plugins/site-pages.mjs        # One route per .html page; copies everything else into build/
 ├── src/components/SitePage.jsx   # Renders a page's <head> and its <body> verbatim

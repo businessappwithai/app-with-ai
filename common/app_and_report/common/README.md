@@ -149,7 +149,7 @@ that it exited 0 — the WASM run has to have written `backend/pg-wasm/`, which 
 the overlay's own footprint and the difference between the overlay running and
 silently doing nothing.
 
-**Both run on bun 1.4.4**, what app-with-ai-tanstack requires throughout.
+**Both run on bun 1.4.6**, what app-with-ai-tanstack requires throughout.
 `appwithai-wasm` used to be checked on 1.3; upstream dropped 1.3, so that pin
 went with it. CI still runs each in a job of its own so they go side by side.
 `check:cli` and `check:cli:wasm` run one each; the check always prints the bun a
