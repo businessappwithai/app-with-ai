@@ -1,6 +1,15 @@
 # Integrating `intelligence/` into app-with-ai — architectural design plan
 
-**Status: proposal, awaiting approval. Nothing here is implemented yet.**
+**Status: approved. Scope narrowed to the `intelligence/` folder only (no root `.gitignore`, root scripts, CI, sync or generator edits).**
+
+| Phase | Done inside `intelligence/` | Left for outside it |
+|---|---|---|
+| A | Tests and `operations.generated.json` restored from the orchestrator repo; nested `.gitignore` re-includes them; `deps.json`; Bun 1.4.6 in the Dockerfile and a local Bun guard; `start` fixed. `bun check` clean, 88 tests pass | Root `package.json` scripts |
+| B | `ci/chat-assistant.workflow.yml` | Copy to `.github/workflows/` to enable |
+| C | none | `scripts/sync-common.ts` entry; delete the committed `common/app_and_report/intelligence/` copy |
+| D | `deploy/` (compose overlay, one-origin gateway, `.env.example`), `scripts/install-into.ts`, tested | `--with-chat` generator option |
+| E | `scripts/claude-model.ts` (Claude Code as the test model), `scripts/qa-claude.ts`: 5/5 scenarios pass | Per-role CRM parity run, generated suite `30-chat`, browser E2E |
+| D5 | `src/server/log.ts` named log events | none |
 
 This plan integrates the chat and natural-language interface in `intelligence/` with this repository and with
 the applications it generates. It does **not** change the service's architecture: the layers, the identity
