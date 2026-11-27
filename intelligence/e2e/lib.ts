@@ -58,12 +58,15 @@ export async function signInViaChat(page: Page, email: string, password: string)
   await askBox(page).waitFor({ timeout: 30000 });
 }
 
-/** Sign in on the generated application's own page, as somebody who never opened the chat. */
-export async function signInViaApp(page: Page, email: string, password: string) {
-  await page.goto(`${base}/auth/login`);
-  await page.locator("#email").fill(email);
-  await page.locator("#password").fill(password);
-  await page.locator('button[type="submit"]').click();
+/**
+ * Sign in with the application's own auth API (what its login form posts), so the browser holds the
+ * application's session and nothing else: no chat embed cookie, as for somebody who never opened the chat.
+ * (Not through the login form: in this local setup the generated app's form returns to itself after a
+ * successful sign-in, with chat or without. See docs/qa-report-2026-11-27.md.)
+ */
+export async function signInViaApi(page: Page, email: string, password: string) {
+  const response = await page.request.post(`${base}/api/auth/sign-in/email`, { data: { email, password }, headers: { origin: base } });
+  if (!response.ok()) throw new Error(`the application's sign-in answered ${response.status()}`);
 }
 
 /** The application's session cookie, as a `Cookie` header value, and nothing else (no embed cookie). */

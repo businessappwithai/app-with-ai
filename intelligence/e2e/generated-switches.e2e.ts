@@ -7,7 +7,7 @@
  *   CHROMIUM_PATH=… bun e2e/generated-switches.e2e.ts
  */
 import type { Page } from "playwright";
-import { ask, base, BAD, createRun, launch, newContext, sessionCookie, signInViaApp, signInViaChat } from "./lib";
+import { ask, base, BAD, createRun, launch, newContext, sessionCookie, signInViaApi, signInViaChat } from "./lib";
 
 const AGENT = { email: process.env.ROLE_EMAIL ?? "support.agent@my-app.example.com", password: process.env.ROLE_PASSWORD ?? "admin123" };
 const ADMIN = { email: process.env.ADMIN_EMAIL ?? "admin@admin.com", password: process.env.ADMIN_PASSWORD ?? "admin123" };
@@ -50,7 +50,8 @@ try {
   const agentContext = await newContext(browser);
   const agent = await agentContext.newPage();
   await run.step(agent, "a non-administrator who opens the application directly is sent into the chat", "s02-redirected-to-chat", async () => {
-    await signInViaApp(agent, AGENT.email, AGENT.password);
+    await signInViaApi(agent, AGENT.email, AGENT.password);
+    await agent.goto(`${base}/bus_account`);
     await agent.waitForURL(/\/chat\//, { timeout: 60000 });
     await agent.getByPlaceholder("Ask for a record, a page or a report…").waitFor({ timeout: 30000 });
   });
