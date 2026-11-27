@@ -11,9 +11,12 @@
  * with exactly one JSON object: a tool call, or the final text. The assistant's tools still run in
  * the assistant, as the signed-in person, so everything the model does goes through the real guards.
  *
- * CLAUDE_MODEL picks the model (default: Claude Code's own); CLAUDE_MODEL_PORT the port (8000).
+ * CLAUDE_MODEL picks the model (default: Claude Code's own); CLAUDE_MODEL_PORT the port (8000);
+ * CLAUDE_MODEL_HOST the address it listens on (127.0.0.1).
  */
 const port = Number(process.env.CLAUDE_MODEL_PORT ?? 8000);
+// 127.0.0.1 unless a container has to reach it (then 0.0.0.0, and only on a machine you control).
+const host = process.env.CLAUDE_MODEL_HOST ?? "127.0.0.1";
 const claudeModel = process.env.CLAUDE_MODEL;
 
 interface ToolDef {
@@ -93,7 +96,7 @@ const chunk = (delta: unknown, finish: string | null = null) =>
 export function serve() {
   return Bun.serve({
     port,
-    hostname: "127.0.0.1",
+    hostname: host,
     idleTimeout: 255,
     async fetch(request) {
       const url = new URL(request.url);

@@ -16,9 +16,9 @@ export const launch = (): Promise<Browser> =>
 export const newContext = (browser: Browser): Promise<BrowserContext> =>
   browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
 
-/** A run: its screenshots land in docs/e2e-screenshots/live/<prefix>*.png, its steps in `results`. */
+/** A run: its screenshots land in docs/e2e-screenshots/$SHOTS_DIR (default live)/<prefix>*.png, its steps in `results`. */
 export function createRun(prefix: string) {
-  const shots = join(resolve(import.meta.dir, ".."), "docs/e2e-screenshots/live");
+  const shots = join(resolve(import.meta.dir, ".."), `docs/e2e-screenshots/${process.env.SHOTS_DIR ?? "live"}`);
   mkdirSync(shots, { recursive: true });
   const results: Array<{ ok: boolean; name: string; detail: string }> = [];
   async function step(page: Page, name: string, shot: string, body: () => Promise<void>) {
