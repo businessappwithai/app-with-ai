@@ -95,7 +95,8 @@ try {
     const open = await direct(await sessionCookie(agentContext), "/bus/bus_account?limit=1");
     if (open.status !== 200) throw new Error(`direct call: ${open.status}`);
     await agent.goto(`${base}/dashboard`);
-    await agent.waitForLoadState("networkidle");
+    // Not "network idle": with ElectricSQL running the page keeps a long-poll open for ever.
+    await agent.getByText("Customer Service").first().waitFor({ timeout: 60000 });
     if (/\/chat\//.test(agent.url())) throw new Error("the application sent the person to the chat while it is off");
   });
 } finally {
