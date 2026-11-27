@@ -23,7 +23,8 @@ services:
       APP_BASE_PATH: ""
       REPORT_URL: http://report:3000
       REPORT_BASE_PATH: /report
-      CHAT_BRIDGE_SECRET: ${CHAT_BRIDGE_SECRET:?CHAT_BRIDGE_SECRET is required: bun assistant/scripts/install-into.ts writes one}
+      # Quoted: the message after `:?` contains a colon, which unquoted YAML reads as a mapping.
+      CHAT_BRIDGE_SECRET: "${CHAT_BRIDGE_SECRET:?CHAT_BRIDGE_SECRET is required (the generator writes one into .env; bun assistant/scripts/install-into.ts does too)}"
       CHAT_DATABASE_URL: postgres://${DB_USER:-app}:${DB_PASSWORD:-app}@postgres:5432/chatdb
       AI_BASE_URL: ${AI_BASE_URL:-http://host.docker.internal:8000/v1}
       AI_API_KEY: ${AI_API_KEY:-local}

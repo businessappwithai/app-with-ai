@@ -11,13 +11,21 @@ describe("the deploy bundle", () => {
   const compose = read("deploy/docker-compose.chat.yml");
   const gateway = read("deploy/gateway.nginx.conf");
 
+  test("the overlay is valid YAML (a colon in an unquoted message once made compose refuse it)", () => {
+    const doc = Bun.YAML.parse(compose) as { services: Record<string, { environment?: Record<string, string>; profiles?: string[] }> };
+    expect(Object.keys(doc.services).sort()).toEqual(["assistant", "backend", "gateway", "report"]);
+    expect(doc.services.assistant!.environment!.CHAT_BRIDGE_SECRET).toContain("${CHAT_BRIDGE_SECRET:?");
+    expect(doc.services.assistant!.profiles).toEqual(["chat"]);
+    // The text that failed: an unquoted `:?message with: a colon`.
+    expect(() => Bun.YAML.parse("a:\n  B: ${B:?B is required: do this}\n")).toThrow();
+  });
   test("assistant and gateway sit behind the chat profile; nothing else is added", () => {
     expect(compose.match(/profiles: \["chat"\]/g)?.length).toBe(2);
     expect(compose).toContain("assistant:");
     expect(compose).toContain("gateway:");
   });
   test("the bridge secret is required by the assistant and shared by backend and report", () => {
-    expect(compose).toMatch(/CHAT_BRIDGE_SECRET: \$\{CHAT_BRIDGE_SECRET:\?/);
+    expect(compose).toMatch(/CHAT_BRIDGE_SECRET: "?\$\{CHAT_BRIDGE_SECRET:\?/);
     expect(compose.match(/CHAT_BRIDGE_SECRET: \$\{CHAT_BRIDGE_SECRET:-\}/g)?.length).toBe(2);
   });
   test("the gateway routes the three prefixes without stripping them, and upgrades WebSockets", () => {

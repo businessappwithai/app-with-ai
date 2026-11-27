@@ -6,7 +6,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { chatBackendEnv, chatEnvLines, findAssistantSource, writeAssistant } from "../vendor-assistant";
+import { chatBackendEnv, chatEnvLines, findAssistantSource, newSecret, writeAssistant } from "../vendor-assistant";
 
 const TEMPLATES = join(import.meta.dirname, "../../../../templates");
 const project = () => {
@@ -52,6 +52,21 @@ describe("writeAssistant", () => {
   it("finds its source in a checkout, and says so when there is none", async () => {
     expect(await findAssistantSource(TEMPLATES)).toMatch(/intelligence$/);
     await expect(findAssistantSource(join(tmpdir(), "nowhere/a/b"))).rejects.toThrow(/not found/);
+  });
+});
+
+describe("the browser bundle", () => {
+  // `build:fullstack-browser` inlines this file. Importing node:crypto there makes Bun add crypto-browserify
+  // and elliptic: the bundle went from 1.1 MB to 2.0 MB for one random secret.
+  it("never imports node:crypto (or crypto), which the browser bundle would answer with a 900 KB polyfill", () => {
+    const source = readFileSync(join(import.meta.dirname, "../vendor-assistant.ts"), "utf8");
+    expect(source).not.toMatch(/from\s+["'](?:node:)?crypto["']/);
+    expect(source).not.toMatch(/require\(["'](?:node:)?crypto["']\)/);
+  });
+  it("makes its secret from Web Crypto: 43 base64url characters, different each time", () => {
+    const a = newSecret();
+    expect(a).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(newSecret()).not.toBe(a);
   });
 });
 

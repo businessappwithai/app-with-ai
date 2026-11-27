@@ -12,11 +12,12 @@
  *  - a checkout: `<repo>/intelligence`;
  *  - a published package: `templates/assistant`, which the generator's build fills.
  *
- * Only `node:fs/promises`, `node:path` and `node:crypto`, so the browser bundles that swap
- * `node:fs` still load it; they never reach it, because `chat` is off there.
+ * Only `node:fs/promises` and `node:path`, and Web Crypto for the secret — never `node:crypto`: the
+ * full-stack browser bundle reaches this file, and Bun polyfills `node:crypto` there with
+ * crypto-browserify and elliptic, which doubled that bundle (1.1 MB to 2.0 MB). `chat` is off in the
+ * browser, so none of this runs there.
  */
 
-import { randomBytes } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
@@ -68,6 +69,12 @@ export async function findAssistantSource(templatesDir: string): Promise<string>
   );
 }
 
+/** 32 random bytes as base64url, from Web Crypto (global in Node and in the browser). */
+export function newSecret(): string {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 /** The gateway's address: the one origin people use when the assistant is on. */
 export const CHAT_ORIGIN = "http://localhost:4080";
 
@@ -75,7 +82,7 @@ export const CHAT_ORIGIN = "http://localhost:4080";
 const envValue = (text: string, name: string): string | null => new RegExp(`^${name}=(.+)$`, "m").exec(text)?.[1]?.trim() ?? null;
 
 /** The `.env` lines chat needs, skipping any name the file already sets. Never replaces a secret. */
-export function chatEnvLines(existing: string, secret: string = randomBytes(32).toString("base64url")): string[] {
+export function chatEnvLines(existing: string, secret: string = newSecret()): string[] {
   const has = (name: string) => envValue(existing, name) !== null;
   const lines: string[] = [];
   if (!has("COMPOSE_FILE")) lines.push(`COMPOSE_FILE=${CHAT_COMPOSE_FILE}`);
@@ -110,7 +117,7 @@ export async function writeAssistant(outputDir: string, templatesDir: string): P
 
   const envPath = path.join(outputDir, ".env");
   const current = (await exists(envPath)) ? await fs.readFile(envPath, "utf8") : "";
-  const secret = envValue(current, "CHAT_BRIDGE_SECRET") ?? randomBytes(32).toString("base64url");
+  const secret = envValue(current, "CHAT_BRIDGE_SECRET") ?? newSecret();
   const lines = chatEnvLines(current, secret);
   if (lines.length > 0) {
     const header = current ? "" : "# Written by the generator for the chat assistant. .env is not committed.\n";

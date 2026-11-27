@@ -8499,6 +8499,110 @@ init_node_path();
 
 // packages/generator/src/generators/full-stack.generator.ts
 init_memory_fs();
+
+// packages/generator/src/generators/tanstack-start-nestjs/vendor-assistant.ts
+init_memory_fs();
+init_node_path();
+var MARKER = "server.ts";
+var SKIP = /(^|\/)(node_modules|dist|\.checkouts|__tests__|\.git|e2e|ci)(\/|$)|(^|\/)docs\/(e2e-screenshots|qa-report[^/]*)|(^|\/)scripts\/(preview|qa-claude|claude-model|install-into|chat-keys|openbot-operations)\.ts$|\.test\.ts$/;
+var CHAT_COMPOSE_FILE = "docker-compose.yml:assistant/deploy/docker-compose.chat.yml";
+async function exists(target) {
+  try {
+    await access(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function copyTree(source, destination, relative = "") {
+  const entries = await readdir(source, { withFileTypes: true });
+  await mkdir(destination, { recursive: true });
+  let copied = 0;
+  for (const entry of entries) {
+    const inner = relative ? `${relative}/${entry.name}` : entry.name;
+    if (SKIP.test(inner))
+      continue;
+    const from = join(source, entry.name);
+    const to = join(destination, entry.name);
+    if (entry.isDirectory())
+      copied += await copyTree(from, to, inner);
+    else {
+      await copyFile(from, to);
+      copied++;
+    }
+  }
+  return copied;
+}
+async function findAssistantSource(templatesDir) {
+  for (const candidate of [resolve(templatesDir, "../../../intelligence"), join(templatesDir, "assistant")]) {
+    if (await exists(join(candidate, MARKER)))
+      return candidate;
+  }
+  throw new Error("The chat assistant's source was not found. In a checkout it is intelligence/ at the repository " + "root; in a published package it ships inside templates/assistant.");
+}
+function newSecret() {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+var CHAT_ORIGIN = "http://localhost:4080";
+var envValue = (text, name) => new RegExp(`^${name}=(.+)$`, "m").exec(text)?.[1]?.trim() ?? null;
+function chatEnvLines(existing, secret = newSecret()) {
+  const has = (name) => envValue(existing, name) !== null;
+  const lines = [];
+  if (!has("COMPOSE_FILE"))
+    lines.push(`COMPOSE_FILE=${CHAT_COMPOSE_FILE}`);
+  if (!has("CHAT_BRIDGE_SECRET"))
+    lines.push(`CHAT_BRIDGE_SECRET=${secret}`);
+  if (!has("PUBLIC_ORIGIN"))
+    lines.push(`PUBLIC_ORIGIN=${CHAT_ORIGIN}`);
+  if (!has("GATEWAY_PORT"))
+    lines.push("GATEWAY_PORT=4080");
+  return lines;
+}
+function chatBackendEnv(existing, secret) {
+  let text = existing;
+  const cors = envValue(text, "CORS_ORIGIN");
+  if (cors === null)
+    text += `${text && !text.endsWith(`
+`) ? `
+` : ""}CORS_ORIGIN=${CHAT_ORIGIN}
+`;
+  else if (!cors.split(",").map((o) => o.trim()).includes(CHAT_ORIGIN)) {
+    text = text.replace(/^CORS_ORIGIN=.*$/m, `CORS_ORIGIN=${cors},${CHAT_ORIGIN}`);
+  }
+  if (envValue(text, "CHAT_BRIDGE_SECRET") === null)
+    text += `${text.endsWith(`
+`) ? "" : `
+`}CHAT_BRIDGE_SECRET=${secret}
+`;
+  return text;
+}
+async function writeAssistant(outputDir, templatesDir) {
+  const source = await findAssistantSource(templatesDir);
+  const destination = join(outputDir, "assistant");
+  await rm(destination, { recursive: true, force: true });
+  const files = await copyTree(source, destination);
+  const envPath = join(outputDir, ".env");
+  const current = await exists(envPath) ? await readFile(envPath, "utf8") : "";
+  const secret = envValue(current, "CHAT_BRIDGE_SECRET") ?? newSecret();
+  const lines = chatEnvLines(current, secret);
+  if (lines.length > 0) {
+    const header = current ? "" : `# Written by the generator for the chat assistant. .env is not committed.
+`;
+    await writeFile(envPath, `${current}${current && !current.endsWith(`
+`) ? `
+` : ""}${header}${lines.join(`
+`)}
+`);
+  }
+  const backendEnv = join(outputDir, "backend", ".env");
+  if (await exists(backendEnv)) {
+    await writeFile(backendEnv, chatBackendEnv(await readFile(backendEnv, "utf8"), secret));
+  }
+  return { files };
+}
+
+// packages/generator/src/generators/full-stack.generator.ts
 init_node_path();
 
 // packages/generator/src/generators/tanstack-start-nestjs/nestjs-backend.generator.ts
@@ -18390,9 +18494,9 @@ init_node_path();
 // packages/generator/src/generators/tanstack-start-nestjs/vendor-editors.ts
 init_memory_fs();
 init_node_path();
-var MARKER = "lib/utils.ts";
-var SKIP = /(?:^|\/)__tests__(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)vite-env\.d\.ts$/;
-async function exists(target) {
+var MARKER2 = "lib/utils.ts";
+var SKIP2 = /(?:^|\/)__tests__(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)vite-env\.d\.ts$/;
+async function exists2(target) {
   try {
     await access(target);
     return true;
@@ -18400,18 +18504,18 @@ async function exists(target) {
     return false;
   }
 }
-async function copyTree(source, destination, relative = "") {
+async function copyTree2(source, destination, relative = "") {
   const entries = await readdir(source, { withFileTypes: true });
   await mkdir(destination, { recursive: true });
   let copied = 0;
   for (const entry of entries) {
     const inner = relative ? `${relative}/${entry.name}` : entry.name;
-    if (SKIP.test(inner))
+    if (SKIP2.test(inner))
       continue;
     const from = join(source, entry.name);
     const to = join(destination, entry.name);
     if (entry.isDirectory())
-      copied += await copyTree(from, to, inner);
+      copied += await copyTree2(from, to, inner);
     else {
       await copyFile(from, to);
       copied++;
@@ -18422,12 +18526,12 @@ async function copyTree(source, destination, relative = "") {
 async function ensureEditorsVendored(frontendTemplateDir) {
   const destination = join(frontendTemplateDir, "src/editors");
   const source = resolve(frontendTemplateDir, "../../../../editors/src");
-  if (await exists(join(source, MARKER))) {
+  if (await exists2(join(source, MARKER2))) {
     await rm(destination, { recursive: true, force: true });
-    await copyTree(source, destination);
+    await copyTree2(source, destination);
     return;
   }
-  if (await exists(join(destination, MARKER)))
+  if (await exists2(join(destination, MARKER2)))
     return;
   throw new Error(`The rule and workflow editors are missing from ${destination}. In a checkout they are ` + "copied from packages/editors/src; in a published package they ship inside templates/. " + "Run `bun run vendor:editors`.");
 }
@@ -19093,6 +19197,12 @@ class TanStackStartFrontendGenerator extends BaseGenerator {
     const fieldsContent = await this.component("src/routes/admin/fields.tsx");
     await writeFile(join(adminDir, "fields.tsx"), fieldsContent);
     try {
+      const tabsContent = await this.component("src/routes/admin/tabs.tsx");
+      await writeFile(join(adminDir, "tabs.tsx"), tabsContent);
+    } catch (_e) {
+      console.warn("Admin tabs page template not found");
+    }
+    try {
       const rulesContent = await this.renderTemplate("src/routes/admin/rules.tsx.hbs", context);
       await writeFile(join(adminDir, "rules.tsx"), rulesContent);
     } catch (_e) {
@@ -19128,22 +19238,40 @@ class TanStackStartFrontendGenerator extends BaseGenerator {
       console.warn("Admin reports page template not found");
     }
     try {
-      const analysisContent = await this.component("src/routes/admin/analysis.tsx");
-      await writeFile(join(adminDir, "analysis.tsx"), analysisContent);
-    } catch (_e) {
-      console.warn("Admin analysis page template not found");
-    }
-    try {
       const usersContent = await this.component("src/routes/admin/users.tsx");
       await writeFile(join(adminDir, "users.tsx"), usersContent);
     } catch (_e) {
-      console.warn("Admin users page template not found");
+      console.warn("Admin users layout template not found");
+    }
+    try {
+      const usersIndexContent = await this.component("src/routes/admin/users.index.tsx");
+      await writeFile(join(adminDir, "users.index.tsx"), usersIndexContent);
+    } catch (_e) {
+      console.warn("Admin users index page template not found");
+    }
+    try {
+      const usersDetailContent = await this.component("src/routes/admin/users.$userId.tsx");
+      await writeFile(join(adminDir, "users.$userId.tsx"), usersDetailContent);
+    } catch (_e) {
+      console.warn("Admin users detail page template not found");
     }
     try {
       const rolesContent = await this.component("src/routes/admin/roles.tsx");
       await writeFile(join(adminDir, "roles.tsx"), rolesContent);
     } catch (_e) {
-      console.warn("Admin roles page template not found");
+      console.warn("Admin roles layout template not found");
+    }
+    try {
+      const rolesIndexContent = await this.component("src/routes/admin/roles.index.tsx");
+      await writeFile(join(adminDir, "roles.index.tsx"), rolesIndexContent);
+    } catch (_e) {
+      console.warn("Admin roles index page template not found");
+    }
+    try {
+      const rolesDetailContent = await this.component("src/routes/admin/roles.$roleName.tsx");
+      await writeFile(join(adminDir, "roles.$roleName.tsx"), rolesDetailContent);
+    } catch (_e) {
+      console.warn("Admin roles detail page template not found");
     }
     try {
       const systemConfigContent = await this.component("src/routes/admin/system-config.tsx");
@@ -19160,6 +19288,8 @@ class TanStackStartFrontendGenerator extends BaseGenerator {
     const adminSubdirs = [
       { src: "src/routes/admin/table", dest: "src/routes/admin/table" },
       { src: "src/routes/admin/window", dest: "src/routes/admin/window" },
+      { src: "src/routes/admin/tab", dest: "src/routes/admin/tab" },
+      { src: "src/routes/admin/field", dest: "src/routes/admin/field" },
       { src: "src/routes/admin/element", dest: "src/routes/admin/element" },
       { src: "src/routes/admin/reference", dest: "src/routes/admin/reference" },
       { src: "src/routes/admin/rules", dest: "src/routes/admin/rules" },
@@ -19860,6 +19990,8 @@ reporting/password_list.txt
     await writeFile(join(outputDir, ".gitignore"), gitignore);
     await this.writeContainerFiles(outputDir);
     await this.writeReportingFiles(outputDir);
+    if (this.options.chat)
+      await this.writeAssistantFiles(outputDir);
     await this.writePasswordList(outputDir);
     await this.copyGitHubWorkflows(outputDir);
   }
@@ -19928,6 +20060,10 @@ reporting/password_list.txt
       await writeFile(join(reportingDir, "password_list.txt"), content);
     } catch {}
   }
+  async writeAssistantFiles(outputDir) {
+    const { files } = await writeAssistant(outputDir, await this.findTemplatesDir());
+    console.log(`\uD83D\uDCAC Chat assistant: ${files} files in assistant/ — docker compose --profile chat up --build`);
+  }
   async writeReportingFiles(outputDir) {
     const pack = this.options.reportingPack;
     if (!pack)
@@ -19945,6 +20081,9 @@ reporting/password_list.txt
       },
       { template: "reporting/README.md.hbs", output: "reporting/README.md" }
     ];
+    if (this.options.chat) {
+      templates.push({ template: "reporting/subpath-overlay.ts", output: "reporting/subpath-overlay.ts" });
+    }
     for (const file of templates) {
       try {
         const templateDir = await this.findTemplatesDir();
@@ -19960,6 +20099,7 @@ reporting/password_list.txt
     }
   }
   renderReportingTemplate(content, pack) {
+    content = this.options.chat ? content.replace(/^# <\/?chat>\n/gm, "") : content.replace(/^# <chat>\n[\s\S]*?^# <\/chat>\n/gm, "");
     const projectId = this.options.projectName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const projectSnake = this.options.projectName.toLowerCase().replace(/[^a-z0-9]+/g, "_");
     const frontendPort = this.options.frontendPort ?? DEFAULT_FRONTEND_PORT;
@@ -20099,7 +20239,7 @@ and explains what to set before the first start.
 
 ### Prerequisites
 
-- **Bun.js 1.4.4** (REQUIRED runtime — exact version)
+- **Bun.js 1.4.6** (REQUIRED runtime — exact version)
 - PostgreSQL 14+
 
 ### Installation
@@ -23190,6 +23330,7 @@ function buildGeneratorOptions(model, settings) {
     skipFrontend: !!settings.skipFrontend,
     skipBackend: !!settings.skipBackend,
     skipTests: !!settings.skipTests,
+    chat: !!settings.chat,
     skipCliScaffold: settings.skipCliScaffold ?? GENERATION_DEFAULTS.skipCliScaffold,
     recordsPerEntity: settings.recordsPerEntity ?? GENERATION_DEFAULTS.recordsPerEntity,
     categories: model.categories,

@@ -6,7 +6,8 @@
  *
  * Reads the project's `.env` (written by the generator: CHAT_BRIDGE_SECRET, PUBLIC_ORIGIN, GATEWAY_PORT),
  * installs and builds the assistant on first use, starts it on :4200 and the gateway on GATEWAY_PORT.
- * People then use http://localhost:4080 : `/` is the application, `/chat/` the assistant.
+ * People then use http://localhost:4080 : `/` is the application, `/chat/` the assistant, `/report/` the
+ * reporting platform when it runs on REPORT_URL (default http://127.0.0.1:3100).
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -56,7 +57,7 @@ if (import.meta.main) {
       COPILOTKIT_TELEMETRY_DISABLED: "true",
       DO_NOT_TRACK: "1",
     }),
-    run(["bun", "scripts/gateway.ts"], { GATEWAY_PORT: port, APP_URL: process.env.APP_URL ?? "http://127.0.0.1:4000", ASSISTANT_URL: "http://127.0.0.1:4200", ...(process.env.REPORT_URL ? { REPORT_URL: process.env.REPORT_URL } : {}) }),
+    run(["bun", "scripts/gateway.ts"], { GATEWAY_PORT: port, APP_URL: process.env.APP_URL ?? "http://127.0.0.1:4000", ASSISTANT_URL: "http://127.0.0.1:4200", REPORT_URL: process.env.REPORT_URL ?? "http://127.0.0.1:3100" }),
   ];
   console.log(`\nChat: ${origin}/chat/   (the application at ${origin}/)`);
   const stop = () => children.forEach((child) => child.kill());
