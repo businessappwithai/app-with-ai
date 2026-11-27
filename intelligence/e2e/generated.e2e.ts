@@ -30,6 +30,23 @@ async function step(page: Page, name: string, shot: string, body: () => Promise<
   console.log(`${last.ok ? "PASS" : "FAIL"}  ${last.name}  ${last.detail}`);
 }
 
+const askBox = (page: Page) => page.getByPlaceholder("Ask for a record, a page or a report…");
+/** The send button reads "Stop" while a turn runs and "Send message" when the chat is idle. */
+const idle = (page: Page) => page.locator('[data-testid="copilot-send-button"][aria-label="Send message"]').waitFor({ timeout: 240000 });
+async function ask(page: Page, text: string) {
+  await idle(page);
+  await askBox(page).fill(text);
+  await askBox(page).press("Enter");
+}
+/** What the application itself says about Account 1, read through the gateway with the browser's own session. */
+async function website(page: Page): Promise<string | null> {
+  const response = await page.request.get(`${base}/api/bus/bus_account?search=Account%201&limit=5`);
+  const rows = ((await response.json()) as { data?: Array<Record<string, unknown>> }).data ?? [];
+  const row = rows.find((r) => r.name === "Account 1");
+  return row ? String(row.website) : null;
+}
+const BAD = ["not answering", "not available", "Not found", "Internal Server Error"];
+
 const browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH, args: ["--no-sandbox"] } : {}) });
 try {
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })).newPage();
@@ -44,9 +61,7 @@ try {
     await page.getByPlaceholder("Ask for a record, a page or a report…").waitFor({ timeout: 30000 });
   });
   await step(page, "ask for a list: the real application page opens beside the chat, without its own chrome", "g03-list-open", async () => {
-    const input = page.getByPlaceholder("Ask for a record, a page or a report…");
-    await input.fill("Open the list of accounts.");
-    await input.press("Enter");
+    await ask(page, "Open the list of accounts.");
     await page.getByText("Opened: ").first().waitFor({ timeout: 180000 });
     const src = (await page.locator("iframe").first().getAttribute("src")) ?? "";
     if (!/\/chat\/open\/[A-Za-z0-9_-]{20,}/.test(src)) throw new Error(`iframe src is not a ticket: ${src}`);
@@ -55,11 +70,42 @@ try {
     const frame = page.frameLocator("iframe");
     await frame.getByText(/account/i).first().waitFor({ timeout: 90000 });
     const text = (await frame.locator("body").innerText()).trim();
-    for (const bad of ["not answering", "not available", "Not found", "Sign in", "Internal Server Error"]) {
+    for (const bad of [...BAD, "Sign in"]) {
       if (text.includes(bad)) throw new Error(`the frame shows "${bad}"`);
     }
     await page.waitForTimeout(2000);
   });
+
+  await step(page, "ask for one record: a second tab opens on that record in the real application", "g04-record-open", async () => {
+    await ask(page, "Open the account named Account 1.");
+    await page.getByText("Opened: ").nth(1).waitFor({ timeout: 240000 });
+    const frame = page.frameLocator("section.frame:not([hidden]) iframe");
+    await frame.getByText("ACC-0001").first().waitFor({ timeout: 90000 });
+    const text = (await frame.locator("body").innerText()).trim();
+    for (const bad of BAD) if (text.includes(bad)) throw new Error(`the frame shows "${bad}"`);
+    await page.waitForTimeout(2000);
+  });
+  let before: string | null = null;
+  await step(page, "ask for a change: a card waits with Confirm and Decline, and the application is unchanged", "g05-proposal", async () => {
+    before = await website(page);
+    if (before === null || before === "example.org") throw new Error(`unexpected starting value: ${before}`);
+    await ask(page, "Change the website of Account 1 to example.org.");
+    await page.getByRole("group", { name: "Proposed change" }).waitFor({ timeout: 240000 });
+    await page.getByRole("button", { name: "Confirm" }).waitFor();
+    await page.getByRole("button", { name: "Decline" }).waitFor();
+    if ((await website(page)) !== before) throw new Error("the application changed before the person confirmed");
+  });
+  await step(page, "confirm: the person's own press saves it through the application's own API", "g06-confirmed", async () => {
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("status").filter({ hasText: "Saved." }).waitFor({ timeout: 30000 });
+    const after = await website(page);
+    if (after !== "example.org") throw new Error(`the application holds "${after}", not "example.org" (was "${before}")`);
+  });
+  await step(page, "sign out returns to the sign-in form", "g07-signed-out", async () => {
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await page.getByRole("heading", { name: "Sign in" }).waitFor({ timeout: 15000 });
+  });
+
 } finally {
   await browser.close();
 }
