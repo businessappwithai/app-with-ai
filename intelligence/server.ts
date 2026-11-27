@@ -2,13 +2,13 @@
  * The assistant's process: the HTTP surface from `src/server/app.ts`, plus the
  * built client served from `dist/client` under the same prefix.
  */
-import { existsSync } from "node:fs";
-import { join, normalize, resolve } from "node:path";
+import { resolve } from "node:path";
 import { createAssistant } from "./src/server/app";
 import { createAuditLog } from "./src/server/audit";
 import { loadConfig } from "./src/server/config";
 import { log } from "./src/server/log";
 import { openDatabase } from "./src/server/database";
+import { createClientServer } from "./src/server/static";
 import { hexToBytes } from "nostr-tools/utils";
 import type { Intelligence } from "./src/interface/types";
 import { createBuzzIntelligence, encryptionKeyFrom, MemoryKeyVault, PostgresKeyVault } from "./src/providers/buzz";
@@ -38,29 +38,7 @@ function intelligenceFor(): Intelligence {
   });
 }
 
-/** Framing is for this origin's own pages only; nothing is cached that names a person. */
-const PAGE_HEADERS = {
-  "content-security-policy":
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
-  "x-content-type-options": "nosniff",
-  "x-frame-options": "DENY",
-  "referrer-policy": "no-referrer",
-};
-
-function serveClient(_request: Request, path: string): Response {
-  const relative = normalize(path).replace(/^(\.\.[/\\])+/, "");
-  const file = join(clientDir, relative);
-  if (path.startsWith("/assets/") && file.startsWith(clientDir) && existsSync(file)) {
-    return new Response(Bun.file(file), {
-      headers: { "cache-control": "public, max-age=31536000, immutable", "x-content-type-options": "nosniff" },
-    });
-  }
-  const index = join(clientDir, "index.html");
-  if (!existsSync(index)) return new Response("The client has not been built.", { status: 503 });
-  return new Response(Bun.file(index), {
-    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...PAGE_HEADERS },
-  });
-}
+const serveClient = createClientServer(clientDir);
 
 const handle = createAssistant({
   config,

@@ -8,10 +8,15 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createAssistant } from "../src/server/app";
+import { createClientServer } from "../src/server/static";
 import { MemoryAuditLog } from "../src/server/audit";
 import { loadConfig } from "../src/server/config";
 import { MemoryTicketStore, TicketService } from "../src/server/tickets";
 import { SECRET, startFakeApp, startFakeModel, startFakeReport } from "../src/server/__tests__/fakes";
+
+// Open-source CopilotKit only: nothing is sent to CopilotKit.
+process.env.COPILOTKIT_TELEMETRY_DISABLED = "true";
+process.env.DO_NOT_TRACK = "1";
 
 const port = Number(process.env.PORT ?? 4300);
 const app = startFakeApp();
@@ -47,13 +52,7 @@ const assistant = createAssistant({
   config,
   audit: new MemoryAuditLog(),
   tickets: new TicketService(new MemoryTicketStore(), config.ticketTtlSeconds),
-  serveClient: (_request, path) => {
-    const file = join(clientDir, path);
-    if (path.startsWith("/assets/") && existsSync(file)) return new Response(Bun.file(file));
-    return new Response(Bun.file(join(clientDir, "index.html")), {
-      headers: { "content-type": "text/html; charset=utf-8" },
-    });
-  },
+  serveClient: createClientServer(clientDir),
 });
 
 const page = (title: string, body: string) =>
