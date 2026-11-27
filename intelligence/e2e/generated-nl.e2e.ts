@@ -57,6 +57,17 @@ try {
     }
     await page.waitForTimeout(3000);
   });
+  await run.step(page, "close the platform's NL sidebar: the whole result is on screen, counts included", "n04-nl-result-full", async () => {
+    const frame = page.frameLocator("section.frame:not([hidden]) iframe");
+    await frame.getByRole("button", { name: "Close Chat" }).click();
+    await page.waitForTimeout(1500);
+    // With the sidebar open the table is wider than its panel and the count column is off the right edge.
+    const cell = frame.locator("td", { hasText: /^1$/ }).first();
+    await cell.waitFor({ timeout: 15000 });
+    const box = await cell.boundingBox();
+    const view = await frame.locator("body").evaluate(() => window.innerWidth);
+    if (!box || box.x + box.width > view) throw new Error(`the count column is off screen: x=${box?.x} w=${box?.width} view=${view}`);
+  });
 } finally {
   await browser.close();
 }
