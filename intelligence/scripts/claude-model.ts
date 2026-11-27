@@ -103,6 +103,7 @@ export function serve() {
       if (url.pathname.endsWith("/models")) return Response.json({ object: "list", data: [{ id: "claude-code", object: "model" }] });
       if (!url.pathname.endsWith("/chat/completions") || request.method !== "POST") return new Response("Not found", { status: 404 });
       const body = (await request.json()) as { messages: Message[]; tools?: ToolDef[] };
+      console.log(JSON.stringify({ event: "claude-model.request", messages: body.messages.length, tools: (body.tools ?? []).length, stream: (body as { stream?: boolean }).stream === true }));
       let reply: any;
       try {
         reply = firstJson(await ask(buildPrompt(body.messages, body.tools ?? [])));

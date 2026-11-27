@@ -42,10 +42,12 @@ try {
     const box = frame.getByPlaceholder("Ask about your data...");
     await box.fill("How many accounts are there in each tier?");
     await frame.getByRole("button", { name: "Send" }).click();
-    // The page leaves "No results yet" when a query has run.
-    await frame.getByText("No results yet").waitFor({ state: "detached", timeout: 280000 });
-    const text = (await frame.locator("body").innerText()).toLowerCase();
-    if (!/select/.test(text) && !/tier/.test(text)) throw new Error(`nothing that looks like an answer: ${text.slice(0, 200)}`);
+    // The platform says so itself when the SQL its AI wrote has run, and shows the rows.
+    await frame.getByText(/Query returned \d+ rows?/).waitFor({ timeout: 280000 });
+    await frame.getByText("No results yet").waitFor({ state: "detached", timeout: 30000 });
+    const table = frame.locator("table").first();
+    await table.waitFor({ timeout: 30000 });
+    if ((await table.locator("tbody tr").count()) < 1) throw new Error("the results table has no rows");
     await page.waitForTimeout(3000);
   });
 } finally {
