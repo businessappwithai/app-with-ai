@@ -57,19 +57,18 @@ try {
     }
     await page.waitForTimeout(3000);
   });
-  await run.step(page, "close the platform's NL sidebar and scroll the result: the counts are there and visible", "n04-nl-result-full", async () => {
+  await run.step(page, "close the platform's NL sidebar: the whole result is on screen, counts included", "n04-nl-result-full", async () => {
     const frame = page.frameLocator("section.frame:not([hidden]) iframe");
     await frame.getByRole("button", { name: "Close", exact: true }).click();
     await page.waitForTimeout(1500);
-    // The platform's results table is wider than a half-width frame, so the count column is off the right
-    // edge until the table is scrolled: layout in the platform, not missing data. Scroll to it and check.
+    // With the sidebar open, it overlays the right half of the frame and covers the count column; closed, the
+    // counts are on screen. Positions are the page's (boundingBox is relative to the main frame's viewport).
     const cell = frame.locator("td", { hasText: /^1$/ }).first();
     await cell.waitFor({ timeout: 15000 });
-    await cell.scrollIntoViewIfNeeded();
     await page.waitForTimeout(800);
     const box = await cell.boundingBox();
-    const view = await frame.locator("body").evaluate(() => window.innerWidth);
-    if (!box || box.x < 0 || box.x + box.width > view) throw new Error(`the count column cannot be scrolled into view: x=${box?.x} w=${box?.width} view=${view}`);
+    const width = page.viewportSize()!.width;
+    if (!box || box.x < 416 || box.x + box.width > width) throw new Error(`the count column is not on screen: x=${box?.x} w=${box?.width} page=${width}`);
   });
 } finally {
   await browser.close();
