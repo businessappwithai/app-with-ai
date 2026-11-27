@@ -52,6 +52,9 @@ import { buildTools, SYSTEM_PROMPT } from "./tools";
 
 export const EMBED_COOKIE = "chat_embed";
 
+/** The longest title a ticket carries. */
+const MAX_TITLE_CHARACTERS = 200;
+
 export interface AssistantDeps {
   config: AssistantConfig;
   /** The generated application's skills; loaded from config.skillsDir when absent. */
@@ -333,6 +336,8 @@ export function createAssistant(deps: AssistantDeps) {
       if (path === "/api/tickets" && request.method === "POST") {
         const intent = (await request.json().catch(() => null)) as Intent | null;
         if (!intent || typeof intent !== "object") return json({ error: "Bad request" }, 400);
+        // The title is kept with the ticket and shown above the page: short text, nothing else.
+        if (typeof intent.title !== "string" || intent.title.length > MAX_TITLE_CHARACTERS) return json({ error: "Bad request" }, 400);
         try {
           const target = await resolveIntent(config, clientsFor(caller), intent);
           const ticket = await tickets.issue(caller.person.email, intent, target);

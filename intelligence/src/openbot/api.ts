@@ -34,6 +34,9 @@ export interface OpenBotOptions {
 
 const ORGANIZATION = "default";
 
+/** The most a memory may hold, on create and on update alike. */
+const MEMORY_MAX_CHARACTERS = 4000;
+
 /** Reads about features this deployment does not offer: answered with the contract's empty shape. */
 const QUIET = new Set([
   "announceComponents",
@@ -80,7 +83,13 @@ function find(method: string, path: string): { operation: OpenBotOperation; para
   for (const { operation, pattern } of COMPILED) {
     if (operation.method !== method) continue;
     const match = pattern.exec(path);
-    if (match) return { operation, params: match.slice(1).map(decodeURIComponent) };
+    if (!match) continue;
+    try {
+      return { operation, params: match.slice(1).map(decodeURIComponent) };
+    } catch {
+      // An escape that does not decode names nothing here: the same answer as any unknown address.
+      return null;
+    }
   }
   return null;
 }
@@ -291,7 +300,7 @@ export function createOpenBotApi(options: OpenBotOptions) {
       if (!isMe(params[1]!, owner)) return problem(404, "PERSON_NOT_FOUND", "There is no such person.");
       const content = typeof body?.content === "string" ? body.content.trim() : "";
       if (!content) return problem(400, "MEMORY_EMPTY", "Say what to remember.");
-      if (content.length > 4000) return problem(400, "MEMORY_TOO_LONG", "A memory is at most 4000 characters.");
+      if (content.length > MEMORY_MAX_CHARACTERS) return problem(400, "MEMORY_TOO_LONG", `A memory is at most ${MEMORY_MAX_CHARACTERS} characters.`);
       return ok(memoryOf(await intelligence.memory.create(owner, { content, kind: "topical", scope: "user" })), 201);
     },
     async updateMemory({ owner, params, body }) {
@@ -305,6 +314,7 @@ export function createOpenBotApi(options: OpenBotOptions) {
       }
       const content = typeof body?.content === "string" ? body.content.trim() : current.content;
       if (!content) return problem(400, "MEMORY_EMPTY", "Say what to remember.");
+      if (content.length > MEMORY_MAX_CHARACTERS) return problem(400, "MEMORY_TOO_LONG", `A memory is at most ${MEMORY_MAX_CHARACTERS} characters.`);
       if (content === current.content) return ok(memoryOf(current));
       const next = await intelligence.memory.supersede(owner, id, { content, kind: current.kind, scope: current.scope, sourceThreadIds: current.sourceThreadIds });
       return next ? ok(memoryOf(next)) : problem(404, "MEMORY_NOT_FOUND", "There is no such memory.");
