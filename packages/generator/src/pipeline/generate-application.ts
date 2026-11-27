@@ -100,6 +100,7 @@ export function buildGeneratorOptions(
     skipFrontend: !!settings.skipFrontend,
     skipBackend: !!settings.skipBackend,
     skipTests: !!settings.skipTests,
+    chat: !!settings.chat,
     skipCliScaffold: settings.skipCliScaffold ?? GENERATION_DEFAULTS.skipCliScaffold,
     recordsPerEntity: settings.recordsPerEntity ?? GENERATION_DEFAULTS.recordsPerEntity,
     categories: model.categories,

@@ -9,6 +9,7 @@
  */
 
 import * as fs from "node:fs/promises";
+import { writeAssistant } from "./tanstack-start-nestjs/vendor-assistant";
 import * as path from "node:path";
 import type { Entity, EntityEnum, Relationship } from "@appwithai/core/types";
 import type { CompiledHook } from "../hooks";
@@ -68,6 +69,12 @@ export interface FullStackGeneratorOptions {
 
   /** Skip generation of the bun:test E2E suite in <outputDir>/tests. */
   skipTests?: boolean;
+  /**
+   * Put the chat assistant in the project (`assistant/`, its compose overlay and gateway, a `.env`
+   * that enables them) and build the reporting platform for the `/report` prefix the gateway routes.
+   * Off by default: a project generated without it is unchanged.
+   */
+  chat?: boolean;
   /**
    * Application Dictionary entity categories parsed from the model's
    * `%%category` directives. Falls back to a single "General" default.
@@ -371,6 +378,7 @@ reporting/password_list.txt
 
     // The reporting application this project ships beside itself.
     await this.writeReportingFiles(outputDir);
+    if (this.options.chat) await this.writeAssistantFiles(outputDir);
 
     // The file the sign-in screens read at runtime to list seeded accounts.
     await this.writePasswordList(outputDir);
@@ -506,6 +514,12 @@ reporting/password_list.txt
     }
   }
 
+  /** `assistant/` and the `.env` that turns it on, for a project generated with `chat`. */
+  private async writeAssistantFiles(outputDir: string): Promise<void> {
+    const { files } = await writeAssistant(outputDir, await this.findTemplatesDir());
+    console.log(`💬 Chat assistant: ${files} files in assistant/ — docker compose --profile chat up --build`);
+  }
+
   /**
    * `reporting/` — the Enterprise Reporting platform, bundled.
    *
@@ -545,6 +559,11 @@ reporting/password_list.txt
       { template: "reporting/README.md.hbs", output: "reporting/README.md" },
     ];
 
+    // The gateway serves the platform under /report, so with chat it is built for that prefix.
+    if (this.options.chat) {
+      templates.push({ template: "reporting/subpath-overlay.ts", output: "reporting/subpath-overlay.ts" });
+    }
+
     for (const file of templates) {
       try {
         const templateDir = await this.findTemplatesDir();
@@ -569,6 +588,10 @@ reporting/password_list.txt
    * and which nothing else needs.
    */
   private renderReportingTemplate(content: string, pack: ReportingPack): string {
+    // `# <chat>` … `# </chat>` is kept (markers stripped) with chat, removed without it.
+    content = this.options.chat
+      ? content.replace(/^# <\/?chat>\n/gm, "")
+      : content.replace(/^# <chat>\n[\s\S]*?^# <\/chat>\n/gm, "");
     const projectId = this.options.projectName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const projectSnake = this.options.projectName.toLowerCase().replace(/[^a-z0-9]+/g, "_");
     const frontendPort = this.options.frontendPort ?? DEFAULT_FRONTEND_PORT;

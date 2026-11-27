@@ -20,6 +20,26 @@ git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.cl
 
 ---
 
+## Run locally, and never on WASM, unless told otherwise
+
+**CRITICAL**: Anything you run — the modelling tool, a generated application, the chat assistant, tests —
+runs **locally on this machine**, on Bun with a real local PostgreSQL and the local model endpoint. That is
+the default for every task, and it holds until the user says something else for that task.
+
+- **Not WASM.** Never use `bun run wasm …`, `appwithai-wasm`, `--standalone`, `build:wasm-*`, the WebAssembly
+  Postgres or the browser stack unless the user names it ("the WASM build", "the browser demo"). Those
+  paths exist and are maintained; they are never the default, and "run the app" does not mean them.
+- **Not Docker.** `docker compose` and image builds are for a deployment or when the user asks for them.
+  Locally the application is two Bun processes (NestJS :4001, TanStack Start :4000) on `DATABASE_URL`.
+- **Generating an application:** `bun packages/generator/src/cli/generate.ts generate -i <model> -o <dir> --force`
+  (the `appwithai` CLI: the real NestJS + TanStack stack on PostgreSQL). Add `--database-url <url> --run` to
+  set up and start it, `--with-chat` to include the chat assistant (see "The chat assistant" below).
+- **The chat assistant locally:** `cd <generated>/assistant && bun run build`, then `bun scripts/run-chat.ts`
+  from the project: one origin at http://localhost:4080 (`/` the application, `/chat/` the assistant).
+- **Specified otherwise** means the user's own words for that task. Do not carry an exception to the next one.
+
+---
+
 ## Bun 1.4.6, and only Bun 1.4.6
 
 **Every repository in this project uses Bun 1.4.6 and no other version** —
@@ -108,13 +128,13 @@ Use `/browse` for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
 
 ## Generated Application Stack Rule
 
-**MANDATORY**: When asked to build, generate, or run an application from a `.eml.mmd` model, ALWAYS use the full NestJS + TanStack stack (`bun run wasm generate -i <model> -o <dir>` **without** `--standalone`). The `--standalone` flag produces a browser-only demo — never use it unless the user explicitly asks for the browser/WASM demo. The real application runs NestJS on port 4001 and TanStack Start on port 4000.
+**MANDATORY**: When asked to build, generate, or run an application from a `.eml.mmd` model, ALWAYS use the full NestJS + TanStack stack on PostgreSQL, run locally (`bun packages/generator/src/cli/generate.ts generate -i <model> -o <dir>`). Never use `bun run wasm generate` or `--standalone` (a browser-only demo on WebAssembly Postgres) unless the user explicitly asks for the browser/WASM build. The real application runs NestJS on port 4001 and TanStack Start on port 4000.
 
 ## Regenerate After Design Changes
 
 **MANDATORY — no exceptions**: After **any** change to generator templates (`packages/generator/templates/`) or the generator source (`packages/generator/src/generators/`), immediately regenerate the active generated project:
 ```bash
-bun run wasm generate -i packages/web/generated/proj_1793092671630_17aoi4dli/model/model.eml.mmd -o packages/web/generated/proj_1793092671630_17aoi4dli --force
+bun packages/generator/src/cli/generate.ts generate -i packages/web/generated/proj_1793092671630_17aoi4dli/model/model.eml.mmd -o packages/web/generated/proj_1793092671630_17aoi4dli --force
 ```
 The active generated project is `packages/web/generated/proj_1793092671630_17aoi4dli` (runs on ports 4008/4009). Never leave a generated project running code the templates no longer produce. This applies to every kind of template change — routes, components, admin pages, backend controllers, services, migrations, seeds, and the generator logic itself.
 
@@ -133,8 +153,9 @@ The active generated project is `packages/web/generated/proj_1793092671630_17aoi
 | `bun run test:wasm` | WASM stack end-to-end |
 | `bun run test:e2e:rules-workflows` | The rule and workflow editors, driven in Chromium (`-- --generated` adds the generated app) |
 | `bun run seed:admin -- --email you@example.com` | Run migrations + make admin |
-| `bun run wasm generate -i <model> -o <dir>` | Generate NestJS/TanStack on WASM Postgres |
-| `bun run wasm generate … --standalone` | Self-contained browser app |
+| `bun packages/generator/src/cli/generate.ts generate -i <model> -o <dir> --force` | Generate NestJS/TanStack on PostgreSQL (the default; add `--with-chat` for the chat assistant) |
+| `bun run wasm generate -i <model> -o <dir>` | **Only when WASM is asked for:** NestJS/TanStack on WebAssembly Postgres |
+| `bun run wasm generate … --standalone` | **Only when asked:** self-contained browser app |
 | `bun run build:wasm-runtime` | Re-inline `templates/wasm/**` after editing |
 | `bun run build:wasm-browser` | Rebuild `website/html/assets/appwithai-wasm.js` + `website/html/wasm-app/sw.js` |
 | `bun run build:fullstack-browser` | Rebuild `website/html/assets/appwithai-fullstack.js` |
@@ -1007,6 +1028,25 @@ Things to keep true:
 - The browser (`--standalone`) stack has none of this; there is no assistant in a tab.
 
 Held by `templates/__tests__/chat-bridge.test.ts`.
+
+**Generating with the assistant: `--with-chat`.** `intelligence/` is the one source of the assistant. A project
+generated with `--with-chat` (`GenerationSettings.chat`; off by default, and off leaves the output as it was)
+gets, from `generators/tanstack-start-nestjs/vendor-assistant.ts`:
+
+| Written | What it does |
+|---|---|
+| `assistant/` | The service's source, with its `deploy/` bundle (compose overlay, nginx gateway) and `scripts/` (`gateway.ts`, `run-chat.ts`) — no tests, previews, QA output or dependencies |
+| `.env` | `COMPOSE_FILE=docker-compose.yml:assistant/deploy/docker-compose.chat.yml`, one `CHAT_BRIDGE_SECRET`, `PUBLIC_ORIGIN`, `GATEWAY_PORT`. Never replaces a secret; `.env` is git-ignored |
+| `backend/.env` | The gateway origin added to `CORS_ORIGIN` (Better Auth refuses a sign-in from an unknown one) and the same secret |
+| `reporting/Dockerfile`, `reporting/subpath-overlay.ts` | The platform built for the `/report` prefix, using the orchestrator's overlay verbatim (`# <chat>` markers; absent without chat) |
+
+Run it **locally** (see "Run locally" above): the application on :4000/:4001, then `bun assistant/scripts/run-chat.ts`
+from the project. One origin at http://localhost:4080 — `/` the application, `/chat/` the assistant — through
+`scripts/gateway.ts`, which sets `X-Real-IP` itself and relays the conversation-events WebSocket. Docker:
+`docker compose --profile chat up --build` (the `.env` makes compose merge the overlay). Held by
+`generators/tanstack-start-nestjs/__tests__/vendor-assistant.test.ts` and `intelligence/src/deploy/__tests__/`.
+**The front end's dev server peaks near 14 GB** and is killed on a 16 GB machine; run a production build
+(`cd frontend && bun run build && bun run start`) when anything else is running.
 
 ### Project wizard flow
 

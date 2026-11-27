@@ -486,6 +486,7 @@ program
   .option("--run", "Start the generated application after setup (foreground; Ctrl-C to stop)")
   // End-to-end tests (bun:test)
   .option("--no-tests", "Skip generation of the bun:test E2E suite in tests/")
+  .option("--with-chat", "Include the chat assistant: assistant/, a one-origin gateway, and the reporting platform built for /report")
   .option(
     "--records-per-entity <count>",
     "Records the bulk-seed E2E suite creates per entity",
@@ -773,6 +774,7 @@ program
         skipBackend: !!options.skipBackend,
         skipCliScaffold: !options.cliScaffold,
         skipTests: options.tests === false,
+        chat: options.withChat === true,
         recordsPerEntity: Number(options.recordsPerEntity) || 1000,
         manifest: {
           input: options.input || {

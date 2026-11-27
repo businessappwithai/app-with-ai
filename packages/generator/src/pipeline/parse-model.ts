@@ -75,6 +75,8 @@ export interface GenerationSettings {
   skipFrontend?: boolean;
   skipBackend?: boolean;
   skipTests?: boolean;
+  /** Include the chat assistant (assistant/, compose overlay, gateway). Off by default. */
+  chat?: boolean;
   skipCliScaffold?: boolean;
   recordsPerEntity?: number;
   /**

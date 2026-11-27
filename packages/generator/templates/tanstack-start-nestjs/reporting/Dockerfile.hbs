@@ -91,6 +91,11 @@ RUN printf '%s\n' \
 # the demo-accounts route returns an empty list.
 COPY password_list.txt ./
 
+# <chat>
+# Built for the /report prefix the chat gateway routes (the orchestrator's own overlay, verbatim).
+COPY subpath-overlay.ts /overlay/subpath-overlay.ts
+RUN bun /overlay/subpath-overlay.ts --dir /app --base /report
+# </chat>
 RUN bun run build
 
 # ─── runtime ────────────────────────────────────────────────────────────────
