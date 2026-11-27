@@ -27,8 +27,12 @@ and a real browser (Chromium, Playwright). Two ways of running it, the same scri
    directly on :4000 (the session cookie is set and `get-session` returns the session; the SPA then bounces from `/dashboard` to
    `/auth/login`). Opening `/dashboard` with a session already present works. **Not fixed**; it is in the generated frontend and
    not part of the chat work. The chat-only test signs in through `POST /api/auth/sign-in/email` instead.
-5. **A model turn can end silently.** Once the model shim's `claude -p` call failed, and the chat showed the first tool chip and then
-   nothing: no error text. It did not reproduce. Not fixed; the assistant should say something when a turn fails.
+5. **A model turn could end silently.** When the model endpoint failed, the chat showed the person's question and nothing else.
+   Fixed: the client's `onError` shows an alert ("The assistant could not answer just now. Your question was not lost: ask it
+   again in a moment.") with a Dismiss button, in plain words with no status, address or model name. `e2e/client.e2e.ts` run 3
+   makes the model endpoint fail (`PREVIEW_SCENARIO=model-down`): it failed before the change and passes after; a successful
+   conversation shows no alert. Its first screenshot looked wrong (the text spilled out of the box): `.chat > * { flex: 1 }` was
+   squashing it, fixed in `styles.css`.
 6. The generated Dockerfiles for backend, frontend and report do not trust an extra CA (only the root Dockerfile does), so they cannot
    build behind a TLS-intercepting proxy without help. Not changed.
 

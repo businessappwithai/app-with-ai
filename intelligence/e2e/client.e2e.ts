@@ -91,6 +91,8 @@ try {
   await step(page, "closing the tab empties the workspace", "05-tab-closed", async () => {
     await page.getByRole("button", { name: /^Close / }).first().click();
     await page.locator("iframe").first().waitFor({ state: "detached", timeout: 5000 });
+    // A conversation that went well never shows the "could not answer" alert.
+    if ((await page.getByRole("alert").count()) !== 0) throw new Error("an error alert is shown after a successful conversation");
   });
   await step(page, "sign out returns to the sign-in form", "06-signed-out", async () => {
     await page.getByRole("button", { name: "Sign out" }).click();
@@ -120,6 +122,30 @@ try {
     if ((await page2.getByRole("button", { name: "Confirm" }).count()) !== 0) throw new Error("Confirm is still offered after it ran");
   });
   second.kill();
+
+  // ── Run 3: the model endpoint is down. The chat says so; it does not just stop. ──
+  const third = await start(4303, "model-down");
+  servers.push(third);
+  const page3 = await (await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })).newPage();
+  await page3.goto("http://localhost:4303/chat/");
+  await page3.getByLabel("E-mail").fill("support.agent@crm.example.com");
+  await page3.getByLabel("Password").fill("anything");
+  await page3.getByRole("button", { name: "Sign in" }).click();
+  await page3.getByText("Hello Support Agent").waitFor({ timeout: 15000 });
+  await step(page3, "model down: the chat says the assistant could not answer, and offers another try", "09-model-down", async () => {
+    await ask(page3, "Open the Acme account");
+    const alert = page3.getByRole("alert");
+    await alert.waitFor({ timeout: 30000 });
+    const text = (await alert.innerText()).toLowerCase();
+    if (!/could(n't| not)/.test(text)) throw new Error(`the alert does not say it could not answer: ${text.slice(0, 120)}`);
+    // A message of its own: no stack, no address, no model name.
+    if (/500|http|127\.0\.0\.1|localhost|fake/.test(text)) throw new Error(`the alert leaks internals: ${text.slice(0, 120)}`);
+  });
+  await step(page3, "model down: Dismiss clears the alert", "10-dismissed", async () => {
+    await page3.getByRole("button", { name: "Dismiss" }).click();
+    await page3.getByRole("alert").waitFor({ state: "detached", timeout: 5000 });
+  });
+  third.kill();
 
   // Before the contexts closed: an error thrown by the client's own code is a failure.
   results.push({ name: "no uncaught page errors", ok: errors.length === 0, detail: errors.join(" | ") || "none" });

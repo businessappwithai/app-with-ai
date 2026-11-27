@@ -179,9 +179,22 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
   );
 }
 
-function Shell({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
+/** A turn that failed: said in plain words, with nothing from the failure itself (no status, address or model). */
+function ChatProblem({ onDismiss }: { onDismiss: () => void }) {
   return (
-    <CopilotKitProvider runtimeUrl={`${BASE}/api/copilotkit`} credentials="same-origin">
+    <div className="aw-problem" role="alert">
+      <p>The assistant could not answer just now. Your question was not lost: ask it again in a moment.</p>
+      <button type="button" className="aw-secondary" onClick={onDismiss}>
+        Dismiss
+      </button>
+    </div>
+  );
+}
+
+function Shell({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
+  const [problem, setProblem] = useState(false);
+  return (
+    <CopilotKitProvider runtimeUrl={`${BASE}/api/copilotkit`} credentials="same-origin" onError={() => setProblem(true)}>
       <WorkspaceProvider>
         <ToolRenderers />
         <div className="shell">
@@ -195,6 +208,7 @@ function Shell({ session, onSignOut }: { session: Session; onSignOut: () => void
             </button>
           </header>
           <aside className="chat">
+            {problem && <ChatProblem onDismiss={() => setProblem(false)} />}
             <CopilotChat
               labels={{
                 chatInputPlaceholder: "Ask for a record, a page or a report…",

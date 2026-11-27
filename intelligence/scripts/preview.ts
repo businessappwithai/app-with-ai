@@ -21,9 +21,12 @@ process.env.DO_NOT_TRACK = "1";
 const port = Number(process.env.PORT ?? 4300);
 const app = startFakeApp();
 const report = startFakeReport();
-// PREVIEW_SCENARIO=propose shows the confirmation card instead of opening a record.
+// PREVIEW_SCENARIO=propose shows the confirmation card instead of opening a record;
+// PREVIEW_SCENARIO=model-down makes the model endpoint fail, to see what the chat says.
 const model = startFakeModel(
-  process.env.PREVIEW_SCENARIO === "propose"
+  process.env.PREVIEW_SCENARIO === "model-down"
+    ? [{ fail: 500 }]
+    : process.env.PREVIEW_SCENARIO === "propose"
     ? [
         {
           tool: "propose_update",

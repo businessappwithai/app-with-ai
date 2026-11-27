@@ -175,7 +175,9 @@ export function startFakeReport() {
  */
 export type ScriptStep =
   | { tool: string; args: Record<string, unknown> }
-  | { text: string };
+  | { text: string }
+  /** The model endpoint itself fails with this HTTP status. */
+  | { fail: number };
 
 export function startFakeModel(script: ScriptStep[]) {
   const requests: any[] = [];
@@ -185,6 +187,7 @@ export function startFakeModel(script: ScriptStep[]) {
     async fetch(request) {
       requests.push(await request.json());
       const step = script[Math.min(turn++, script.length - 1)] ?? { text: "" };
+      if ("fail" in step) return new Response("model unavailable", { status: step.fail });
       const chunk = (delta: unknown, finish: string | null = null) =>
         `data: ${JSON.stringify({
           id: "c1",
