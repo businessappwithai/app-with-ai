@@ -6,14 +6,14 @@
  *
  *   CHAT_URL=http://localhost:4080 CHAT_EMAIL=admin@admin.com CHAT_PASSWORD=admin123 bun e2e/generated.e2e.ts
  *
- * Screenshots go to `docs/e2e-screenshots/generated/`. Exit code 1 when a step fails.
+ * Screenshots go to `docs/e2e-screenshots/live/`. Exit code 1 when a step fails.
  */
 import { chromium, type Page } from "playwright";
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const base = process.env.CHAT_URL ?? "http://localhost:4080";
-const shots = join(resolve(import.meta.dir, ".."), "docs/e2e-screenshots/generated");
+const shots = join(resolve(import.meta.dir, ".."), "docs/e2e-screenshots/live");
 mkdirSync(shots, { recursive: true });
 const results: Array<{ ok: boolean; name: string; detail: string }> = [];
 
