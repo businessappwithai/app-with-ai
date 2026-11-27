@@ -7,7 +7,7 @@
  *   CHROMIUM_PATH=… bun e2e/generated-charts.e2e.ts
  */
 import type { Page } from "playwright";
-import { ask, base, BAD, createRun, launch, newContext, signInViaChat } from "./lib";
+import { ask, base, BAD, createRun, idle, launch, newContext, saidUnavailable, signInViaChat } from "./lib";
 
 const ADMIN = { email: process.env.ADMIN_EMAIL ?? "admin@admin.com", password: process.env.ADMIN_PASSWORD ?? "admin123" };
 const AGENT = { email: process.env.ROLE_EMAIL ?? "support.agent@my-app.example.com", password: process.env.ROLE_PASSWORD ?? "admin123" };
@@ -77,14 +77,18 @@ try {
     await chartDrawn(frame);
     await agent.waitForTimeout(2500);
   });
-  await run.step(agent, "support agent: the platform refuses the chart that reads Opportunity, and what the person sees is that, not data", "c05-agent-refused", async () => {
+  await run.step(agent, "support agent: asking for the Opportunity chart opens nothing, and the assistant says it is not available (the platform refuses its data)", "c05-agent-refused", async () => {
     const id = await definitionId(agent, CHART_ALL, "chart");
     if (id !== restrictedId) throw new Error("the two sessions see different charts");
     const direct = await chartData(agent, id);
     if (direct.status() === 200) throw new Error("the platform returned data for tables this role may not read");
+    const tabsBefore = await agent.locator("section.frame").count();
     await ask(agent, `Open the chart (not the report) called "${CHART_ALL}".`);
-    await agent.getByText("Opened: ").nth(1).waitFor({ timeout: 240000 }).catch(() => undefined);
-    await agent.waitForTimeout(8000);
+    await idle(agent);
+    if ((await agent.locator("section.frame").count()) !== tabsBefore) throw new Error("a tab opened for a chart this person may not see");
+    const chat = await agent.locator("body").innerText();
+    if (!saidUnavailable(chat)) throw new Error("the assistant did not say it was unavailable");
+    if (/Opened: Open pipeline value by stage/.test(chat)) throw new Error("the assistant says it opened the refused chart");
   });
 } finally {
   await browser.close();

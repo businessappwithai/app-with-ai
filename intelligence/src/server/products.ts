@@ -241,6 +241,11 @@ export class ReportClient {
     return this.call(`/${collection}/${id}`);
   }
 
+  /** What a chart draws, as this person: the platform answers 403 when its query reads a table their role may not. */
+  async chartData(id: string): Promise<any> {
+    return this.call(`/charts/${id}/data`);
+  }
+
   async reportData(id: string, pageSize = 20): Promise<any> {
     return this.call(`/reports/${id}/data?page=0&pageSize=${pageSize}`);
   }

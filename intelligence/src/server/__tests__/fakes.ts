@@ -163,6 +163,17 @@ export function startFakeReport() {
         // The Support Agent's reporting role does not include this report.
         return cookie.includes("support.agent") ? json({ error: "Forbidden" }, 403) : json({ id: "r1" });
       }
+      // Definitions are readable by every reporting role; what a chart or report DRAWS is decided by the
+      // tables its query reads, as on the real platform: the Support Agent may not read Opportunity.
+      const agent = cookie.includes("support.agent");
+      const definitions: Record<string, string> = { "/report/api/charts/c1": "c1", "/report/api/charts/c2": "c2", "/report/api/reports/r2": "r2", "/report/api/reports/r3": "r3", "/report/api/dashboards/d1": "d1" };
+      if (path in definitions) return json({ id: definitions[path] });
+      const data = /^\/report\/api\/(charts|reports)\/(c1|c2|r1|r2|r3)\/data$/.exec(path);
+      if (data) {
+        const readsOpportunity = data[2] === "c1" || data[2] === "r2";
+        if (readsOpportunity && agent) return json({ error: { message: "You don't have permission to access: bus_opportunity" } }, 403);
+        return json({ data: [{ stage: "proposal", value: 3 }], total: 1 });
+      }
       return json({ error: "Not found" }, 404);
     },
   });

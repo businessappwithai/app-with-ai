@@ -81,7 +81,14 @@ export async function resolveIntent(
       }
       const build = REPORT_DEFINITION_PATH[intent.kind];
       if (!build || !isSafeId(intent.id)) throw new NotAvailable();
-      await report.definition(intent.kind as "report" | "chart" | "dashboard", intent.id);
+      const kind = intent.kind as "report" | "chart" | "dashboard";
+      await report.definition(kind, intent.id);
+      // Reading a definition is open to every reporting role; what it DRAWS is decided by the tables its
+      // query reads. Without this, a chart the person may not see was opened and described as working while
+      // the frame showed the platform's refusal. One row is enough to ask. A dashboard is not asked: its
+      // widgets are separate queries, and each answers for itself.
+      if (kind === "chart") await report.chartData(intent.id);
+      if (kind === "report") await report.reportData(intent.id, 1);
       return withEmbed(`${config.reportBasePath}${build(intent.id)}`);
     }
   } catch (error) {
