@@ -73,6 +73,15 @@ export function startFakeApp(switches: { chatEnabled?: boolean; chatOnlyMode?: b
           },
         });
       }
+      if (path === "/api/auth/sign-out" && request.method === "POST") {
+        // As the application's own sign-out does: the session cookie is expired.
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: {
+            "content-type": "application/json",
+            "set-cookie": "crm_app.session_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
+          },
+        });
+      }
       const user = sessionOf(request);
       if (!user) return json({ message: "Unauthorized" }, 401);
       if (path === "/api/me") {
