@@ -71,7 +71,7 @@ describe("the reporting suites are registered", () => {
     expect(e2e).toContain("dockerfile: Dockerfile.ui");
     const ui = readFileSync(join(TEMPLATES, "tests/Dockerfile.ui.hbs"), "utf8");
     // The Playwright image is glibc; an Alpine bun copied into it exits 127.
-    expect(ui).toMatch(/^FROM oven\/bun:1\.4\.4 AS bun$/m);
+    expect(ui).toMatch(/^FROM oven\/bun:1\.4\.6 AS bun$/m);
     expect(ui).not.toMatch(/^FROM oven\/bun:[^ ]*alpine/m);
   });
 
