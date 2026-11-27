@@ -45,9 +45,16 @@ try {
     // The platform says so itself when the SQL its AI wrote has run, and shows the rows.
     await frame.getByText(/Query returned \d+ rows?/).waitFor({ timeout: 280000 });
     await frame.getByText("No results yet").waitFor({ state: "detached", timeout: 30000 });
-    const table = frame.locator("table").first();
-    await table.waitFor({ timeout: 30000 });
-    if ((await table.locator("tbody tr").count()) < 1) throw new Error("the results table has no rows");
+    // Tall enough to see the whole result in the screenshot.
+    await page.setViewportSize({ width: 1280, height: 1100 });
+    await page.waitForTimeout(1500);
+    // The rows themselves: each tier the AI's SQL grouped by, followed by its count.
+    const text = (await frame.locator("body").innerText()).replace(/[ \t]+/g, " ");
+    console.log("   result text:", JSON.stringify(text.slice(text.indexOf("Results"), text.indexOf("Results") + 420)));
+    if (!/tier/i.test(text) || !/count/i.test(text)) throw new Error("the result has no tier and count columns");
+    for (const tier of ["enterprise", "mid_market", "smb"]) {
+      if (!new RegExp(`${tier}\\s+\\d+`).test(text)) throw new Error(`no count shown beside "${tier}"`);
+    }
     await page.waitForTimeout(3000);
   });
 } finally {
