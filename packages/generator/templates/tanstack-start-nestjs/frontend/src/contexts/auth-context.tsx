@@ -48,18 +48,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const userRef = useRef<User | null>(null);
   userRef.current = user;
 
-  const refreshSession = async () => {
+  /**
+   * Read the session and put its user in place.
+   *
+   * `urgent` (the default) applies the user at once. The sign-in page awaits this
+   * and then navigates, so the user has to be in place by then: applied as a
+   * transition, the new route's guard ran first, saw nobody signed in, and sent a
+   * person who had just signed in back to the sign-in page. Only the first read,
+   * made while the page is still hydrating, is non-urgent (see the mount effect).
+   */
+  const refreshSession = async (urgent = true) => {
     try {
-      const { data, error } = await getSession();
       // A read that failed (rate limited, backend restarting) says nothing about whether the
-      // person is signed in. Only an answer of "no session" may end the one they have.
+      // person is signed in. Only an answer of "no session" may end the one they have — and
+      // with no session known yet, a failed read is tried again before anyone is sent to
+      // the sign-in page.
+      let { data, error } = await getSession();
+      for (let attempt = 1; error && data == null && !userRef.current && attempt <= 3; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
+        ({ data, error } = await getSession());
+      }
       if (error && data == null && userRef.current) return;
       // Typed as User rather than unknown: `unknown ?? null` widens to
       // `{} | null`, which does not assign to `User | null`.
       const next = (data as { user?: User } | null)?.user ?? null;
-      // Non-urgent for the same reason as the mount effect below — on a first
-      // load this resolves while the page is still hydrating.
-      startTransition(() => setUser(next));
+      userRef.current = next;
+      if (urgent) setUser(next);
+      else startTransition(() => setUser(next));
     } catch (error) {
       log.error("Failed to refresh session", error);
     }
@@ -67,7 +82,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     const checkSession = async () => {
-      await refreshSession();
+      // Non-urgent: the first read resolves while the page is still hydrating.
+      await refreshSession(false);
       // Non-urgent: this provider wraps every route, and the session fetch can
       // resolve while the page is still hydrating. An urgent update there makes
       // React discard the server HTML for the boundary and re-render on the

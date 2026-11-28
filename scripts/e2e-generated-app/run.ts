@@ -12,7 +12,7 @@
  * With no --project, the application must already be running at E2E_APP_URL
  * (default http://127.0.0.1:4000) and E2E_API_URL (http://127.0.0.1:4001).
  * With one, any half that is not answering is started from it: the backend on
- * Bun with the sign-in limit raised (every test signs in from one address), and
+ * Bun with the auth rate limits raised (every request comes from one address), and
  * the front end's production build (built first if it has none) — never the dev
  * server, which peaks near 14 GB.
  */
@@ -78,8 +78,11 @@ async function main(): Promise<void> {
   if (project) {
     if (!(await answers(`${apiUrl}/api/auth/get-session`))) {
       console.log("starting the backend");
+      // One address makes every request of the run: lift the per-client limits
+      // on signing in and on the session reads every page makes (/api/auth).
       start("bun", ["run", "src/main.ts"], join(project, "backend"), join(project, "e2e-backend.log"), {
         AUTH_SIGNIN_MAX: "1000",
+        AUTH_RATE_MAX: "100000",
       });
     }
     if (!(await answers(appUrl))) {
@@ -103,9 +106,15 @@ async function main(): Promise<void> {
   }
 
   console.log("\n== the browser suite");
+  // A machine whose installed Chromium is not the build this Playwright version
+  // expects (a container with browsers pre-installed) runs the one it has.
+  const preinstalled = "/opt/pw-browsers/chromium";
+  const browser =
+    process.env.PLAYWRIGHT_CHROMIUM_PATH ?? (existsSync(preinstalled) ? preinstalled : undefined);
   failed ||= run("bunx", ["--bun", "playwright", "test", "-c", "playwright.config.ts", ...pass], HERE, {
     E2E_APP_URL: appUrl,
     E2E_API_URL: apiUrl,
+    ...(browser ? { PLAYWRIGHT_CHROMIUM_PATH: browser } : {}),
   }) !== 0;
   process.exit(failed ? 1 : 0);
 }

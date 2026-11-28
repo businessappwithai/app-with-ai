@@ -35,10 +35,13 @@ export async function signIn(page: Page, email = ADMIN_EMAIL, password = PASSWOR
   // every test shares one address: a 429 is waited out, not reported.
   for (let attempt = 0; attempt < 3; attempt++) {
     await page.goto(`${APP_URL}/auth/login`);
+    // The form must be hydrated before it is submitted: pressing Enter on the
+    // server-rendered markup sends nothing, and the wait below never ends.
+    await page.waitForLoadState("networkidle");
     await page.locator('input[type="email"]').fill(email);
     await page.locator('input[type="password"]').fill(password);
     const answer = page.waitForResponse((r) => r.url().includes("/sign-in/email"), { timeout: 60_000 });
-    await page.keyboard.press("Enter");
+    await page.locator('button[type="submit"]').first().click();
     if ((await answer).status() === 429) {
       await page.waitForTimeout(61_000);
       continue;
@@ -102,6 +105,10 @@ export function watchErrors(page: Page): () => string[] {
   const problems: string[] = [];
   page.on("pageerror", (error) => problems.push(`page error: ${error.message}`));
   page.on("response", (response) => {
+    // The live-sync endpoint answers 503 by design when no Electric service is
+    // configured (ELECTRIC_URL — it runs under docker compose, not locally), and
+    // the client falls back to the HTTP API. Every other 5xx is a failure.
+    if (response.status() === 503 && new URL(response.url()).pathname === "/api/v1/shape") return;
     if (response.url().includes("/api/") && response.status() >= 500) {
       problems.push(`${response.status()} ${response.request().method()} ${new URL(response.url()).pathname}`);
     }
