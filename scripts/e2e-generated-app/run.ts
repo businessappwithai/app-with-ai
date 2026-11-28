@@ -1,7 +1,7 @@
 /**
  * Validate a generated application end to end.
  *
- *   bun scripts/e2e-generated-app/run.ts --model <model.eml.mmd> [options] [-- <playwright args>]
+ *   bun scripts/e2e-generated-app/run.ts --model <model.eml.mmd> [options] [<playwright args>]
  *
  *   --project <dir>        the generated application (backend/, frontend/, tests/)
  *   --generate             generate --project from --model first (needs --database-url)
@@ -24,7 +24,31 @@ import { join, resolve } from "node:path";
 const HERE = import.meta.dirname;
 const ROOT = resolve(HERE, "../..");
 const args = process.argv.slice(2);
-const pass = args.includes("--") ? args.slice(args.indexOf("--") + 1) : [];
+/** The runner's own options, and which of them take a value. */
+const OWN = new Map([
+  ["--model", true],
+  ["--project", true],
+  ["--database-url", true],
+  ["--project-id", true],
+  ["--generate", false],
+  ["--api-suites", false],
+]);
+/*
+ * Everything that is not one of the runner's options goes to Playwright — a spec
+ * path, `-g <title>`, `--reporter=list`. `bun run test:e2e:generated-app -- <spec>`
+ * delivers the spec here without a second `--`, so requiring one silently ran
+ * every spec instead of the one asked for.
+ */
+const pass: string[] = [];
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i]!;
+  if (arg === "--") continue;
+  if (OWN.has(arg)) {
+    if (OWN.get(arg)) i++;
+    continue;
+  }
+  pass.push(arg);
+}
 const flag = (name: string) => args.includes(name);
 const option = (name: string) => {
   const index = args.indexOf(name);
