@@ -25,7 +25,7 @@ import { stateFieldOf } from '../../common/state-fields';
 import { lifecycleOf, phaseOf, saveMode, type Lifecycle } from '../../common/lifecycle';
 import { createCache } from '../../common/ttl-cache';
 import { logicViolations, sameValue } from '../../common/field-logic';
-import { isComputed, parseRollup, stripComputed } from '../../common/field-compute';
+import { isComputed, parseRollup, readsRollup, stripComputed } from '../../common/field-compute';
 import { resolveDefaultValue } from '../../common/field-values';
 import {
   DEFAULT_ORDER_BY_CLAUSE,
@@ -1119,9 +1119,8 @@ export class BusService {
           seq_no: col.field_seq_no || col.seq_no || 0,
           seq_no_grid: col.seq_no_grid || 0,
           is_displayed: isStateField ? false : fieldActive && col.is_displayed !== false,
-          is_displayed_grid: isStateField
-            ? true
-            : fieldActive && col.is_displayed_grid !== false && computedKind !== 'rollup',
+          // A rollup needs the record's child rows, which a list does not load.
+          is_displayed_grid: isStateField ? true : fieldActive && col.is_displayed_grid !== false && computedKind !== 'rollup',
           is_read_only: isStateField || computedKind ? true : col.field_is_read_only || false,
           computed_kind: computedKind,
           computed_expression: computedKind ? col.computed_expression || null : null,
@@ -1231,6 +1230,10 @@ export class BusService {
     for (const col of metadata.columns) {
       if (col.computed_kind === 'rollup') {
         col.rollup = await this.resolveRollup(table.table_name, col.computed_expression);
+      }
+      // A formula that reads a rollup needs child rows too: on the form only.
+      if (col.computed_kind === 'calculated' && readsRollup(metadata.columns, col.column_name)) {
+        col.is_displayed_grid = false;
       }
     }
 

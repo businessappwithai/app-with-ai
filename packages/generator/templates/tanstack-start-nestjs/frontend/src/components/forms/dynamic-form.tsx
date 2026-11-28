@@ -25,9 +25,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { DynamicTable } from "@/components/tables/dynamic-table";
+import { DynamicTable, formatCellValue } from "@/components/tables/dynamic-table";
 import { type FieldMetadata, useEntities, useFormFields, useRefList } from "@/hooks/use-entities";
 import { apiClient } from "@/lib/api-client";
+import { computeValues, isComputed, stripComputed } from "@/lib/field-compute";
 import { fieldLogicState } from "@/lib/field-logic";
 import { obscureValue, resolveDefaultValue } from "@/lib/field-values";
 import { getFieldTypeColor, getFieldTypeLabel, validateFormData } from "@/lib/field-schema";
@@ -59,6 +60,12 @@ interface DynamicFormProps {
   parentContext?: Record<string, unknown>;
   /** Group names to omit from the form entirely — their fields are rendered elsewhere (e.g. a separate read-only card). */
   skipGroups?: string[];
+  /**
+   * For each rollup field, the child rows it aggregates (hooks/use-rollup-rows):
+   * the rows the record screen already loads for its tabs. A rollup with none
+   * given draws "—" — the form does not fetch anything to compute one.
+   */
+  rollupRows?: Record<string, Record<string, unknown>[] | null>;
 }
 
 const REFERENCE_TYPE = {
@@ -383,6 +390,8 @@ function FieldRenderer({
   const { data: refListValues, isLoading: isLoadingRefList } = useRefList(
     field.sys_reference_id >= 1000 ? field.sys_reference_id : 0
   );
+
+  if (isComputed(field)) return <ComputedFieldView field={field} label={fieldLabel} />;
 
   return (
     <form.Field
@@ -903,7 +912,44 @@ function FormChangeNotifier({
  * required, or sent on save.
  */
 function isInputField(field: FieldMetadata): boolean {
-  return field.is_displayed && !field.is_heading && !field.included_tab;
+  return field.is_displayed && !field.is_heading && !field.included_tab && !isComputed(field);
+}
+
+/**
+ * A computed field — a rollup of the record's child rows or a formula over the
+ * record — drawn as its value, never as an input, in every mode. Nothing is
+ * stored and nothing is sent: the value is what this screen computed from what
+ * it holds (lib/field-compute.ts). The badge says which kind, and its tooltip
+ * shows the definition, so nobody mistakes it for a number someone typed.
+ */
+function ComputedFieldView({ field, label }: { field: FieldMetadata; label: string }) {
+  const value = (field as FieldMetadata & { computed_value?: unknown }).computed_value;
+  const shown =
+    value === null || value === undefined || value === "" ? "—" : formatCellValue(value, field.sys_reference_id);
+  const rollup = field.computed_kind === "rollup";
+  return (
+    <div data-testid={`computed-field-${field.column_name}`}>
+      <div className={cn("flex items-center gap-1.5 mb-0.5", field.is_field_only && "sr-only")}>
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span
+          className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+          title={`${rollup ? "Rollup" : "Calculated"}: ${field.computed_expression ?? ""}`}
+        >
+          {rollup ? "Σ Rollup" : "ƒx Calculated"}
+        </span>
+        {(field.help || field.description) && (
+          <FieldHelpButton help={field.help || field.description || ""} fieldName={label} />
+        )}
+      </div>
+      <output
+        className="block text-sm text-foreground font-medium min-h-[1.25rem] tabular-nums"
+        data-testid={`field-value-${field.column_name}`}
+        aria-live="polite"
+      >
+        {shown}
+      </output>
+    </div>
+  );
 }
 
 /**
@@ -981,6 +1027,7 @@ export function DynamicForm({
   parentContext,
   idField,
   skipGroups,
+  rollupRows,
 }: DynamicFormProps) {
   const { t } = useTranslations();
   const {
@@ -1046,7 +1093,8 @@ export function DynamicForm({
             )
           : value;
 
-      await onSubmit(filteredValues);
+      // A computed field is drawn, never saved (the API drops one as well).
+      await onSubmit(dictionaryFields ? stripComputed(dictionaryFields, filteredValues) : filteredValues);
     },
   });
 
@@ -1072,9 +1120,19 @@ export function DynamicForm({
     const hasLogic = dictionaryFields.some(
       (f) => f.display_logic || f.read_only_logic || f.mandatory_logic
     );
-    if (!hasLogic) return dictionaryFields;
-    const context = { ...(parentContext ?? {}), ...initialData, ...liveValues };
+    const hasComputed = dictionaryFields.some(isComputed);
+    if (!hasLogic && !hasComputed) return dictionaryFields;
+    const record = { ...initialData, ...liveValues };
+    // Rollups and formulas first, from the record as it is being typed and the
+    // child rows the screen holds — so field logic can read a computed value
+    // (`display: @grand_total@>1000`) just as it reads a typed one.
+    const computed = hasComputed ? computeValues(dictionaryFields, record, rollupRows) : {};
+    const context = { ...(parentContext ?? {}), ...record, ...computed };
     return dictionaryFields.map((field) => {
+      if (isComputed(field)) {
+        return { ...field, is_read_only: true, computed_value: computed[field.column_name] ?? null };
+      }
+      if (!hasLogic) return field;
       const state = fieldLogicState(field, context);
       const logicReadOnly = !field.is_read_only && state.readOnly;
       return {
@@ -1085,7 +1143,7 @@ export function DynamicForm({
         logic_read_only: logicReadOnly,
       };
     });
-  }, [dictionaryFields, liveValues, initialData, parentContext]);
+  }, [dictionaryFields, liveValues, initialData, parentContext, rollupRows]);
 
   useEffect(() => {
     if (Object.keys(initialData).length > 0) {
@@ -1233,7 +1291,8 @@ export function DynamicForm({
           )
         : value;
 
-    await onSubmit(filteredValues);
+    // A computed field is drawn, never saved (the API drops one as well).
+    await onSubmit(dictionaryFields ? stripComputed(dictionaryFields, filteredValues) : filteredValues);
   };
 
   const formValues = form.useStore((state: any) => state.values);

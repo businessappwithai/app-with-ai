@@ -471,6 +471,9 @@ details.group > summary.group__name { cursor: pointer; }
 .chip--number { background: #f5f3ff; color: #7c3aed; border-color: transparent; }
 .chip--date { background: #fff7ed; color: #c2410c; border-color: transparent; }
 .chip--list { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
+/* A computed field (rollup, calculated): drawn, never typed into. */
+.chip--computed { background: #ecfdf5; color: #047857; border-color: transparent; }
+.field__computed { display: block; background: transparent; border-style: dashed; font-variant-numeric: tabular-nums; }
 .chip--lookup { background: #fdf4ff; color: #a21caf; border-color: transparent; }
 .chip--bool { background: var(--success-soft); color: var(--success); border-color: transparent; }
 @media (prefers-color-scheme: dark) {

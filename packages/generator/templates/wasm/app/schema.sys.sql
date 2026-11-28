@@ -234,6 +234,9 @@ ALTER TABLE sys_field ADD COLUMN IF NOT EXISTS read_only_logic TEXT;
 ALTER TABLE sys_field ADD COLUMN IF NOT EXISTS mandatory_logic TEXT;
 ALTER TABLE sys_column ADD COLUMN IF NOT EXISTS read_only_logic TEXT;
 ALTER TABLE sys_column ADD COLUMN IF NOT EXISTS mandatory_logic TEXT;
+-- Computed fields (rollup, calculated): a definition with no storage; the form draws it.
+ALTER TABLE sys_column ADD COLUMN IF NOT EXISTS computed_kind VARCHAR(12);
+ALTER TABLE sys_column ADD COLUMN IF NOT EXISTS computed_expression TEXT;
 
 CREATE TABLE IF NOT EXISTS sys_category (
   sys_category_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

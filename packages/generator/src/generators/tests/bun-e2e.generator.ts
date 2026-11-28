@@ -157,6 +157,8 @@ const SHARED_SUITES = [
   "02d-error-envelope.test.ts",
   // Changing a log level on a running process: administrators only, reads included.
   "02e-log-levels.test.ts",
+  // Rollup and calculated fields: served as definitions, never stored, never queried.
+  "02f-computed-fields.test.ts",
   "04-bulk-seed.test.ts",
   "06-rules-workflow.test.ts",
   // The state machine, driven edge by edge — after the rule-triggered

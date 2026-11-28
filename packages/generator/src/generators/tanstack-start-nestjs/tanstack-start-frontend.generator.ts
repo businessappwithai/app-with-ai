@@ -757,6 +757,12 @@ export class TanStackStartFrontendGenerator extends BaseGenerator {
         dest: "src/hooks/use-bus-entity-level.ts",
       },
       {
+        // The child rows each rollup on a record reads — the request the
+        // record's own tab makes, shared by query key (lib/field-compute.ts).
+        src: "src/hooks/use-rollup-rows.ts",
+        dest: "src/hooks/use-rollup-rows.ts",
+      },
+      {
         src: "src/hooks/use-rule-entities.ts",
         dest: "src/hooks/use-rule-entities.ts",
       },

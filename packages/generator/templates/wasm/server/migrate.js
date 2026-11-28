@@ -255,8 +255,8 @@ async function seedDictionary(db, model, tick = () => {}) {
       `INSERT INTO sys_column (sys_table_id, column_name, name, description, sys_reference_id,
                                is_mandatory, is_updateable, is_key, is_parent, is_identifier,
                                is_selection_column, field_length, default_value, ref_table_name, seq_no,
-                               read_only_logic, mandatory_logic)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                               read_only_logic, mandatory_logic, computed_kind, computed_expression)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        ON CONFLICT (sys_table_id, column_name) DO NOTHING`,
       [
         tableId,
@@ -276,6 +276,8 @@ async function seedDictionary(db, model, tick = () => {}) {
         column.seqNo ?? 0,
         column.readOnlyLogic ?? null,
         column.mandatoryLogic ?? null,
+        column.computedKind ?? null,
+        column.computedExpression ?? null,
       ]
     );
     tick();

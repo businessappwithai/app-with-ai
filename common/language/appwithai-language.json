@@ -406,12 +406,56 @@
         "dependencies": "The form re-evaluates all three on every change to a column the logic reads, so a field appears, locks or becomes required as the record is edited."
       },
       "enforcement": "The form's evaluation is a convenience; the API is the control. Both generated stacks evaluate the same logic on every create and update: a field whose mandatory logic is true for the record as it will be saved, and which is displayed, must have a value (400, 'Validation failed'); a field whose read-only logic is true for the record as it is stored cannot be changed by an update (400). A create has nothing stored to lock, so read-only logic does not refuse one. Display logic hides a field and never refuses a write.",
-      "notSupported": "Compiere's global context variables (@#AD_Client_ID@), SQL logic (@SQL=...) and Java callouts. Logic reads the record's own columns only; a rule that needs another table, a role or a computed value belongs in %%action or a %%hook.",
+      "notSupported": "Compiere's global context variables (@#AD_Client_ID@), SQL logic (@SQL=...) and Java callouts. Logic reads the record's own columns only - and the record's computed fields (applicationDictionary.computedFields), which the form computes first; a rule that needs another table or a role belongs in %%action or a %%hook.",
       "checkerCodes": {
         "EML156": "error - a display:, readonly: or mandatory: value that does not parse as Compiere logic.",
         "EML157": "error - the logic reads @column@ that the entity does not declare.",
         "EML158": "warning - display logic that depends on its own field: once hidden, nobody can see it to change it back.",
         "EML159": "warning - logic placed on the primary key or on the state field, neither of which is ever an input."
+      }
+    },
+    "computedFields": {
+      "description": "Two field types with no storage, whose value the browser computes and draws read-only: a Rollup aggregates a column of the record's child rows, a Calculated field is a formula over the record's own fields. The column is still declared in the erDiagram block - its type decides how the value is formatted - and the %%field key is what makes it computed. Nothing on the server computes either: no new endpoint, no stored value, no report, rule or workflow reads one.",
+      "declare": {
+        "rollup": "%%field <Entity>.<column> rollup: <fn>(<Child>[.<column>] [via <link_column>]) [where <logic>] - fn is sum, avg, min, max or count; count(Child) counts rows. Compiled to sys_column.computed_kind = 'rollup' and computed_expression.",
+        "calculated": "%%field <Entity>.<column> calculated: <formula> - a formula over @column@ values of the same record. Compiled to sys_column.computed_kind = 'calculated' and computed_expression."
+      },
+      "rollup": {
+        "child": "A line item of the entity (%%entity <Child> parent: <Entity>), linked on its parent link column, or any entity with exactly one foreign key named after this one. `via <column>` names the link when there are two.",
+        "where": "Field logic (applicationDictionary.fieldLogic) read against each child row; only rows it is true for are aggregated.",
+        "values": "Nulls are skipped. sum and count of no rows are 0; avg, min and max of none are empty. min and max also order dates. A calculated child column is computed on each row first; a rollup of a rollup is refused.",
+        "rows": "The child rows the record screen already lists for its tab, read with the same request and query key, every page of them; a list the user may not read gives no value rather than a partial one."
+      },
+      "calculated": {
+        "operands": "@column@, a number, or quoted text 'x'.",
+        "operators": "+ - * / with the usual precedence, unary minus and parentheses. & and | are not operators here: they are field logic's and/or.",
+        "functions": "round(x[, n]), abs(x), min(...), max(...), coalesce(...), concat(...), days(a, b) - whole days from b to a - and if(<logic>, then, else).",
+        "values": "An empty value is null; arithmetic with a null is null, and so is a division by zero. min, max and the aggregates skip nulls; concat reads one as empty text. A formula may read stored columns, rollups and other calculated fields; they are evaluated in dependency order and a circle is refused.",
+        "examples": [
+          "round(@quantity@ * @unit_price@ * (1 - coalesce(@discount_pct@, 0) / 100), 2)",
+          "@subtotal@ - coalesce(@discount_amount@, 0) + coalesce(@shipping_amount@, 0)",
+          "if(@stage@=closed_won, @amount@, 0)",
+          "days(@due_on@, @opened_on@)"
+        ]
+      },
+      "oneReading": "language/field-compute.ts parses and evaluates both. The checker validates with it; the generated NestJS application carries a byte-identical copy (templates/common/field-compute.ts) - the front end computes with it, the API only parses an administrator's edit and strips values from a write - and the browser stack its JavaScript twin (templates/wasm/server/lib/field-compute.js), held to the same cases by a parity test.",
+      "noStorage": "No table column, no seed value, no default. The API drops a computed value from every write and refuses to filter or sort by one (400, details.code COMPUTED_FIELD_NOT_QUERYABLE). The field is read-only on every form; a rollup is on the form only, never in a list, which does not load child rows. Reports, rules, workflows and the chat assistant read records through the database or the API and cannot see the value.",
+      "administration": "The definition lives in the dictionary, so an administrator changes it in the Column window without regenerating; the API refuses an expression that does not parse, names a column or a child table the dictionary lacks, or closes a circle. A stored column cannot be turned into a computed one, nor back; a new computed column is created as one, with no DDL.",
+      "checkerCodes": {
+        "EML180": "error - a rollup that does not parse.",
+        "EML181": "error - the rollup's child is not declared, or has no foreign key to the entity.",
+        "EML182": "error - the aggregated child column is not declared, or is not a number for sum and avg (a number or a date for min and max).",
+        "EML183": "error - the link is ambiguous (two keys to the entity and no via), or via names no foreign key.",
+        "EML184": "error - the where condition does not parse, or reads a column the child lacks.",
+        "EML185": "error - a rollup of a column that is itself a rollup.",
+        "EML186": "warning - the rollup answers a type the column does not hold.",
+        "EML190": "error - a calculated formula that does not parse.",
+        "EML191": "error - the formula reads @column@ that the entity does not declare.",
+        "EML192": "error - computed fields that read each other in a circle.",
+        "EML193": "warning - the formula answers a type the column does not hold.",
+        "EML195": "error - the computed column is also something that needs storage: the key, a foreign key, required, unique, the state field, the identifier, an %%index column, or a column with enum:, default:, mandatory: or readonly:.",
+        "EML196": "error - both rollup: and calculated: on one column.",
+        "EML197": "error - a %%rule on the entity or a %%report reading its table names the computed column, which the server never sees."
       }
     },
     "optimisticLocking": {
@@ -1260,15 +1304,17 @@
         "form": "%%field <Entity>.<attr> <key>: <value>",
         "status": "compiled",
         "consumedBy": [
-          "packages/generator/src/parsers/mermaid.parser.ts (the `enum:`, `help:`, `display:`, `readonly:` and `mandatory:` keys; the other keys are reserved)"
+          "packages/generator/src/parsers/mermaid.parser.ts (the `enum:`, `help:`, `display:`, `readonly:`, `mandatory:`, `rollup:` and `calculated:` keys; the other keys are reserved)"
         ],
-        "purpose": "Extended field metadata: enum reference, help text and Compiere field logic (display:, readonly:, mandatory: - see applicationDictionary.fieldLogic), all compiled; ui control, default value, min/max and format are reserved.",
+        "purpose": "Extended field metadata: enum reference, help text, Compiere field logic (display:, readonly:, mandatory: - see applicationDictionary.fieldLogic) and computed fields (rollup:, calculated: - see applicationDictionary.computedFields), all compiled; ui control, default value, min/max and format are reserved.",
         "examples": [
           "%%field Order.status enum: OrderStatus",
           "%%field Contact.account_id help: The company this person works for. Leave empty for a personal contact.",
           "%%field Opportunity.loss_reason display: @stage@=closed_lost",
           "%%field Opportunity.amount readonly: @stage@=closed_won | @stage@=closed_lost",
           "%%field Contract.renewal_notice_days mandatory: @auto_renew@=Y",
+          "%%field Order.subtotal rollup: sum(OrderLine.line_amount)",
+          "%%field OrderLine.line_amount calculated: round(@quantity@ * @unit_price@, 2)",
           "%%field Product.price min: 0",
           "%%field User.email unique: true"
         ]
@@ -1660,7 +1706,7 @@
       "workflows": "%%hook directives in both forms (all 13 hook types), stateDiagram-v2 state machines, and %%workflow kind: saga with its %%step and %%loop directives. All three forms are compiled and seeded; the automation dialect is the same saga machinery authored through the builder.",
       "help": "%%field <Entity>.<column> help: and %%entity <Name> help: (or description:). Both are compiled: the parser hangs the text on the attribute and the entity, the dictionary generator writes it to sys_column.description and sys_table.description, and the generated application shows it under the field and beside the table. It has a second consumer: packages/generator/src/manual/index.ts renders manual.html from the same parsed model, where this text is the entire 'what it is for' column \u2014 a field with no help prints a dash there. Write help on every entity and every column, and write domain knowledge rather than the name again: EML151, EML152 and EML153 report the three ways a model fails to. See applicationDictionary.helpText. Fully compiled.",
       "validated": "%%rule and %%trigger, and the %%entity keys other than help:/description:. No compiler reads these yet, but language/checker.ts enforces their syntax and cross-references, so a malformed one fails validation instead of being silently dropped.",
-      "reserved": "The %%field keys other than enum: and help:. Renderer-safe and documented, with no reader. Writing one is legal and inert.",
+      "reserved": "The %%field keys other than enum:, help:, display:, readonly:, mandatory:, rollup: and calculated:. Renderer-safe and documented, with no reader. Writing one is legal and inert.",
       "access": "%%rbac on CRUD operations. Compiled to sys_operation_access and enforced by the generated EntityAccessGuard. A state transition is not a grantable operation: the state field is system-managed."
     },
     "validationRules": [
@@ -1690,7 +1736,7 @@
       "EML001-EML099": "Document level: metadata, emptiness, section structure.",
       "EML100-EML119": "Entities and attributes.",
       "EML120-EML129": "Relationships.",
-      "EML130-EML199": "Directives attached to the ERD: %%enum, %%field, %%entity, %%index, %%category, %%section \u2014 including the line-item pair EML149 and EML150, and the form-layout codes EML170-EML177.",
+      "EML130-EML199": "Directives attached to the ERD: %%enum, %%field, %%entity, %%index, %%category, %%section \u2014 including the line-item pair EML149 and EML150, the form-layout codes EML170-EML177, and the computed-field codes EML180-EML197 (rollup:, calculated:).",
       "EML200-EML299": "Hooks, guards, triggers, workflows and rules as declared by directives.",
       "EML300-EML399": "Business-rule flowcharts.",
       "EML400-EML449": "Workflow sections: hook, state and saga.",

@@ -48,6 +48,7 @@ import {
 import { type FieldMetadata, useGridFields } from "@/hooks/use-entities";
 import { apiClient, type PaginatedResponse } from "@/lib/api-client";
 import { CSV_EXPORT_LIMIT, csvFileName, downloadCsv, toCsv } from "@/lib/csv";
+import { computeValues } from "@/lib/field-compute";
 import { obscureValue } from "@/lib/field-values";
 import { useTranslations } from "@/lib/translations";
 import { referenceLabel } from "@/lib/utils";
@@ -121,7 +122,7 @@ const REFERENCE_TYPE = {
 // Cell Formatters
 // ============================================================================
 
-function formatCellValue(value: unknown, referenceId: number): string {
+export function formatCellValue(value: unknown, referenceId: number): string {
   if (value === null || value === undefined) {
     return "-";
   }
@@ -328,6 +329,14 @@ export function DynamicTable({
   } = useGridFields(tableName, { enabled: !externalFields });
   const fields = externalFields || fetchedFields;
   const fieldsLoading = externalFields ? false : fetchFieldsLoading;
+  // A calculated column is a formula over the row's own fields, computed here for
+  // each row of the page (lib/field-compute.ts) — never stored, never fetched.
+  // Rollups need child rows and are not in a grid's field list.
+  const rows = useMemo(() => {
+    const calculated = (fields ?? []).filter((f) => f.computed_kind === "calculated");
+    if (!calculated.length) return data;
+    return data.map((row) => ({ ...row, ...computeValues(calculated, row) }));
+  }, [data, fields]);
 
   // Collect unique lookup fields from the current data
   const lookupFieldDefs = useMemo(() => {
@@ -587,7 +596,7 @@ export function DynamicTable({
   }, [fields, onView, onEdit, _onDelete, tableName, t, lookupMap]);
 
   const table = useReactTable({
-    data,
+    data: rows,
     columns,
     state: {
       sorting,

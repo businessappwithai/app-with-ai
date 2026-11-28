@@ -39,7 +39,14 @@ import { referenceIdFor, tableNameFor } from "../generators/wasm/model-bundle";
 import type { ParsedModel } from "../pipeline/generate-application";
 import { deriveAccess } from "../rbac/roles";
 import { buildReportingPack, type ReportingPack } from "../reporting/pack";
-import { controlFor, declaredNames, manualDictionary, referenceTarget, title } from "./index";
+import {
+  computedSentence,
+  controlFor,
+  declaredNames,
+  manualDictionary,
+  referenceTarget,
+  title,
+} from "./index";
 
 export interface SkillsOptions {
   /** The name the application was generated under (`-n`), as the manual takes it. */
@@ -264,6 +271,14 @@ export function renderSkills(model: ParsedModel, options: SkillsOptions): Record
             }
           }
           if (field.readOnly) parts.push("read only");
+          /* A computed field: the API never returns it, so the assistant reading a
+             record through the API must say it cannot see it, not invent it. */
+          const computed = attribute ? computedSentence(attribute) : null;
+          if (computed) {
+            parts.push(
+              `${text(computed)} The API does not return this value and records cannot be searched by it`
+            );
+          }
           const help = attribute?.description ? ` — ${text(attribute.description)}` : "";
           lines.push(`- ${parts.join(", ")}${help}`);
         }

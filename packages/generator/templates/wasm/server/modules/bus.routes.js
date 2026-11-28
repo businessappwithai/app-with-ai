@@ -18,6 +18,7 @@ import { Router } from "../lib/router.js";
 import { badRequest, errorResponse, json, notFound, readJson } from "../lib/http.js";
 import { ident } from "../lib/db.js";
 import { checkOperationAccess, requireUser } from "../lib/guards.js";
+import { parseRollup, readsRollup } from "../lib/field-compute.js";
 import { STATE_FIELD_REFUSAL_CODE, stateFieldFor, stateMachineFor } from "../lib/workflows.js";
 import { recordFailedSaga, runTriggeredSagas, SagaFailure } from "../lib/sagas.js";
 import { runHooks } from "../lib/hooks.js";
@@ -65,7 +66,74 @@ export function resolveEntity(model, segment) {
 function entityOr404(model, segment) {
   const entity = resolveEntity(model, segment);
   if (!entity) throw notFound(`No entity "${segment}" in this model`);
-  return entity;
+  return storedView(entity);
+}
+
+/*
+ * The entity with only the columns it stores. A computed field (rollup,
+ * calculated — lib/field-compute.js) is in the model's attribute list because the
+ * model declares it, and it has no column: every route below reads and writes
+ * `attributes`, so it sees only real ones — a write carrying a computed value
+ * drops it, and `computedColumns` is what a filter or a sort is refused on.
+ */
+const STORED_VIEWS = new WeakMap();
+function storedView(entity) {
+  if (!entity.attributes.some((attribute) => attribute.computedKind)) return entity;
+  let view = STORED_VIEWS.get(entity);
+  if (!view) {
+    view = {
+      ...entity,
+      attributes: entity.attributes.filter((attribute) => !attribute.computedKind),
+      computedColumns: entity.attributes
+        .filter((attribute) => attribute.computedKind)
+        .map((attribute) => attribute.columnName),
+    };
+    STORED_VIEWS.set(entity, view);
+  }
+  return view;
+}
+
+function refuseComputed(entity, column) {
+  if (!entity.computedColumns?.includes(column)) return;
+  throw badRequest(
+    `${column} is a computed field: drawn on the screen, never stored, so a list cannot be filtered or sorted by it.`,
+    { code: "COMPUTED_FIELD_NOT_QUERYABLE", columns: [column] }
+  );
+}
+
+/*
+ * Which child rows a rollup reads: the child's table, the column aggregated and
+ * the child column holding this record's id (the one `via` names, else the
+ * child's parent link, else its one reference named after this table). Resolved
+ * from the dictionary row, so an administrator's edit applies on the next read.
+ */
+function resolveRollup(model, entity, expression) {
+  const parsed = parseRollup(expression);
+  if (!parsed.ok) return null;
+  const spec = parsed.rollup;
+  const child = (model?.entities ?? []).find((candidate) => candidate.name === spec.child);
+  if (!child) return null;
+  if (spec.column && !child.attributes.some((a) => a.columnName === spec.column)) return null;
+  const parentSnake = entity.tableName.replace(/^bus_/, "");
+  const named = (a) =>
+    a.isForeignKey && (a.columnName === `${parentSnake}_id` || a.columnName.startsWith(`${parentSnake}_`));
+  const keys = child.attributes.filter(named);
+  const link = spec.via
+    ? child.attributes.find((a) => a.columnName === spec.via)?.columnName
+    : child.parentEntity === entity.name && child.parentLinkColumn
+      ? child.parentLinkColumn
+      : keys.length === 1
+        ? keys[0].columnName
+        : null;
+  if (!link) return null;
+  return {
+    fn: spec.fn,
+    child_table: child.tableName,
+    child_route: child.routeName,
+    child_column: spec.column ?? null,
+    link_column: link,
+    where: spec.where ?? null,
+  };
 }
 
 /** Metadata for one entity, assembled from the dictionary rows. */
@@ -88,6 +156,7 @@ async function entityMetadata(db, entity, model) {
             f.display_logic,
             COALESCE(f.read_only_logic, c.read_only_logic) AS read_only_logic,
             COALESCE(f.mandatory_logic, c.mandatory_logic) AS mandatory_logic,
+            c.computed_kind, c.computed_expression,
             g.name AS group_name, g.description AS group_description,
             g.columns AS group_columns, g.is_collapsed_by_default AS group_collapsed,
             g.seq_no AS group_seq_no
@@ -107,7 +176,7 @@ async function entityMetadata(db, entity, model) {
       ])
     : null;
 
-  return {
+  const metadata = {
     table: {
       sys_table_id: table.sys_table_id,
       table_name: table.table_name,
@@ -118,6 +187,10 @@ async function entityMetadata(db, entity, model) {
     entity: { name: entity.name, route: entity.routeName },
     columns: columns.map((column) => {
       const isState = state?.field === column.column_name;
+      const computedKind =
+        column.computed_kind === "rollup" || column.computed_kind === "calculated"
+          ? column.computed_kind
+          : null;
       return {
       sys_field_id: column.sys_field_id,
       name: column.name || column.column_name,
@@ -128,11 +201,14 @@ async function entityMetadata(db, entity, model) {
       description: column.description ?? null,
       sys_reference_id: column.sys_reference_id,
       is_mandatory: isState ? false : (column.is_mandatory ?? false),
-      is_updateable: isState ? false : column.is_updateable !== false,
-      is_insertable: isState ? false : column.is_insertable !== false,
-      is_read_only: isState ? true : (column.is_read_only ?? false),
+      is_updateable: isState || computedKind ? false : column.is_updateable !== false,
+      is_insertable: isState || computedKind ? false : column.is_insertable !== false,
+      is_read_only: isState || computedKind ? true : (column.is_read_only ?? false),
       is_displayed: isState ? false : column.is_displayed !== false,
-      is_displayed_grid: isState ? true : column.is_displayed_grid !== false,
+      /* A rollup needs the record's child rows, which a list does not load. */
+      is_displayed_grid: isState
+        ? true
+        : column.is_displayed_grid !== false && computedKind !== "rollup",
       is_state_field: isState,
       is_key: column.is_key ?? false,
       /* The column tying a detail row to its master, from
@@ -160,10 +236,23 @@ async function entityMetadata(db, entity, model) {
       display_logic: isState ? null : (column.display_logic ?? null),
       read_only_logic: isState ? null : (column.read_only_logic ?? null),
       mandatory_logic: isState ? null : (column.mandatory_logic ?? null),
+      /* A computed field: the form draws it (lib/field-compute.js), nothing stores it. */
+      computed_kind: computedKind,
+      computed_expression: computedKind ? (column.computed_expression ?? null) : null,
+      rollup:
+        computedKind === "rollup" ? resolveRollup(model, entity, column.computed_expression) : null,
       };
     }),
     window: window ? { sys_window_id: window.sys_window_id, name: window.name } : undefined,
   };
+  /* A formula that reads a rollup needs the record's child rows, which a list
+     does not load: on the form only, like the rollup itself. */
+  for (const column of metadata.columns) {
+    if (column.computed_kind === "calculated" && readsRollup(metadata.columns, column.column_name)) {
+      column.is_displayed_grid = false;
+    }
+  }
+  return metadata;
 }
 
 /**
@@ -407,6 +496,7 @@ export function busRoutes(model) {
     // parses: one stack's model must not search differently from the other's.
     for (const [key, value] of query.entries()) {
       if (["page", "limit", "search", "sort", "order"].includes(key)) continue;
+      refuseComputed(entity, key.startsWith("filter.") ? key.slice("filter.".length) : key);
 
       if (key.startsWith("filter.")) {
         const condition = filterCondition(entity, key.slice("filter.".length), value, parameters);
@@ -434,6 +524,7 @@ export function busRoutes(model) {
     }
 
     const where = `WHERE ${conditions.join(" AND ")}`;
+    if (sort) refuseComputed(entity, sort);
     const sortColumn = entity.attributes.find((attribute) => attribute.columnName === sort)
       ? sort
       : "created_at";

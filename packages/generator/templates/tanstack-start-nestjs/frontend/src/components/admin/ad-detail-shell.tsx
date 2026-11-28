@@ -12,6 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type FieldMetadata, useEntityMetadata } from "@/hooks/use-entities";
+import { CHILD_ROWS_LIMIT, childRowsKey, useRollupRows } from "@/hooks/use-rollup-rows";
+import { computeValues } from "@/lib/field-compute";
 import { withReference } from "@/lib/api-error";
 import { apiClient, type PaginatedResponse } from "@/lib/api-client";
 import {
@@ -120,11 +122,14 @@ function ChildPanel({ childTab, parentRecord, selfLevel, parentContext }: ChildP
   // Context for child-level URLs includes all ancestors + this record
   const childParentCtx: ParentContext[] = [...parentContext, { level: selfLevel, id: parentId }];
 
-  const params: Record<string, unknown> = { limit: 100 };
+  const params: Record<string, unknown> = { limit: CHILD_ROWS_LIMIT };
   if (childLevel.parentField) params[childLevel.parentField] = parentId;
 
+  // The same key and request a rollup over these rows uses (hooks/use-rollup-rows),
+  // so the record's totals and this tab are one fetch, and invalidating it after a
+  // save moves both.
   const { data, isLoading } = useQuery({
-    queryKey: ["ad-child", childLevel.endpoint, parentId],
+    queryKey: childRowsKey(childLevel.endpoint, parentId, childLevel.parentField),
     queryFn: () => apiClient.get<PaginatedResponse<AnyRecord>>(childLevel.endpoint, params),
     enabled: !!parentId,
   });
@@ -824,6 +829,16 @@ export function ADDetailShell({
     if (!listRecord && !full) return null;
     return { ...(listRecord ?? {}), ...(full ?? {}) } as AnyRecord;
   }, [listRecord, fullRecord, level.idField, recordId]);
+  // Rollups and calculated fields, computed here from what this screen already
+  // holds — the record, and the child rows its tabs list (no other request). The
+  // form computes its own as the user types; this is for the Highlights panel.
+  const rollupRows = useRollupRows(level.formFields ?? [], recordId);
+  const computedRecord = useMemo(() => {
+    if (!currentRecord) return null;
+    const computed = (level.formFields ?? []).filter((f) => !!f.computed_kind);
+    if (!computed.length) return currentRecord;
+    return { ...currentRecord, ...computeValues(computed, currentRecord, rollupRows) } as AnyRecord;
+  }, [currentRecord, level.formFields, rollupRows]);
   const globalIndex = (page - 1) * 100 + currentIndex;
   const canGoPrev = globalIndex > 0;
   const canGoNext = globalIndex < totalCount - 1;
@@ -872,6 +887,12 @@ export function ADDetailShell({
       }
       queryClient.invalidateQueries({ queryKey: ["ad-detail-list", level.endpoint] });
       queryClient.invalidateQueries({ queryKey: ["ad-detail-record", level.endpoint, recordId] });
+      // This record may be a line of another: the parent's tab and every rollup
+      // over these rows read them under "ad-child", so its totals follow the save.
+      // All of them, not this endpoint's: a tab names the table (`/bus/order_item`)
+      // where this page may name the route; only mounted queries refetch.
+      queryClient.invalidateQueries({ queryKey: ["ad-child"] });
+      queryClient.invalidateQueries({ queryKey: ["ad-child-count"] });
       refetch();
     },
     onError: async (err: any, variables) => {
@@ -932,6 +953,8 @@ export function ADDetailShell({
     onSuccess: () => {
       toast.success("Deleted");
       queryClient.invalidateQueries({ queryKey: ["ad-detail-list", level.endpoint] });
+      queryClient.invalidateQueries({ queryKey: ["ad-child"] });
+      queryClient.invalidateQueries({ queryKey: ["ad-child-count"] });
       navigate({ to: buildAdminListUrl(parentContext, level) as never });
     },
     onError: (err: any) => toast.error(err?.message ?? "Failed"),
@@ -1135,7 +1158,7 @@ export function ADDetailShell({
           </div>
           {/* Right: Summary Panel */}
           {summaryFields.length > 0 && currentRecord && (
-            <SummaryPanel fields={summaryFields} record={currentRecord} />
+            <SummaryPanel fields={summaryFields} record={computedRecord ?? currentRecord} />
           )}
         </div>
       </div>
@@ -1227,6 +1250,7 @@ export function ADDetailShell({
                 readOnly={!isEditing}
                 isSaving={saveMutation.isPending}
                 parentContext={immediateParentData}
+                rollupRows={rollupRows}
                 skipGroups={["System"]}
               />
               <VersionConflictDialog

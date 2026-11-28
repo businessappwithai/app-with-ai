@@ -563,6 +563,25 @@ export function computeOrder(fields: ComputeField[]): { order: string[]; cycle: 
 }
 
 /**
+ * Whether a computed field needs the record's child rows: a rollup does, and so
+ * does a formula that reads one, however indirectly. A list loads no child rows,
+ * so such a field is on the form only — in a grid it could only ever be empty.
+ */
+export function readsRollup(fields: ComputeField[], column: string): boolean {
+  const byName = new Map(fields.filter(isComputed).map((f) => [f.column_name, f]));
+  const seen = new Set<string>();
+  const visit = (name: string): boolean => {
+    if (seen.has(name)) return false;
+    seen.add(name);
+    const field = byName.get(name);
+    if (!field) return false;
+    if (field.computed_kind === "rollup") return true;
+    return formulaVariables(field.computed_expression).some(visit);
+  };
+  return visit(column);
+}
+
+/**
  * Every computed value of one record. `rowsByField` holds, for each rollup,
  * the child rows of this record (by the rollup's column name); a rollup with
  * no rows given — not loaded, or refused — is null, not zero, because the

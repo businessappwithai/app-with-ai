@@ -1,5 +1,51 @@
 # Rollup and Calculated fields in the Application Dictionary — architectural design
 
+## As built — where the implementation differs from the plan below
+
+The plan below was approved and implemented. Four things changed on contact with
+the running application, each verified there:
+
+1. **A calculated field that reads a rollup is form-only too.** A list loads no
+   child rows, so `Order.total_amount = @subtotal@ - …` could only ever be "—" in
+   a grid. `readsRollup(fields, column)` in `field-compute.ts` follows the formula
+   through other formulas, and both stacks' metadata take such a field off the
+   grid, exactly as they do a rollup.
+2. **The browser (`--standalone`) stack has no Admin column-write route** (only
+   the field-visibility `PATCH`), so there is no Admin validation to add there.
+   Its grids compute calculated columns per row, and because that list sorts on
+   the server, a computed column's heading offers no sort.
+3. **The NestJS grids sort on the client**, over the loaded page, so a
+   calculated column stays sortable there without any request.
+4. **`ChildPanel`'s query key gained the link column**
+   (`["ad-child", endpoint, parentId, link]`), so a rollup over a child that is
+   not a line item can never share a cache entry with a tab linked differently.
+   Prefix invalidation still matches. A child's save or delete invalidates every
+   `"ad-child"` query, because a child's own page may name its endpoint by route
+   (`/bus/order-item`) where the tab names the table (`/bus/order_item`).
+
+Not done from §7: the generated Playwright UI spec (`tests/ui/computed-fields.spec.ts`).
+The same behaviours were driven in Chromium by hand against a generated application
+(see Verification): values against independently computed figures, live recompute
+while typing, a rollup following a child's save, and the network log.
+
+### Verification, as run
+
+- Fixture `tests/test-data/computed-fields.eml.mmd`: checker 0 errors, 0 warnings.
+- Generated from it, on PostgreSQL 16: backend, frontend and tests type-check; the
+  frontend production build succeeds; the generated suite passes **44/44 suites,
+  852 tests**, twice on one database, including the new `02f-computed-fields`.
+- CI's model, `drug-discovery.eml.mmd` with 25 records per entity: **70/70 suites,
+  2,660 tests**. A model with no computed fields is unaffected.
+- `bun run test`: 1,694 passed. `bun check` (root and language), `test:language-tools`
+  (published checker agrees with the CLI on 17 models) and the llmtext claims: clean.
+- In Chromium, NestJS stack: every rollup and formula on an order equals the figure
+  computed independently from the API. The page makes one `order_item` list request,
+  shared by the tab and the rollups; no compute endpoint exists. Typing quantity 9
+  makes the line total 45.00 at once, and after saving the line the order's subtotal
+  moved from 17.50 to 52.50 with no reload.
+- In Chromium, browser stack: the same model's form computes the same way, and the
+  line table and list compute calculated columns per row.
+
 ## Context
 
 Generated applications can only show values that are stored in a database column. Users want two
