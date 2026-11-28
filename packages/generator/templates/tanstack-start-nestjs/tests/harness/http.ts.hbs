@@ -22,6 +22,9 @@ export interface ApiResponse<T = unknown> {
   raw: string;
 }
 
+/** Whether the run has been told the backend is rate limiting it (said once). */
+let throttleNoticeShown = false;
+
 export class HttpError extends Error {
   readonly status: number;
   readonly body: unknown;
@@ -155,6 +158,18 @@ export class HttpClient {
 
       if (config.verbose) {
         console.log(`  ⏳ 429 on ${method} ${path} — waiting ${waitMs}ms (attempt ${attempt + 1})`);
+      } else if (!throttleNoticeShown) {
+        // Said once, whatever the verbosity. Waiting out the limiter is right,
+        // but done silently it reads as a hung database: a backend started
+        // without THROTTLE_LIMIT raised refuses a large model's bulk writes
+        // (one bucket per route handler, shared by every entity), and each
+        // refusal costs a 60-second window with nothing on screen.
+        throttleNoticeShown = true;
+        console.log(
+          `  ⏳ The backend is rate limiting this run (429 on ${method} ${path}); waiting ` +
+            `${Math.round(waitMs / 1000)}s per refusal. Start it with THROTTLE_LIMIT=1000000, ` +
+            `or let the runner start it — it does that itself.`
+        );
       }
       await sleep(waitMs);
       throttled = true;

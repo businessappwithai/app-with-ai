@@ -107,6 +107,10 @@ async function main(): Promise<void> {
       start("bun", ["run", "src/main.ts"], join(project, "backend"), join(project, "e2e-backend.log"), {
         AUTH_SIGNIN_MAX: "1000",
         AUTH_RATE_MAX: "100000",
+        // The API's own limiter: one bucket per route handler, shared by every
+        // entity, so a run over a large model exceeds the development default
+        // and each refusal costs a 60-second window. As CI and compose set it.
+        THROTTLE_LIMIT: "1000000",
       });
     }
     if (!(await answers(appUrl))) {

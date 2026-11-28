@@ -1977,6 +1977,13 @@ Three constraints are worth knowing before adding cases:
 | The model's own `%%action` rules | A generated payload can trip one (a discount over 40 percent, in `crm`). Marker-value rules in `05-rules` exist so a refusal can only have come from the rule under test |
 | Referential integrity | The migration emits a foreign-key constraint for a declared `oneToMany` relationship **and nothing else**, so a column the ERD marks `FK` but draws no line for — a `manager_id` resolved to `bus_user` by naming convention — is a reference the dictionary describes and the schema does not enforce. `constrainedForeignKey()` picks a column where the constraint exists |
 
+**Attaching (`--no-server`) to a backend you started yourself: start it with `THROTTLE_LIMIT=1000000`.**
+The API's limiter keeps one bucket per route handler, so every entity's writes share `/bus/:entity`'s,
+and a large model's bulk writes exceed the development default of 1000 a minute. The client then
+waits out each 60-second window — which on the 88-entity hospital model read exactly like a write
+hang (suite 18 timed out at 528s; with the limit raised it passes in 196s). The runner sets it when
+it starts the backend, and CI and compose set it; the harness says so on the first 429.
+
 The suites deliberately leave their rows behind, so **a re-run against a populated database is the normal case**. Unique values are salted with a per-run token (`E2E_RUN_TOKEN`, printed by the runner) folded into any caller-supplied salt; replacing it rather than folding into it makes every insert of the second run collide.
 
 ### The rule and workflow editors' own E2E suite — `scripts/e2e-rules-workflows/`
