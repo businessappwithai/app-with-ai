@@ -475,7 +475,10 @@ function FieldRenderer({
                   {field.is_mandatory && <span className="text-red-400 text-xs">*</span>}
                   {fieldHelp && <FieldHelpButton help={fieldHelp} fieldName={fieldLabel} />}
                 </div>
-                <div className="text-sm text-foreground font-medium min-h-[1.25rem]">
+                <div
+                  className="text-sm text-foreground font-medium min-h-[1.25rem]"
+                  data-testid={`field-value-${field.column_name}`}
+                >
                   {!currentValue || currentValue === "" ? (
                     <span className="text-muted-foreground/60 italic">—</span>
                   ) : (
