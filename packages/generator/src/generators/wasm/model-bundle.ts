@@ -27,6 +27,7 @@ import {
   attributeDisplayName,
   declaredEntityNames,
   formatDisplayName,
+  isComputedAttribute,
   ReferenceType,
   referenceFromColumnName,
 } from "@appwithai/core/types";
@@ -227,6 +228,8 @@ function buildSchema(entities: Entity[], relationships: Relationship[]): string 
     const table = tableNameFor(entity);
     const columns = entity.attributes
       .filter((attribute) => !MANAGED_COLUMN_NAMES.has(snake(attribute.name)))
+      /* A computed column (rollup, calculated) has no storage. */
+      .filter((attribute) => !isComputedAttribute(attribute))
       .map((attribute) => {
         const nullability = attribute.required ? " NOT NULL" : "";
         const unique = attribute.unique ? " UNIQUE" : "";
@@ -403,6 +406,8 @@ export function buildModelBundle(
         enumValues: attribute.enumValues,
         referenceId: referenceIdFor(attribute, attribute.name === entity.primaryKey),
         seqNo: (index + 1) * 10,
+        /* A computed column: no storage, never written (bus.routes.js sanitize). */
+        ...(isComputedAttribute(attribute) ? { computedKind: attribute.computedKind } : {}),
       })),
     };
   });
@@ -587,6 +592,10 @@ export function buildModelBundle(
         /* `%%field … readonly: | mandatory:` — Compiere's column logic. */
         readOnlyLogic: column.read_only_logic,
         mandatoryLogic: column.mandatory_logic,
+        /* `%%field … rollup: | calculated:` — drawn by the form, never stored. */
+        ...(column.computed_kind
+          ? { computedKind: column.computed_kind, computedExpression: column.computed_expression }
+          : {}),
       })),
       // The model's `%%section` groups, and nothing else.
       //

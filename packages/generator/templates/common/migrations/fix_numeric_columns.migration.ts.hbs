@@ -11,6 +11,7 @@ import { Kysely, sql } from 'kysely';
 export async function up(db: Kysely<any>): Promise<void> {
 {{#each entities}}
 {{#each attributes}}
+{{#unless computedKind}}
 {{#if (eq (typeToReferenceId type) 12)}}
 {{#unless isForeignKey}}
 {{#unless isPrimaryKey}}
@@ -23,6 +24,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 {{/unless}}
 {{/unless}}
 {{/if}}
+{{/unless}}
 {{/each}}
 {{/each}}
 }

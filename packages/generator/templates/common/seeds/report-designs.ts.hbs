@@ -174,12 +174,14 @@ const entityReports: Array<{ tableName: string; displayName: string; columns: st
     displayName: '{{displayName}}',
     columns: [
       {{#each attributes}}
+      {{#unless computedKind}}
       {{#unless (eq name ../primaryKey)}}
       {{#unless (eq name 'created_at')}}
       {{#unless (eq name 'updated_at')}}
       {{#unless (eq name 'deleted_at')}}
       {{#unless (eq name 'version')}}
       '{{name}}',
+      {{/unless}}
       {{/unless}}
       {{/unless}}
       {{/unless}}
@@ -212,6 +214,9 @@ async function windowFields(
     .where('tb.table_name', '=', tableName)
     .where('f.is_active', '=', true)
     .where('f.is_displayed', '=', true)
+    // A computed field is drawn by the browser and never stored, so a printed
+    // document — rendered from the stored row — has no value to put in it.
+    .where('c.computed_kind', 'is', null)
     .orderBy('t.tab_level')
     .orderBy('f.seq_no')
     .execute()

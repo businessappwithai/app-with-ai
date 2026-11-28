@@ -25,6 +25,7 @@ import { stateFieldOf } from '../../common/state-fields';
 import { lifecycleOf, phaseOf, saveMode, type Lifecycle } from '../../common/lifecycle';
 import { createCache } from '../../common/ttl-cache';
 import { logicViolations, sameValue } from '../../common/field-logic';
+import { isComputed, parseRollup, stripComputed } from '../../common/field-compute';
 import { resolveDefaultValue } from '../../common/field-values';
 import {
   DEFAULT_ORDER_BY_CLAUSE,
@@ -99,6 +100,22 @@ export interface FieldMetadata {
   sort_no?: number | null;
   /** Included Tab — another tab drawn inside the form at this field's place. */
   included_tab?: { sys_tab_id: string; name: string; table_name: string; link_column: string } | null;
+  /**
+   * A computed field — `rollup` or `calculated` (common/field-compute.ts). The
+   * column has no storage: this service never computes the value, strips it from
+   * every write and refuses to filter or sort by it. The browser computes it, a
+   * rollup from the record's child rows, a formula from the record itself.
+   */
+  computed_kind?: 'rollup' | 'calculated' | null;
+  computed_expression?: string | null;
+  /** A rollup resolved against the dictionary: which child rows to read, and how. */
+  rollup?: {
+    fn: string;
+    child_table: string;
+    child_column: string | null;
+    link_column: string;
+    where: string | null;
+  } | null;
   /** Query param name for cascading filter (e.g. 'filter.country_id') */
   ref_filter_param?: string;
   /** Form field whose value feeds the cascading filter (e.g. 'country_id') */
@@ -439,7 +456,9 @@ export class BusService {
 
     const metadata = await this.getEntityMetadata(entity);
     // `_label` is served, never stored: a form hands back whatever it was given.
-    const { _label: _servedLabel, ...writable } = data;
+    // So is a computed field's value: it has no column (common/field-compute.ts).
+    const { _label: _servedLabel, ...served } = data;
+    const writable = this.withoutComputed(metadata, served);
     const dataWithDefaults = { ...writable };
 
     // A new record starts in Draft (common/lifecycle.ts); the save pipeline
@@ -584,7 +603,8 @@ export class BusService {
     const tableName = this.getTableName(entity);
     await this.verifyEntity(entity);
 
-    const { _label: _servedLabel, ...writable } = data;
+    const { _label: _servedLabel, ...served } = data;
+    const writable = this.withoutComputed(await this.getEntityMetadata(entity), served);
     const processedData = await executeBeforeUpdateHooks(entity, writable);
 
     // Validate business rules against the record as it would look after the
@@ -928,6 +948,8 @@ export class BusService {
         'sys_field.is_active as field_is_active',
         'sys_column.read_only_logic as column_read_only_logic',
         'sys_column.mandatory_logic as column_mandatory_logic',
+        'sys_column.computed_kind',
+        'sys_column.computed_expression',
         'sys_field_group.name as group_name',
         'sys_field_group.columns as group_columns',
         'sys_field_group.description as group_description',
@@ -1065,6 +1087,10 @@ export class BusService {
       },
       columns: columns.map((col: any) => {
         const isStateField = stateField !== null && col.column_name === stateField;
+        // A computed column is drawn, never written: read-only on every form,
+        // and a rollup — which needs the record's child rows — on no list.
+        const computedKind: 'rollup' | 'calculated' | null =
+          col.computed_kind === 'rollup' || col.computed_kind === 'calculated' ? col.computed_kind : null;
         // Active: an inactive field is on no screen. Its column still holds data
         // and is still validated; it is simply not drawn.
         const fieldActive = col.sys_field_id ? col.field_is_active !== false : true;
@@ -1079,7 +1105,7 @@ export class BusService {
           // 10 = plain string: a reference to a table that does not exist is not a lookup.
           sys_reference_id: isDanglingRef(col) ? 10 : col.sys_reference_id,
           is_mandatory: col.is_mandatory,
-          is_updateable: isStateField ? false : col.is_updateable,
+          is_updateable: isStateField || computedKind ? false : col.is_updateable,
           // A reference degraded to a plain value holds an id with no table to
           // resolve it, so it cannot name the record.
           is_identifier: col.is_identifier === true && !isDanglingRef(col),
@@ -1093,8 +1119,12 @@ export class BusService {
           seq_no: col.field_seq_no || col.seq_no || 0,
           seq_no_grid: col.seq_no_grid || 0,
           is_displayed: isStateField ? false : fieldActive && col.is_displayed !== false,
-          is_displayed_grid: isStateField ? true : fieldActive && col.is_displayed_grid !== false,
-          is_read_only: isStateField ? true : col.field_is_read_only || false,
+          is_displayed_grid: isStateField
+            ? true
+            : fieldActive && col.is_displayed_grid !== false && computedKind !== 'rollup',
+          is_read_only: isStateField || computedKind ? true : col.field_is_read_only || false,
+          computed_kind: computedKind,
+          computed_expression: computedKind ? col.computed_expression || null : null,
           is_state_field: isStateField,
           help: col.field_help || undefined,
           field_group_id: col.sys_field_group_id || null,
@@ -1196,8 +1226,96 @@ export class BusService {
       }
     }
 
+    // Rollups, resolved against the dictionary now rather than at generation, so
+    // an administrator's edit in the Column window takes effect on the next read.
+    for (const col of metadata.columns) {
+      if (col.computed_kind === 'rollup') {
+        col.rollup = await this.resolveRollup(table.table_name, col.computed_expression);
+      }
+    }
+
     this.metadataCache.set(tableName, metadata);
     return metadata;
+  }
+
+  /**
+   * Which child rows a rollup reads: the child's table (from the entity the
+   * expression names, `OrderLine` → `bus_order_line`), the column aggregated, and
+   * the child's column that holds this record's id — the one `via` names, else
+   * the child's parent link (`is_parent`), else its one reference named after
+   * this table. Null when any of that is not in the dictionary: the form then
+   * draws nothing rather than a number read from the wrong rows.
+   */
+  private async resolveRollup(
+    tableName: string,
+    expression: string | null | undefined,
+  ): Promise<FieldMetadata['rollup']> {
+    const parsed = parseRollup(expression);
+    if (!parsed.ok) return null;
+    const spec = parsed.rollup;
+    const childSnake = spec.child
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+      .toLowerCase();
+    const childTable = this.getTableName(childSnake);
+    const child = await this.kysely
+      .selectFrom('sys_table')
+      .select('sys_table_id')
+      .where('table_name', '=', childTable)
+      .executeTakeFirst();
+    if (!child) return null;
+    const childColumns = (await this.kysely
+      .selectFrom('sys_column')
+      .select(['column_name', 'is_parent', 'sys_reference_id'])
+      .where('sys_table_id', '=', child.sys_table_id)
+      .execute()) as Array<{ column_name: string; is_parent: boolean; sys_reference_id: number }>;
+    const names = new Set(childColumns.map((c) => c.column_name));
+    if (spec.column && !names.has(spec.column)) return null;
+    const parentSnake = tableName.replace(/^bus_/, '');
+    const named = (c: { column_name: string }) =>
+      c.column_name === `${parentSnake}_id` || c.column_name.startsWith(`${parentSnake}_`);
+    const references = childColumns.filter(
+      (c) => (c.sys_reference_id === 18 || c.sys_reference_id === 19) && named(c),
+    );
+    const link = spec.via
+      ? names.has(spec.via) ? spec.via : null
+      : childColumns.find((c) => c.is_parent === true && named(c))?.column_name ??
+        (references.length === 1 ? references[0].column_name : null) ??
+        (names.has(`${parentSnake}_id`) ? `${parentSnake}_id` : null);
+    if (!link) return null;
+    return {
+      fn: spec.fn,
+      child_table: childTable,
+      child_column: spec.column ?? null,
+      link_column: link,
+      where: spec.where ?? null,
+    };
+  }
+
+  /**
+   * A write without its computed columns. The form sends the record back whole,
+   * and a rollup or a formula it drew has no column to be written to: the value
+   * is only a copy of what the screen computed, so it is dropped, not refused.
+   */
+  private withoutComputed<T extends Record<string, any>>(metadata: EntityMetadata, data: T): T {
+    return stripComputed(metadata.columns, data);
+  }
+
+  /**
+   * Refuse to filter or sort by a computed column: it has no column in the table,
+   * so the database would answer with an error rather than with rows.
+   */
+  async assertQueryable(entity: string, columns: string[]): Promise<void> {
+    if (!columns.length) return;
+    const metadata = await this.getEntityMetadata(entity);
+    const computed = metadata.columns.filter((c) => isComputed(c)).map((c) => c.column_name);
+    const named = columns.filter((c) => computed.includes(c));
+    if (named.length) {
+      throw new BadRequestException({
+        message: `${named.join(', ')} ${named.length === 1 ? 'is a computed field' : 'are computed fields'}: drawn on the screen, never stored, so a list cannot be filtered or sorted by ${named.length === 1 ? 'it' : 'them'}.`,
+        details: { code: 'COMPUTED_FIELD_NOT_QUERYABLE', columns: named },
+      });
+    }
   }
 
   /**
@@ -1267,6 +1385,13 @@ export class BusService {
   async validateData(entity: string, data: Record<string, any>, mode: 'create' | 'update' | 'patch'): Promise<void> {
     const metadata = await this.getEntityMetadata(entity);
     const errors: string[] = [];
+
+    // A computed field (rollup, calculated) has no column: the form sends back
+    // the value it drew, and it is dropped here — on `data` itself, which is the
+    // object the caller writes — rather than refused as "not updateable".
+    for (const column of metadata.columns) {
+      if (isComputed(column)) delete data[column.column_name];
+    }
 
     /*
      * An emptied input is "no value", not a value. A browser's date, number and

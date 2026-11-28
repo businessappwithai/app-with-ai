@@ -539,6 +539,10 @@ export class TanStackStartFrontendGenerator extends BaseGenerator {
     // Default Value and Obscure Type, read the same way the API reads them.
     const fieldValues = await this.component("../../common/field-values.ts");
     await fs.writeFile(path.join(outputDir, "src/lib/field-values.ts"), fieldValues);
+    // Rollup and calculated fields: the form and the grid compute them with the
+    // copy of common/language/field-compute.ts, beside the field logic it imports.
+    const fieldCompute = await this.component("../../common/field-compute.ts");
+    await fs.writeFile(path.join(outputDir, "src/lib/field-compute.ts"), fieldCompute);
     // Every table's lifecycle — Draft, the flow, Final — written by the same call
     // that writes the backend's, so the screen and the API agree about a record.
     await fs.writeFile(

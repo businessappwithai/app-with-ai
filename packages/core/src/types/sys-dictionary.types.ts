@@ -134,6 +134,10 @@ export interface SysColumn {
   callout?: string; // Callout function name
   read_only_logic?: string; // Dynamic read-only condition
   mandatory_logic?: string; // Dynamic mandatory condition
+  /** `rollup` | `calculated`: a column with no storage, computed by the browser. */
+  computed_kind?: "rollup" | "calculated";
+  /** The rollup or formula, as the model or the Column window wrote it. */
+  computed_expression?: string;
   format_pattern?: string; // Display format pattern
   entity_type: string;
   is_active: boolean;

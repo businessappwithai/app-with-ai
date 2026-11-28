@@ -43,6 +43,7 @@
  */
 
 import type { Entity, EntityAttribute } from "@appwithai/core/types";
+import { isComputedAttribute } from "@appwithai/core/types";
 import { tableNameFor } from "../naming/tables";
 import type { ParsedModel } from "../pipeline/parse-model";
 import { type DerivedAccess, deriveAccess } from "../rbac/roles";
@@ -327,7 +328,11 @@ const AUDIT_COLUMNS = new Set([
 ]);
 
 function businessColumns(e: Entity): EntityAttribute[] {
-  return e.attributes.filter((a) => a.name !== e.primaryKey && !AUDIT_COLUMNS.has(a.name));
+  /* A computed column (rollup, calculated) has no database column: a query
+     naming it would fail, so the pack never derives a measure or a group from it. */
+  return e.attributes.filter(
+    (a) => a.name !== e.primaryKey && !AUDIT_COLUMNS.has(a.name) && !isComputedAttribute(a)
+  );
 }
 
 /**

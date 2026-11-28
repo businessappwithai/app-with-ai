@@ -30,6 +30,7 @@ import type {
 } from "@appwithai/core/types";
 import { snakeCase } from "@appwithai/core/utils";
 import { getCardinalityKind, getDefaultType, getTypeMap } from "./language-maps";
+import { parseFormula, parseRollup } from "../../../../common/language/field-compute";
 
 type FieldLogicKey = "display" | "readonly" | "mandatory";
 
@@ -141,6 +142,12 @@ export class MermaidParser {
     const declaredEnums = new Map<string, string[]>();
     const enumBindings: Array<{ entity: string; column: string; enumName: string }> = [];
     const fieldHelpText: Array<{ entity: string; column: string; help: string }> = [];
+    const fieldComputed: Array<{
+      entity: string;
+      column: string;
+      kind: "rollup" | "calculated";
+      expression: string;
+    }> = [];
     const fieldLogic: Array<{ entity: string; column: string; kind: FieldLogicKey; logic: string }> =
       [];
     const entityHelpText = new Map<string, string>();
@@ -171,6 +178,8 @@ export class MermaidParser {
         if (fieldHelp) fieldHelpText.push(fieldHelp);
         const logic = this.parseFieldLogicDirective(trimmed);
         if (logic) fieldLogic.push(logic);
+        const computed = this.parseFieldComputeDirective(trimmed);
+        if (computed) fieldComputed.push(computed);
         const entityHelp = this.parseEntityHelpDirective(trimmed);
         if (entityHelp) entityHelpText.set(entityHelp.entity, entityHelp.help);
         const entityIcon = this.parseEntityIconDirective(trimmed);
@@ -238,6 +247,7 @@ export class MermaidParser {
     this.attachIcons(entities, entityIcons);
     this.attachIdentifiers(entities, entityIdentifiers);
     this.attachParents(entities, entityParents);
+    this.attachComputed(entities, fieldComputed);
     const enums = this.attachEnums(entities, declaredEnums, enumBindings);
 
     return { entities, relationships, enums };
@@ -478,6 +488,82 @@ export class MermaidParser {
     return logic
       ? { entity: match[1], column: match[2], kind: match[3] as FieldLogicKey, logic }
       : null;
+  }
+
+  /** `%%field Order.subtotal rollup: sum(OrderLine.amount)` / `calculated: <formula>`. */
+  private parseFieldComputeDirective(
+    line: string
+  ): { entity: string; column: string; kind: "rollup" | "calculated"; expression: string } | null {
+    const match = line.match(
+      /^%%field\s+([A-Za-z_]\w*)\.([A-Za-z_]\w*)\s+(rollup|calculated)\s*:\s*(.+)$/
+    );
+    if (!match?.[1] || !match[2] || !match[3] || !match[4]) return null;
+    const expression = match[4].trim();
+    return expression
+      ? {
+          entity: match[1],
+          column: match[2],
+          kind: match[3] as "rollup" | "calculated",
+          expression,
+        }
+      : null;
+  }
+
+  /**
+   * Mark computed columns, and resolve a rollup's child and link column — after
+   * `attachParents`, so a line item links on its parent link column. A link is,
+   * in order: the column `via` names; the child's parent link column when it is
+   * a line item of this entity; its one foreign key named after this entity.
+   * Anything the checker refuses (EML180-EML196) is left a plain column, so a
+   * model with an error still generates the application it generated before.
+   */
+  private attachComputed(
+    entities: Entity[],
+    computed: Array<{ entity: string; column: string; kind: "rollup" | "calculated"; expression: string }>
+  ): void {
+    const seen = new Set<string>();
+    for (const { entity: name, column, kind, expression } of computed) {
+      if (seen.has(`${name}.${column}`)) continue;
+      const entity = entities.find((candidate) => candidate.name === name);
+      const attribute = entity?.attributes.find((candidate) => candidate.name === column);
+      if (!entity || !attribute || attribute.isForeignKey || column === entity.primaryKey) continue;
+      if (kind === "calculated") {
+        if (!parseFormula(expression).ok) continue;
+      } else {
+        const parsed = parseRollup(expression);
+        if (!parsed.ok) continue;
+        const spec = parsed.rollup;
+        const child = entities.find((candidate) => candidate.name === spec.child);
+        if (!child) continue;
+        const snake = snakeCase(name);
+        const keys = child.attributes.filter(
+          (a) => a.isForeignKey && (a.name === `${snake}_id` || a.name.startsWith(`${snake}_`))
+        );
+        const link = spec.via
+          ? child.attributes.find((a) => a.name === spec.via && a.isForeignKey)
+          : child.parentEntity === name && child.parentLinkColumn
+            ? child.attributes.find((a) => a.name === child.parentLinkColumn)
+            : keys.length === 1
+              ? keys[0]
+              : undefined;
+        if (!link) continue;
+        if (spec.column && !child.attributes.some((a) => a.name === spec.column)) continue;
+        attribute.rollup = {
+          fn: spec.fn,
+          childEntity: child.name,
+          linkColumn: link.name,
+          ...(spec.column ? { childColumn: spec.column } : {}),
+          ...(spec.where ? { where: spec.where } : {}),
+        };
+      }
+      seen.add(`${name}.${column}`);
+      attribute.computedKind = kind;
+      attribute.computedExpression = expression;
+      /* No storage, so nothing may demand a stored value. */
+      attribute.required = false;
+      attribute.unique = false;
+      delete attribute.default;
+    }
   }
 
   /** Hang field logic on the columns it names; an unknown column is EML142. */

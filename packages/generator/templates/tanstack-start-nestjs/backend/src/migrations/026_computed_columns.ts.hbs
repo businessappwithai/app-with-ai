@@ -1,0 +1,33 @@
+/**
+ * Computed fields — a Rollup and a Calculated field in the Application Dictionary.
+ *
+ * `%%field Order.subtotal rollup: sum(OrderLine.line_amount)` and
+ * `%%field OrderLine.line_amount calculated: @quantity@ * @unit_price@` declare a
+ * column with no storage: the business table has no column for it, a write never
+ * carries it, and the browser draws its value — a rollup from the record's child
+ * rows, a calculated field from the record's own fields. The dictionary is where
+ * the definition lives, so an administrator can change it in the Column window
+ * without regenerating (common/field-compute.ts is the one reading of both).
+ *
+ * Generated: {{now}}
+ * Project: {{project.name}}
+ */
+
+import { Kysely, sql } from 'kysely';
+
+export async function up(db: Kysely<any>): Promise<void> {
+  await sql`
+    ALTER TABLE sys_column
+      ADD COLUMN IF NOT EXISTS computed_kind VARCHAR(12)
+        CHECK (computed_kind IS NULL OR computed_kind IN ('rollup', 'calculated')),
+      ADD COLUMN IF NOT EXISTS computed_expression TEXT
+  `.execute(db);
+}
+
+export async function down(db: Kysely<any>): Promise<void> {
+  await sql`
+    ALTER TABLE sys_column
+      DROP COLUMN IF EXISTS computed_expression,
+      DROP COLUMN IF EXISTS computed_kind
+  `.execute(db);
+}
