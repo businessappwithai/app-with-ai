@@ -57,11 +57,20 @@ for (const machine of facts.machines) {
     const menu = page.getByTestId("record-actions-menu");
     if (await menu.count()) await menu.click();
     await page.getByTestId(`record-action-${key}`).first().click();
-    await expect(page.getByTestId("press-moved").or(page.getByTestId("press-refused"))).toBeVisible();
+
+    // The outcome is the record's, read through the API: it moved along the drawn
+    // edge, or it stayed and the page says why. The "moved" note on screen is
+    // transient — gone once the record refetches — so it cannot be what decides.
+    const outcome = async () => {
+      const now = (await api.get(`/bus/${entity.apiSegment}/${row!.id}`)).data;
+      if (now?.[machine.stateField] === move.to) return "moved";
+      if (await page.getByTestId("press-refused").count()) return "refused";
+      return "pending";
+    };
+    await expect.poll(outcome, { timeout: 30_000 }).not.toBe("pending");
 
     const after = (await api.get(`/bus/${entity.apiSegment}/${row!.id}`)).data;
-    if (await page.getByTestId("press-moved").count()) {
-      expect(after[machine.stateField], `${machine.entity} moved ${from} → ${move.to}`).toBe(move.to);
+    if (after[machine.stateField] === move.to) {
       const stamp = `${move.to.toLowerCase()}_at`;
       if (entity.columns.some((c) => c.name === stamp)) expect(after[stamp], `${stamp} is stamped`).toBeTruthy();
     } else {
