@@ -16,7 +16,7 @@
         "inputs": [
           { "id": "iop", "name": "Operation", "field": "_operation" },
           {{#each attributes}}
-          {{#unless (or (eq name "id") (eq name "created_at") (eq name "updated_at") (eq name "deleted_at") (eq name "version"))}}
+          {{#unless (or computedKind (eq name "id") (eq name "created_at") (eq name "updated_at") (eq name "deleted_at") (eq name "version"))}}
           { "id": "i{{@index}}", "name": "{{displayName}}", "field": "{{columnName}}" },
           {{/unless}}
           {{/each}}
@@ -34,7 +34,7 @@
         ],
         "rules": [
           {{#each attributes}}
-          {{#unless (or (eq name "id") (eq name "created_at") (eq name "updated_at") (eq name "deleted_at") (eq name "version"))}}
+          {{#unless (or computedKind (eq name "id") (eq name "created_at") (eq name "updated_at") (eq name "deleted_at") (eq name "version"))}}
           {{#if required}}
           {
             "_id": "{{../tableName}}-{{columnName}}-required",

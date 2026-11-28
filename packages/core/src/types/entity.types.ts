@@ -46,6 +46,33 @@ export interface EntityAttribute {
   displayLogic?: string;
   readOnlyLogic?: string;
   mandatoryLogic?: string;
+  /**
+   * A computed field, from `%%field <E>.<c> rollup: | calculated: <expression>`
+   * (common/language/field-compute.ts is the one reading). The column has no
+   * storage: no table column, no seed value, never written. The browser draws
+   * its value — a rollup from the record's child rows, a calculated field from
+   * the record's own fields. Lands on `sys_column.computed_kind` and
+   * `sys_column.computed_expression`.
+   */
+  computedKind?: "rollup" | "calculated";
+  /** The expression exactly as the model wrote it. */
+  computedExpression?: string;
+  /** A rollup, resolved: the child it reads and the column linking it here. */
+  rollup?: AttributeRollup;
+}
+
+/** A rollup with its child entity and link column resolved by the parser. */
+export interface AttributeRollup {
+  fn: "sum" | "avg" | "min" | "max" | "count";
+  childEntity: string;
+  childColumn?: string;
+  linkColumn: string;
+  where?: string;
+}
+
+/** Whether a column is computed on screen and has no storage. */
+export function isComputedAttribute(attribute: { computedKind?: string | null } | null | undefined): boolean {
+  return attribute?.computedKind === "rollup" || attribute?.computedKind === "calculated";
 }
 
 /** A `%%enum Name: a, b, c` declaration, with the reference id it was given. */

@@ -126,6 +126,21 @@ export interface FieldMetadata {
     table_name: string;
     link_column: string;
   } | null;
+  /**
+   * A computed field — `rollup` or `calculated` (lib/field-compute.ts). Never
+   * stored and never an input: the form draws its value, a rollup from the
+   * record's child rows (hooks/use-rollup-rows.ts), a formula from the record.
+   */
+  computed_kind?: "rollup" | "calculated" | null;
+  computed_expression?: string | null;
+  /** A rollup resolved by the API: which child rows to read, linked on which column. */
+  rollup?: {
+    fn: string;
+    child_table: string;
+    child_column: string | null;
+    link_column: string;
+    where: string | null;
+  } | null;
 }
 
 export interface TableMetadata {

@@ -242,7 +242,7 @@ entity whose name *ends* in a line-item noun — `Line`, `LineItem`, `Item`,
 declare the parent, or leave the entity alone because it is a thing in its own
 right.
 
-## `%%field` — extended field metadata *(compiled: the `enum:` key only)*
+## `%%field` — extended field metadata *(compiled: `enum:`, `help:`, field logic, `rollup:` and `calculated:`)*
 
 ```
 %%field <Entity>.<attr> <key>: <value>
@@ -256,6 +256,9 @@ right.
 | `min` / `max` | Numeric or length bounds |
 | `help` | Field help text |
 | `format` | Display/validation format |
+| `display` / `readonly` / `mandatory` | Compiere field logic over the record (`@column@=value`) |
+| `rollup` | A computed field: an aggregate of the record's child rows — see below |
+| `calculated` | A computed field: a formula over the record's own fields — see below |
 
 ```
 %%field Order.status enum: OrderStatus
@@ -270,6 +273,43 @@ generated form prints as hint text beneath the control, and `manual.html`, where
 it fills the "Purpose" column of the field table. A field with no `help:` shows a
 dash in the manual and no hint in the form. Write help on every field, not only
 the ambiguous ones — the manual has no other way to explain what a field is for.
+
+### Computed fields — `rollup:` and `calculated:`
+
+```
+%%field Order.subtotal      rollup: sum(OrderItem.line_total)
+%%field Order.item_count    rollup: count(OrderItem)
+%%field Order.paid_amount   rollup: sum(Payment.amount) where @status@=captured
+%%field Account.won_value   rollup: sum(Opportunity.amount via account_id)
+%%field OrderItem.line_total calculated: round(@quantity@ * @unit_price@, 2)
+%%field Order.total_amount  calculated: @subtotal@ - coalesce(@discount_amount@, 0)
+```
+
+Both are **drawn on the screen and never stored**. The column is still declared
+in the `erDiagram` block — its type decides how the value is formatted — but it
+gets no table column, no seed value and no default, the API drops it from every
+write and refuses to filter or sort by it (400 `COMPUTED_FIELD_NOT_QUERYABLE`),
+and the field is read-only on every form. Nothing on the server computes one, so
+no report, rule or workflow can read one (`EML197`); a rollup is on the form only,
+never in a list.
+
+- **Rollup** — `<fn>(<Child>[.<column>] [via <link>]) [where <logic>]`, where `fn`
+  is `sum`, `avg`, `min`, `max` or `count`. The child is a line item of the
+  entity, or any entity with one foreign key named after it (`via` names the
+  link when there are two). `where` is field logic read against each child row.
+  Nulls are skipped; `sum` and `count` of no rows are 0, `avg`, `min` and `max`
+  of none are empty. The browser reads the child rows the record's own tab
+  lists — the same request — so adding, changing or deleting a line moves the
+  total without any other call.
+- **Calculated** — `+ - * /`, brackets, numbers, `'text'`, `@column@`, and
+  `round`, `abs`, `min`, `max`, `coalesce`, `concat`, `days(a, b)` and
+  `if(<logic>, a, b)`. Arithmetic with an empty value is empty, and so is a
+  division by zero. A formula may read rollups and other formulas; a circle is
+  refused (`EML192`).
+
+`common/language/field-compute.ts` is the one reading of both; the checker codes
+are `EML180`–`EML197`. An administrator can change either definition in the
+Column window without regenerating.
 
 ### The manual and what comes from help text vs. the model
 

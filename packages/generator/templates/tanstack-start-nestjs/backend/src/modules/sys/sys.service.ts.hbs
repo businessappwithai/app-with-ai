@@ -17,6 +17,12 @@ import { randomUUID } from 'crypto';
 import { DatabaseService } from '../../database/database.service';
 import { BusService } from '../bus/bus.service';
 import { parseLogic } from '../../common/field-logic';
+import {
+  computedExpressionError,
+  computeOrder,
+  formulaVariables,
+  parseRollup,
+} from '../../common/field-compute';
 import { createCache } from '../../common/ttl-cache';
 
 /**
@@ -304,6 +310,10 @@ export class SysService {
     const parentTable = await this.findTableById(tableId);
     const dbTableName = physicalTableName(parentTable.table_name);
     const columnName = data.column_name as string;
+    // A computed column (rollup, calculated) is a definition, not storage: no
+    // ALTER TABLE, nothing required, nothing written by a form.
+    const computed = await this.normalizeComputed(tableId, columnName, data, null);
+    if (computed) data = { ...data, ...computed, is_mandatory: false, is_updateable: false, default_value: null };
     const sqlType = this.mapRefToSqlType(data.sys_reference_id as number, data.field_length as number | undefined);
 
     const constraints: string[] = [];
@@ -319,10 +329,12 @@ export class SysService {
       // dictionary metadata insert share a transaction so they can't desync
       // if either half fails partway through.
       try {
-        await sql`
-          ALTER TABLE ${sql.id(dbTableName)}
-          ADD COLUMN IF NOT EXISTS ${sql.id(columnName)} ${sql.raw(sqlType + constraintSql)}
-        `.execute(trx);
+        if (!computed) {
+          await sql`
+            ALTER TABLE ${sql.id(dbTableName)}
+            ADD COLUMN IF NOT EXISTS ${sql.id(columnName)} ${sql.raw(sqlType + constraintSql)}
+          `.execute(trx);
+        }
       } catch (error: any) {
         throw new ConflictException(error?.message ?? 'Could not add the column to the table');
       }
@@ -345,6 +357,8 @@ export class SysService {
           is_identifier: data.is_identifier ?? false,
           is_selection_column: data.is_selection_column ?? false,
           is_encrypted: data.is_encrypted ?? false,
+          computed_kind: computed?.computed_kind ?? null,
+          computed_expression: computed?.computed_expression ?? null,
           seq_no: data.seq_no ?? 0,
           entity_type: data.entity_type ?? 'U',
           is_active: true,
@@ -571,6 +585,14 @@ export class SysService {
         'The column type cannot be changed after creation; delete and recreate the column instead'
       );
     }
+    const computed = await this.normalizeComputed(
+      existing.sys_table_id as string,
+      existing.column_name as string,
+      data,
+      existing,
+    );
+    if (computed) data = { ...data, ...computed, is_mandatory: false, is_updateable: false };
+    const isVirtual = !!(computed ?? (existing as any).computed_kind);
 
     const parentTable = await this.findTableById(existing.sys_table_id as string);
     const dbTableName = physicalTableName(parentTable.table_name);
@@ -578,7 +600,8 @@ export class SysService {
 
     await this.db.kysely.transaction().execute(async (trx) => {
       try {
-        if ('field_length' in data && data.field_length !== existing.field_length) {
+        // A computed column has no table column to alter, so none of this applies.
+        if (!isVirtual && 'field_length' in data && data.field_length !== existing.field_length) {
           const sqlType = this.mapRefToSqlType(
             existing.sys_reference_id as number,
             data.field_length as number | undefined
@@ -589,14 +612,14 @@ export class SysService {
           `.execute(trx);
         }
 
-        if ('is_mandatory' in data && data.is_mandatory !== existing.is_mandatory) {
+        if (!isVirtual && 'is_mandatory' in data && data.is_mandatory !== existing.is_mandatory) {
           await sql`
             ALTER TABLE ${sql.id(dbTableName)}
             ALTER COLUMN ${sql.id(columnName)} ${sql.raw(data.is_mandatory ? 'SET NOT NULL' : 'DROP NOT NULL')}
           `.execute(trx);
         }
 
-        if ('default_value' in data && data.default_value !== existing.default_value) {
+        if (!isVirtual && 'default_value' in data && data.default_value !== existing.default_value) {
           if (data.default_value === null || data.default_value === undefined || data.default_value === '') {
             await sql`
               ALTER TABLE ${sql.id(dbTableName)}
@@ -726,6 +749,88 @@ export class SysService {
    * lock nothing and say nothing, so it is refused with the reason instead of
    * stored. An empty value clears the logic.
    */
+  /**
+   * A computed field's definition, checked the way the model's is (EML180-EML197):
+   * the kind, an expression that parses, columns that exist, a child table the
+   * dictionary has, and no formula reading itself through another. Returns the
+   * definition to store, or null for an ordinary column.
+   *
+   * Turning a stored column into a computed one, or back, is refused: the first
+   * would hide the data the column holds behind a value nobody stored, the
+   * second would point a form at a table column that does not exist. A new
+   * computed column is created as one instead, with no DDL at all.
+   */
+  private async normalizeComputed(
+    tableId: string,
+    columnName: string,
+    data: Record<string, unknown>,
+    existing: Record<string, unknown> | null,
+  ): Promise<{ computed_kind: string; computed_expression: string } | null> {
+    const before = (existing?.computed_kind as string | null | undefined) ?? null;
+    const kindGiven = 'computed_kind' in data;
+    const kind = kindGiven ? ((data.computed_kind as string | null) || null) : before;
+    if (existing && !!before !== !!kind) {
+      throw new ConflictException(
+        before
+          ? 'A computed column cannot become a stored one: it has no table column. Delete it and add a stored column instead.'
+          : 'A stored column cannot become a computed one: its data would be hidden. Add a new computed column instead.',
+      );
+    }
+    if (!kind) return null;
+    const expression = String(
+      ('computed_expression' in data ? data.computed_expression : existing?.computed_expression) ?? '',
+    ).trim();
+    const problem = computedExpressionError(kind, expression);
+    if (problem) {
+      throw new BadRequestException({ message: 'Validation failed', errors: [`computed_expression: ${problem}`] });
+    }
+    const columns = (await this.db.kysely
+      .selectFrom('sys_column')
+      .select(['column_name', 'computed_kind', 'computed_expression'])
+      .where('sys_table_id', '=', tableId)
+      .where('is_active', '=', true)
+      .execute()) as Array<{ column_name: string; computed_kind: string | null; computed_expression: string | null }>;
+    const errors: string[] = [];
+    if (kind === 'calculated') {
+      const names = new Set(columns.map((c) => c.column_name));
+      for (const variable of formulaVariables(expression)) {
+        if (!names.has(variable)) errors.push(`computed_expression: reads @${variable}@, which this table does not have.`);
+      }
+      const next = columns
+        .filter((c) => c.column_name !== columnName)
+        .concat([{ column_name: columnName, computed_kind: kind, computed_expression: expression }]);
+      const { cycle } = computeOrder(next);
+      if (cycle) errors.push(`computed_expression: computed fields read each other in a circle: ${cycle.join(' → ')}.`);
+    } else {
+      const parsed = parseRollup(expression);
+      const child = parsed.ok
+        ? parsed.rollup.child
+            .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+            .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+            .toLowerCase()
+        : '';
+      const childTable = child
+        ? await this.db.kysely
+            .selectFrom('sys_table')
+            .select('sys_table_id')
+            .where('table_name', '=', this.busService.getTableName(child))
+            .executeTakeFirst()
+        : undefined;
+      if (!childTable) errors.push(`computed_expression: no table is called ${parsed.ok ? parsed.rollup.child : '…'}.`);
+      else if (parsed.ok && parsed.rollup.column) {
+        const has = await this.db.kysely
+          .selectFrom('sys_column')
+          .select('column_name')
+          .where('sys_table_id', '=', childTable.sys_table_id)
+          .where('column_name', '=', parsed.rollup.column)
+          .executeTakeFirst();
+        if (!has) errors.push(`computed_expression: ${parsed.rollup.child} has no column ${parsed.rollup.column}.`);
+      }
+    }
+    if (errors.length) throw new BadRequestException({ message: 'Validation failed', errors });
+    return { computed_kind: kind, computed_expression: expression };
+  }
+
   private normalizeLogic(data: Record<string, unknown>): Record<string, unknown> {
     const errors: string[] = [];
     const out = { ...data };

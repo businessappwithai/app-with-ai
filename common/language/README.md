@@ -177,7 +177,8 @@ generated; when the two disagree, the generator's copy is the language.
 | **access** | `%%rbac` on CRUD operations and on the moves of a record's flow (`<Entity>.<event>`, `from->to`, `reopen`) — a user has the union of their roles' grants | Compiled to `sys_access_grant`; one query (`sys_user_capability`) answers what a user may do, cached; the guard enforces operations, the transition service the moves, and no form writes a state field |
 | **help** | `%%field <E>.<col> help:` and `%%entity <Name> help:` (or `description:`) | Compiled — to `sys_column.description` / `sys_table.description`, shown in the app, and the whole "what it is for" column of `manual.html` |
 | **validated** | `%%rule`, `%%trigger`, and the `%%entity` keys other than `help:`/`description:` | No compiler yet; `checker.ts` enforces syntax so a malformed one fails rather than being dropped |
-| **reserved** | `%%field` keys other than `enum:` and `help:` | Renderer-safe, documented, inert |
+| **computed fields** | `%%field <E>.<col> rollup:` (an aggregate of the record's child rows) and `calculated:` (a formula over the record) | Compiled — to `sys_column.computed_kind` / `computed_expression`; no storage, drawn read-only by the browser (`field-compute.ts`, `EML180`–`EML197`) |
+| **reserved** | `%%field` keys other than `enum:`, `help:`, the field logic keys, `rollup:` and `calculated:` | Renderer-safe, documented, inert |
 
 `help` is a level of its own because it is the one that gets skipped. It reads
 like documentation, so it is easy to leave for later — and then the generated

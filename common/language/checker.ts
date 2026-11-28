@@ -30,6 +30,7 @@ import { parseEml } from "./cli/src/parser";
 import { caps } from "./cli/src/util";
 import { loadLanguageDefinition, stepNodeTypes } from "./index";
 import { parseLogic } from "./field-logic";
+import { computeOrder, formulaResultKind, parseFormula, parseRollup } from "./field-compute";
 import { parseSectionDirectives, sectionsByEntity, UNPLACED_SECTION } from "./sections";
 import { findRetiredMoves } from "./move-facts";
 import {
@@ -378,6 +379,10 @@ class CheckEngine {
     "display",
     "readonly",
     "mandatory",
+    /* Computed fields — drawn on the screen, never stored. Checked by
+       EML180-EML197; language/field-compute.ts is the one reading. */
+    "rollup",
+    "calculated",
   ]);
   private validMetaKeys = new Set(["name", "kind", "version", "entity", "stack", "description"]);
   private validWorkflowKinds = new Set(["hook", "state", "saga"]);
@@ -1056,6 +1061,249 @@ class CheckEngine {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // EML180-EML197: computed fields — `%%field <E>.<c> rollup: | calculated:`
+  // -------------------------------------------------------------------------
+
+  /**
+   * A rollup aggregates a column of the record's child rows; a calculated field
+   * is a formula over the record's own fields. Both are drawn by the browser and
+   * never stored, so the column has no storage: nothing that needs a value in
+   * the database — a key, an index, a required flag, a server-side rule or a
+   * report — may rest on it. language/field-compute.ts is the one reading of
+   * both expressions; the generated application computes with a copy of it.
+   */
+  private checkComputedFields(): void {
+    type Declared = { entity: string; column: string; kind: "rollup" | "calculated"; expression: string; lineNo: number };
+    const declared: Declared[] = [];
+    const otherKeys = new Map<string, Set<string>>();
+    for (const { lineNo, text } of this.src.findAll(/^\s*%%field\b/)) {
+      const m = text.trim().match(/^%%field\s+(\w+)\.(\w+)\s+([A-Za-z_]\w*)\s*:\s*(.+)$/);
+      if (!m) continue;
+      const [entity, column, key, value] = caps(m, 4);
+      if (key === "rollup" || key === "calculated") {
+        declared.push({ entity, column, kind: key, expression: value.trim(), lineNo });
+      } else {
+        const id = `${entity}.${column}`;
+        if (!otherKeys.has(id)) otherKeys.set(id, new Set());
+        otherKeys.get(id)?.add(key);
+      }
+    }
+    if (!declared.length) return;
+
+    const entityByName = new Map(this.model.entities.map((e) => [e.name, e]));
+    const numeric = (a: EmlAttribute | undefined) => !!a && (a.type === "integer" || a.type === "decimal");
+    const dated = (a: EmlAttribute | undefined) => !!a && (a.type === "date" || a.type === "datetime");
+    const computed = new Map<string, Declared>();
+
+    // EML196: one kind per column.
+    for (const d of declared) {
+      const id = `${d.entity}.${d.column}`;
+      const before = computed.get(id);
+      if (before) {
+        this.error("EML196", `%%field ${id} is computed twice (${before.kind}: and ${d.kind}:).`, {
+          line: d.lineNo,
+          hint: "A column is either a rollup of its child rows or a formula over its own record. Keep one line.",
+        });
+        continue;
+      }
+      computed.set(id, d);
+    }
+
+    const parentOf = new Map<string, string>();
+    for (const { text } of this.src.findAll(/^\s*%%entity\b/)) {
+      const m = text.trim().match(/^%%entity\s+(\w+)\s+parent\s*:\s*(\w+)\s*$/);
+      if (m) parentOf.set(m[1] as string, m[2] as string);
+    }
+
+    for (const d of computed.values()) {
+      const entity = entityByName.get(d.entity);
+      const attr = entity?.attributes.find((a) => a.name === d.column);
+      if (!entity || !attr) continue; // EML141 / EML142 already said so
+      const where = `%%field ${d.entity}.${d.column} ${d.kind}:`;
+
+      if (d.kind === "rollup") {
+        const parsed = parseRollup(d.expression);
+        if (!parsed.ok) {
+          this.error("EML180", `${where} does not parse — ${parsed.error}`, {
+            line: d.lineNo,
+            hint: "Write sum(Child.column), avg(…), min(…), max(…) or count(Child); add `via link_column` inside the brackets when the child has two keys to this entity, and `where @column@=value` after them.",
+            context: d.expression,
+          });
+          continue;
+        }
+        const rollup = parsed.rollup;
+        const child = entityByName.get(rollup.child);
+        const snake = d.entity
+          .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+          .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
+          .toLowerCase();
+        const links = child
+          ? child.attributes.filter(
+              (a) => a.isForeignKey && (a.name === `${snake}_id` || a.name.startsWith(`${snake}_`))
+            )
+          : [];
+        if (!child || (!links.length && !rollup.via && parentOf.get(rollup.child) !== d.entity)) {
+          this.error(
+            "EML181",
+            child
+              ? `${where} rolls up ${rollup.child}, which has no foreign key to ${d.entity}.`
+              : `${where} rolls up "${rollup.child}", which is not declared.`,
+            {
+              line: d.lineNo,
+              hint: `A rollup reads the child rows of the open ${d.entity}: name an entity with a \`${this.entityToFkName(d.entity)} FK\` column.`,
+            }
+          );
+          continue;
+        }
+        if (rollup.via) {
+          const via = child.attributes.find((a) => a.name === rollup.via);
+          if (!via || !via.isForeignKey) {
+            this.error("EML183", `${where} links on ${rollup.child}.${rollup.via}, which is not a foreign key of ${rollup.child}.`, {
+              line: d.lineNo,
+              hint: `Name one of ${rollup.child}'s FK columns to ${d.entity}${links.length ? `: ${links.map((l) => l.name).join(", ")}` : ""}.`,
+            });
+          }
+        } else if (links.length > 1 && parentOf.get(rollup.child) !== d.entity) {
+          this.error("EML183", `${where} cannot tell which of ${rollup.child}'s keys links it to ${d.entity}: ${links.map((l) => l.name).join(", ")}.`, {
+            line: d.lineNo,
+            hint: `Name it inside the brackets: ${rollup.fn}(${rollup.child}${rollup.column ? `.${rollup.column}` : ""} via ${links[0]?.name}).`,
+          });
+        }
+        const childColumns = new Set(child.attributes.map((a) => a.name));
+        if (rollup.column) {
+          const source = child.attributes.find((a) => a.name === rollup.column);
+          if (!source) {
+            this.error("EML182", `${where} aggregates ${rollup.child}.${rollup.column}, which ${rollup.child} does not declare.`, {
+              line: d.lineNo,
+              hint: `Columns of ${rollup.child}: ${[...childColumns].join(", ")}.`,
+            });
+          } else if ((rollup.fn === "sum" || rollup.fn === "avg") && !numeric(source)) {
+            this.error("EML182", `${where} takes ${rollup.fn}() of ${rollup.child}.${rollup.column}, which is ${source.rawType}, not a number.`, {
+              line: d.lineNo,
+              hint: "sum and avg add numbers. count() counts any column; min and max also order dates.",
+            });
+          } else if ((rollup.fn === "min" || rollup.fn === "max") && !numeric(source) && !dated(source)) {
+            this.error("EML182", `${where} takes ${rollup.fn}() of ${rollup.child}.${rollup.column}, which is ${source.rawType}: min and max order numbers and dates.`, {
+              line: d.lineNo,
+            });
+          } else if (computed.get(`${rollup.child}.${rollup.column}`)?.kind === "rollup") {
+            this.error("EML185", `${where} rolls up ${rollup.child}.${rollup.column}, which is itself a rollup.`, {
+              line: d.lineNo,
+              hint: "A rollup reads the child rows the screen already lists; their own rollups are not loaded with them. A calculated child column is fine.",
+            });
+          }
+        }
+        if (rollup.where) {
+          const logic = parseLogic(rollup.where);
+          const unknown = logic.ok ? logic.logic.variables.filter((v) => !childColumns.has(v)) : [];
+          if (!logic.ok || unknown.length) {
+            this.error("EML184", `${where} where: ${logic.ok ? `reads @${unknown[0]}@, which ${rollup.child} does not declare` : `does not parse — ${logic.error}`}.`, {
+              line: d.lineNo,
+              hint: `The condition is field logic read against each ${rollup.child} row: @column@=value, joined by & and |.`,
+            });
+          }
+        }
+        const result = rollup.fn === "count" || rollup.fn === "sum" || rollup.fn === "avg" ? "number" : "any";
+        if ((result === "number" && !numeric(attr)) || (result === "any" && !numeric(attr) && !dated(attr))) {
+          this.warn("EML186", `${where} answers a ${result === "number" ? "number" : "number or date"}, but ${d.entity}.${d.column} is ${attr.rawType}.`, {
+            line: d.lineNo,
+            hint: "Declare the column as the type the rollup answers (decimal for sum and avg, integer for count), so the screen formats it as one.",
+          });
+        }
+      } else {
+        const parsed = parseFormula(d.expression);
+        if (!parsed.ok) {
+          this.error("EML190", `${where} does not parse — ${parsed.error}`, {
+            line: d.lineNo,
+            hint: "Write a formula over @column@ values: + - * / and brackets, numbers, 'text', and round, abs, min, max, coalesce, concat, days, if(<logic>, a, b).",
+            context: d.expression,
+          });
+          continue;
+        }
+        const columns = new Set(entity.attributes.map((a) => a.name));
+        for (const variable of parsed.formula.variables) {
+          if (!columns.has(variable)) {
+            this.error("EML191", `${where} reads @${variable}@, which ${d.entity} does not declare.`, {
+              line: d.lineNo,
+              hint: `A calculated field reads its own record: ${[...columns].join(", ")}.`,
+            });
+          }
+        }
+        const kind = formulaResultKind(parsed.formula.root);
+        const textColumn = attr.type === "string" || attr.type === "text";
+        if ((kind === "number" && !numeric(attr)) || (kind === "text" && !textColumn)) {
+          this.warn("EML193", `${where} answers ${kind === "number" ? "a number" : "text"}, but ${d.entity}.${d.column} is ${attr.rawType}.`, {
+            line: d.lineNo,
+            hint: "Declare the column as the type the formula answers, so the screen formats it as one.",
+          });
+        }
+      }
+
+      // EML195: a column with no storage cannot carry what needs storage.
+      const reasons: string[] = [];
+      if (attr.isPrimaryKey || entity.primaryKey === d.column) reasons.push("it is the primary key");
+      if (attr.isForeignKey) reasons.push("it is a foreign key");
+      if (attr.required) reasons.push("it is required");
+      if (attr.unique) reasons.push("it is unique");
+      if (this.stateFields().get(d.entity) === d.column) reasons.push("it is the state field");
+      if (this.model.indexes.some((i) => i.entity === d.entity && i.columns.includes(d.column))) reasons.push("an %%index names it");
+      for (const { text } of this.src.findAll(/^\s*%%entity\b/)) {
+        const m = text.trim().match(/^%%entity\s+(\w+)\s+identifier\s*:\s*(.+)$/);
+        if (m && m[1] === d.entity && (m[2] as string).split(",").map((c) => c.trim()).includes(d.column)) {
+          reasons.push("it is the record's identifier");
+        }
+      }
+      for (const key of otherKeys.get(`${d.entity}.${d.column}`) ?? []) {
+        if (["enum", "default", "mandatory", "readonly", "min", "max"].includes(key)) reasons.push(`it has ${key}:`);
+      }
+      if (reasons.length) {
+        this.error("EML195", `${where} makes ${d.column} a column with no storage, but ${reasons.join(", ")}.`, {
+          line: d.lineNo,
+          hint: "A computed field is drawn by the screen and never stored or written. Remove what needs a stored value, or compute a different column.",
+        });
+      }
+
+      // EML197: what the server evaluates cannot read it.
+      const pattern = new RegExp(`\\b${d.column}\\b`);
+      for (const rule of this.model.rules) {
+        if (rule.entity === d.entity && pattern.test(rule.raw ?? rule.nodes.map((n) => n.label).join("\n"))) {
+          this.error("EML197", `%%rule ${rule.name} on ${d.entity} reads ${d.column}, a computed field the server never sees.`, {
+            line: d.lineNo,
+            hint: "Rules run in the API, where a computed field has no value. Test the stored columns it is computed from.",
+          });
+        }
+      }
+      for (const report of this.model.reports) {
+        if (new RegExp(`\\b(bus_)?${entity.tableName}\\b`).test(report.sql) && pattern.test(report.sql)) {
+          this.error("EML197", `%%report ${report.name} reads ${d.column}, a computed field with no database column.`, {
+            line: d.lineNo,
+            hint: "A report runs SQL against the database, where the column does not exist. Aggregate the stored columns in the query instead.",
+          });
+        }
+      }
+    }
+
+    // EML192: formulas that read each other in a circle.
+    const byEntity = new Map<string, Declared[]>();
+    for (const d of computed.values()) {
+      if (!byEntity.has(d.entity)) byEntity.set(d.entity, []);
+      byEntity.get(d.entity)?.push(d);
+    }
+    for (const [entityName, list] of byEntity) {
+      const { cycle } = computeOrder(
+        list.map((d) => ({ column_name: d.column, computed_kind: d.kind, computed_expression: d.expression }))
+      );
+      if (cycle) {
+        const first = list.find((d) => d.column === cycle[0]);
+        this.error("EML192", `Calculated fields of ${entityName} read each other in a circle: ${cycle.join(" → ")}.`, {
+          line: first?.lineNo,
+          hint: "A formula can read another computed field only if that one does not, in the end, read it back.",
+        });
+      }
+    }
+  }
+
   private checkFieldDirectives(): void {
     const entityNames = new Set(this.model.entities.map((e) => e.name));
     const enumNames = new Set(this.model.enums.map((e) => e.name));
@@ -1167,6 +1415,7 @@ class CheckEngine {
     }
 
     this.checkFieldLogicTargets(entityAttrMap);
+    this.checkComputedFields();
 
     // EML146: A lifecycle column nobody bound to an enum.
     //

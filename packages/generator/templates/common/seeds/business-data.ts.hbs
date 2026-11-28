@@ -99,6 +99,8 @@ export async function seed(db: Kysely<any>): Promise<void> {
     {
       id: ids['{{../tableName}}'][{{@index}}],
       {{#each ../attributes}}
+      {{!-- A computed column (rollup, calculated) has no storage: nothing to seed. --}}
+      {{#unless computedKind}}
       {{#unless (eq name ../../primaryKey)}}
       {{#unless (eq name 'created_at')}}
       {{#unless (eq name 'updated_at')}}
@@ -123,6 +125,7 @@ export async function seed(db: Kysely<any>): Promise<void> {
         {{#default}}{{name}}: '{{seedValue name @../index ../../displayName enumValues}}',{{/default}}
       {{/switch}}
       {{/if}}
+      {{/unless}}
       {{/unless}}
       {{/unless}}
       {{/unless}}

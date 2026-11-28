@@ -75,6 +75,12 @@ export interface EntityMeta {
    */
   uniqueTogether?: string[][];
   fields: FieldMeta[];
+  /**
+   * Computed fields — `%%field E.c rollup: | calculated:` in the model. Drawn by
+   * the browser and never stored, so they are not in `fields`: the factory never
+   * writes one, and the API strips one from a write and refuses to filter by it.
+   */
+  computedFields?: Array<{ name: string; kind: "rollup" | "calculated"; expression: string }>;
 }
 
 export interface RelationshipMeta {
@@ -121,6 +127,13 @@ export const entities: EntityMeta[] = [
 {{/if}}
 {{#if uniqueTogether}}
     uniqueTogether: [{{#each uniqueTogether}}[{{#each this}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}]{{#unless @last}}, {{/unless}}{{/each}}],
+{{/if}}
+{{#if computedFields}}
+    computedFields: [
+{{#each computedFields}}
+      { name: "{{name}}", kind: "{{kind}}", expression: {{{json expression}}} },
+{{/each}}
+    ],
 {{/if}}
     fields: [
 {{#each attributes}}

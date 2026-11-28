@@ -132,8 +132,12 @@ export class BusController {
       if (me) parsedFilters.assigned_to = { operator: '= or null', value: me };
     }
 
-    if (Object.keys(parsedFilters).length > 0) {
-    }
+    // A computed field (rollup, calculated) has no column to filter or sort by:
+    // 400 COMPUTED_FIELD_NOT_QUERYABLE rather than a database error.
+    await this.busService.assertQueryable(entity, [
+      ...Object.keys(parsedFilters),
+      ...(orderBy ? [orderBy] : []),
+    ]);
 
     let searchFields: string[] | undefined;
     if (search) {

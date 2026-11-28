@@ -1807,6 +1807,12 @@ export async function executeCustomValidateHooks(
         template: "src/migrations/025_log_level_overrides.ts.hbs",
         required: true,
       },
+      // Rollup and calculated fields: sys_column.computed_kind / computed_expression.
+      {
+        slug: "computed_columns",
+        template: "src/migrations/026_computed_columns.ts.hbs",
+        required: true,
+      },
     ];
 
     // Drop previously generated scaffold migrations under *any* prefix. This
@@ -1964,6 +1970,12 @@ export async function executeCustomValidateHooks(
     await fs.copyFile(
       path.join(this.resolvedTemplateDir, "../../common/field-values.ts"),
       path.join(outputDir, "src/common/field-values.ts")
+    );
+    // Rollup and calculated fields: the API never computes one — it parses an
+    // administrator's edit and strips the values from a write with this copy.
+    await fs.copyFile(
+      path.join(this.resolvedTemplateDir, "../../common/field-compute.ts"),
+      path.join(outputDir, "src/common/field-compute.ts")
     );
 
     // Cascading lookups: which reference fields wait for another, with any circular

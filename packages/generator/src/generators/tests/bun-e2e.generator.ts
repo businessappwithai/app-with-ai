@@ -157,6 +157,8 @@ const SHARED_SUITES = [
   "02d-error-envelope.test.ts",
   // Changing a log level on a running process: administrators only, reads included.
   "02e-log-levels.test.ts",
+  // Rollup and calculated fields: served as definitions, never stored, never queried.
+  "02f-computed-fields.test.ts",
   "04-bulk-seed.test.ts",
   "06-rules-workflow.test.ts",
   // The state machine, driven edge by edge — after the rule-triggered
@@ -319,6 +321,32 @@ export class BunE2ETestGenerator extends BaseGenerator {
    * one parent for every record it creates writes the same pair twice and is
    * refused with a 409 that is the constraint working, not the application failing.
    */
+  /**
+   * Move computed columns (`%%field E.c rollup: | calculated:`) out of the field
+   * list into `computedFields`. They have no storage, so the factory must never
+   * put one in a payload and a suite must never sort or filter by one; suite
+   * 02f reads `computedFields` to hold the API to exactly that. Taken from the
+   * model, not from the dictionary the same generator wrote.
+   */
+  private withComputedFields(entities: BusEntity[]): BusEntity[] {
+    return entities.map((entity) => {
+      const attributes = (entity.attributes ?? []) as Array<
+        Partial<BusEntityAttribute> & { name: string; computedKind?: string; computedExpression?: string }
+      >;
+      const computed = attributes.filter((a) => a.computedKind);
+      if (!computed.length) return entity;
+      return {
+        ...entity,
+        attributes: attributes.filter((a) => !a.computedKind),
+        computedFields: computed.map((a) => ({
+          name: a.columnName ?? a.name,
+          kind: a.computedKind,
+          expression: a.computedExpression ?? "",
+        })),
+      };
+    }) as BusEntity[];
+  }
+
   private withUniqueTogether(entities: BusEntity[]): BusEntity[] {
     return entities.map((entity) => ({
       ...entity,
@@ -398,7 +426,7 @@ export class BunE2ETestGenerator extends BaseGenerator {
     entities: BusEntity[],
     relationships: Relationship[]
   ): Record<string, unknown> {
-    entities = this.withUniqueTogether(this.withValueCeilings(entities));
+    entities = this.withComputedFields(this.withUniqueTogether(this.withValueCeilings(entities)));
     return {
       project: {
         name: this.options.projectName,

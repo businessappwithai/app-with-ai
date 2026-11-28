@@ -1,0 +1,124 @@
+/**
+ * Computed fields — `%%field E.c rollup: | calculated:` in the model.
+ *
+ * A rollup or a calculated field is drawn by the browser and never stored, so
+ * what this suite holds the API to is everything the browser relies on and
+ * nothing it computes:
+ *
+ *   - the field's metadata carries its kind and its definition, read-only and
+ *     never updateable, and a rollup is on no list (a list loads no child rows);
+ *     a rollup also arrives resolved — which child table, linked on which column;
+ *   - a write that carries a computed value is saved without it, rather than
+ *     refused or written into a column that does not exist;
+ *   - filtering or sorting by one is a 400 naming COMPUTED_FIELD_NOT_QUERYABLE,
+ *     not a database error.
+ *
+ * The expectations are the model's (`computedFields` in harness/entities.ts),
+ * not the dictionary the same generator wrote. A model with no computed field
+ * has nothing to hold here.
+ *
+ * Generated: {{now}}
+ * Project: {{project.name}}
+ */
+
+import { afterAll, beforeAll, describe, expect, it } from "../harness/testing.ts";
+import { entities, harness } from "../harness/index.ts";
+
+interface MetaColumn {
+  column_name: string;
+  computed_kind?: string | null;
+  computed_expression?: string | null;
+  is_read_only?: boolean;
+  is_updateable?: boolean;
+  is_displayed_grid?: boolean;
+  rollup?: { fn: string; child_table: string; link_column: string } | null;
+}
+
+interface Row {
+  id?: string;
+  version?: number;
+  [column: string]: unknown;
+}
+
+const withComputed = entities.filter((entity) => (entity.computedFields ?? []).length > 0);
+
+describe("computed fields", () => {
+  beforeAll(async () => {
+    await harness.setup();
+  });
+
+  afterAll(async () => {
+    await harness.teardown();
+  });
+
+  it("the model's computed fields are known to this suite", () => {
+    // Nothing to assert for a model that declares none; the per-entity blocks
+    // below are the suite.
+    expect(Array.isArray(withComputed)).toBe(true);
+  });
+
+  for (const entity of withComputed) {
+    const computed = entity.computedFields ?? [];
+
+    describe(entity.name, () => {
+      it("serves each computed field as a read-only definition, a rollup off the list", async () => {
+        const meta = await harness.client.get<{ columns: MetaColumn[] }>(`/bus/${entity.route}/meta`);
+        for (const field of computed) {
+          const column = meta.data.columns.find((c) => c.column_name === field.name);
+          expect(column, `${entity.name}.${field.name} is in the metadata`).toBeTruthy();
+          expect(column!.computed_kind).toBe(field.kind);
+          expect(column!.computed_expression).toBe(field.expression);
+          expect(column!.is_read_only).toBe(true);
+          expect(column!.is_updateable).toBe(false);
+          if (field.kind === "rollup") {
+            expect(column!.is_displayed_grid).toBe(false);
+            expect(column!.rollup?.child_table, `${field.name} resolves its child`).toBeTruthy();
+            expect(column!.rollup?.link_column).toBeTruthy();
+          }
+        }
+      });
+
+      it("saves a write that carries computed values, without them", async () => {
+        const created = (await harness.createWithParents(entity)) as Row | null;
+        if (!created?.id) return; // the model's own rules may refuse a create here
+        for (const field of computed) {
+          expect(created[field.name], `${field.name} is not in a created record`).toBeUndefined();
+        }
+
+        const sent: Record<string, unknown> = {};
+        for (const field of computed) sent[field.name] = 12345;
+        const saved = await harness.client.patch<Row>(`/bus/${entity.route}/${created.id}`, sent, {
+          headers: { "If-Match": `"${created.version}"` },
+          allowFailure: true,
+        });
+        // A save the model's own rules refuse is the model working; what must
+        // never happen is a failure naming a column that does not exist.
+        if (!saved.ok) {
+          expect(JSON.stringify(saved.data)).not.toMatch(/column .* does not exist/);
+          return;
+        }
+        const stored = await harness.client.get<Row>(`/bus/${entity.route}/${created.id}`);
+        for (const field of computed) {
+          expect(stored.data[field.name], `${field.name} is not stored`).toBeUndefined();
+        }
+      });
+
+      it("refuses to filter or sort by a computed field", async () => {
+        const field = computed[0]!;
+        const filtered = await harness.client.get<{ details?: { code?: string } }>(
+          `/bus/${entity.route}?filter.${field.name}=gt:0`,
+          { allowFailure: true }
+        );
+        expect(filtered.status).toBe(400);
+        expect(filtered.data.details?.code).toBe("COMPUTED_FIELD_NOT_QUERYABLE");
+
+        const sorted = await harness.client.get<{ details?: { code?: string } }>(
+          `/bus/${entity.route}?orderBy=${field.name}`,
+          { allowFailure: true }
+        );
+        expect(sorted.status).toBe(400);
+        expect(sorted.data.details?.code).toBe("COMPUTED_FIELD_NOT_QUERYABLE");
+      });
+    });
+  }
+});

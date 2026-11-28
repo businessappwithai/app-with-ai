@@ -28,6 +28,8 @@ coverage/
 # never committed for the same reason: `bun run test:e2e:rules-workflows` found
 # a config and no tests.
 !scripts/e2e-rules-workflows/specs/*.spec.ts
+# The generated-application validation suite (scripts/e2e-generated-app).
+!scripts/e2e-generated-app/specs/*.spec.ts
 
 # Generated projects runtime artifacts
 packages/web/generated-projects/
@@ -252,3 +254,8 @@ scripts/e2e-rules-workflows/screenshots/
 /website/html/models/shipping-management-system.eml.mmd
 /website/html/models/unified-education-management-system.eml.mmd
 # <<< sync-common
+
+# scripts/e2e-generated-app: the facts it derives and what Playwright writes.
+scripts/e2e-generated-app/.facts/
+scripts/e2e-generated-app/test-results/
+scripts/e2e-generated-app/playwright-report/

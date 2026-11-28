@@ -177,7 +177,8 @@ export class DictionaryGenerator {
           is_key: attr.name === entity.primaryKey,
           is_parent: false,
           is_mandatory: attr.required,
-          is_updateable: attr.name !== entity.primaryKey,
+          /* A computed column is drawn, never written. */
+          is_updateable: attr.name !== entity.primaryKey && !attr.computedKind,
           is_identifier: identifiers.has(attr.name),
           is_selection_column:
             ["name", "email", "title", "description", "status"].includes(attr.name) ||
@@ -192,6 +193,10 @@ export class DictionaryGenerator {
              logic, inherited by every window over this table. */
           read_only_logic: attr.readOnlyLogic,
           mandatory_logic: attr.mandatoryLogic,
+          /* `%%field <E>.<c> rollup: | calculated:` — a column with no storage,
+             whose value the browser computes (common/language/field-compute.ts). */
+          computed_kind: attr.computedKind,
+          computed_expression: attr.computedExpression,
           format_pattern: undefined,
           entity_type: this.config.defaultEntityType,
           is_active: true,
@@ -279,6 +284,14 @@ export class DictionaryGenerator {
         display_logic: busAttrs[idx]?.displayLogic,
         read_only_logic: busAttrs[idx]?.readOnlyLogic,
         mandatory_logic: busAttrs[idx]?.mandatoryLogic,
+        /* A computed field is never an input; a rollup needs the record's
+           child rows, which a list does not load, so it is on the form only. */
+        ...(busAttrs[idx]?.computedKind
+          ? {
+              is_read_only: true,
+              ...(busAttrs[idx]?.computedKind === "rollup" ? { is_displayed_grid: false } : {}),
+            }
+          : {}),
       }));
 
       /*

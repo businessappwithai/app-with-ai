@@ -9,7 +9,12 @@
  */
 
 import type { Entity } from "@appwithai/core/types";
-import { declaredEntityNames, entityToBusEntity, formatDisplayName } from "@appwithai/core/types";
+import {
+  declaredEntityNames,
+  entityToBusEntity,
+  formatDisplayName,
+  isComputedAttribute,
+} from "@appwithai/core/types";
 import type { CompiledSaga, CompiledWorkflow } from "../workflows";
 
 export interface RuleModelEntity {
@@ -54,7 +59,9 @@ export function buildRuleModel(model: {
       name: entity.name,
       table: bus.tableName,
       label: formatDisplayName(entity.name),
-      fields: entity.attributes.map((attribute) => ({
+      /* A computed field is drawn by the browser; the rules engine runs in the
+         API, where it has no value, so the editors never offer one. */
+      fields: entity.attributes.filter((attribute) => !isComputedAttribute(attribute)).map((attribute) => ({
         name: attribute.name,
         type: jsonType(attribute.type),
       })),

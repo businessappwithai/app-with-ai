@@ -26,6 +26,7 @@
     "test": "bun scripts/sync-common.ts && bun --filter @appwithai/web test",
     "test:watch": "bun --filter @appwithai/web test:watch",
     "test:e2e:server": "bun --bun playwright test",
+    "test:e2e:generated-app": "bun scripts/e2e-generated-app/run.ts",
     "test:e2e:rules-workflows": "bun scripts/e2e-rules-workflows/run.ts",
     "test:playwright": "bun --bun playwright test",
     "test:playwright:ui": "bun --bun playwright test --ui",

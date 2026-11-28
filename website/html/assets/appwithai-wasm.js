@@ -509,12 +509,56 @@ var appwithai_language_default = {
         dependencies: "The form re-evaluates all three on every change to a column the logic reads, so a field appears, locks or becomes required as the record is edited."
       },
       enforcement: "The form's evaluation is a convenience; the API is the control. Both generated stacks evaluate the same logic on every create and update: a field whose mandatory logic is true for the record as it will be saved, and which is displayed, must have a value (400, 'Validation failed'); a field whose read-only logic is true for the record as it is stored cannot be changed by an update (400). A create has nothing stored to lock, so read-only logic does not refuse one. Display logic hides a field and never refuses a write.",
-      notSupported: "Compiere's global context variables (@#AD_Client_ID@), SQL logic (@SQL=...) and Java callouts. Logic reads the record's own columns only; a rule that needs another table, a role or a computed value belongs in %%action or a %%hook.",
+      notSupported: "Compiere's global context variables (@#AD_Client_ID@), SQL logic (@SQL=...) and Java callouts. Logic reads the record's own columns only - and the record's computed fields (applicationDictionary.computedFields), which the form computes first; a rule that needs another table or a role belongs in %%action or a %%hook.",
       checkerCodes: {
         EML156: "error - a display:, readonly: or mandatory: value that does not parse as Compiere logic.",
         EML157: "error - the logic reads @column@ that the entity does not declare.",
         EML158: "warning - display logic that depends on its own field: once hidden, nobody can see it to change it back.",
         EML159: "warning - logic placed on the primary key or on the state field, neither of which is ever an input."
+      }
+    },
+    computedFields: {
+      description: "Two field types with no storage, whose value the browser computes and draws read-only: a Rollup aggregates a column of the record's child rows, a Calculated field is a formula over the record's own fields. The column is still declared in the erDiagram block - its type decides how the value is formatted - and the %%field key is what makes it computed. Nothing on the server computes either: no new endpoint, no stored value, no report, rule or workflow reads one.",
+      declare: {
+        rollup: "%%field <Entity>.<column> rollup: <fn>(<Child>[.<column>] [via <link_column>]) [where <logic>] - fn is sum, avg, min, max or count; count(Child) counts rows. Compiled to sys_column.computed_kind = 'rollup' and computed_expression.",
+        calculated: "%%field <Entity>.<column> calculated: <formula> - a formula over @column@ values of the same record. Compiled to sys_column.computed_kind = 'calculated' and computed_expression."
+      },
+      rollup: {
+        child: "A line item of the entity (%%entity <Child> parent: <Entity>), linked on its parent link column, or any entity with exactly one foreign key named after this one. `via <column>` names the link when there are two.",
+        where: "Field logic (applicationDictionary.fieldLogic) read against each child row; only rows it is true for are aggregated.",
+        values: "Nulls are skipped. sum and count of no rows are 0; avg, min and max of none are empty. min and max also order dates. A calculated child column is computed on each row first; a rollup of a rollup is refused.",
+        rows: "The child rows the record screen already lists for its tab, read with the same request and query key, every page of them; a list the user may not read gives no value rather than a partial one."
+      },
+      calculated: {
+        operands: "@column@, a number, or quoted text 'x'.",
+        operators: "+ - * / with the usual precedence, unary minus and parentheses. & and | are not operators here: they are field logic's and/or.",
+        functions: "round(x[, n]), abs(x), min(...), max(...), coalesce(...), concat(...), days(a, b) - whole days from b to a - and if(<logic>, then, else).",
+        values: "An empty value is null; arithmetic with a null is null, and so is a division by zero. min, max and the aggregates skip nulls; concat reads one as empty text. A formula may read stored columns, rollups and other calculated fields; they are evaluated in dependency order and a circle is refused.",
+        examples: [
+          "round(@quantity@ * @unit_price@ * (1 - coalesce(@discount_pct@, 0) / 100), 2)",
+          "@subtotal@ - coalesce(@discount_amount@, 0) + coalesce(@shipping_amount@, 0)",
+          "if(@stage@=closed_won, @amount@, 0)",
+          "days(@due_on@, @opened_on@)"
+        ]
+      },
+      oneReading: "language/field-compute.ts parses and evaluates both. The checker validates with it; the generated NestJS application carries a byte-identical copy (templates/common/field-compute.ts) - the front end computes with it, the API only parses an administrator's edit and strips values from a write - and the browser stack its JavaScript twin (templates/wasm/server/lib/field-compute.js), held to the same cases by a parity test.",
+      noStorage: "No table column, no seed value, no default. The API drops a computed value from every write and refuses to filter or sort by one (400, details.code COMPUTED_FIELD_NOT_QUERYABLE). The field is read-only on every form; a rollup is on the form only, never in a list, which does not load child rows. Reports, rules, workflows and the chat assistant read records through the database or the API and cannot see the value.",
+      administration: "The definition lives in the dictionary, so an administrator changes it in the Column window without regenerating; the API refuses an expression that does not parse, names a column or a child table the dictionary lacks, or closes a circle. A stored column cannot be turned into a computed one, nor back; a new computed column is created as one, with no DDL.",
+      checkerCodes: {
+        EML180: "error - a rollup that does not parse.",
+        EML181: "error - the rollup's child is not declared, or has no foreign key to the entity.",
+        EML182: "error - the aggregated child column is not declared, or is not a number for sum and avg (a number or a date for min and max).",
+        EML183: "error - the link is ambiguous (two keys to the entity and no via), or via names no foreign key.",
+        EML184: "error - the where condition does not parse, or reads a column the child lacks.",
+        EML185: "error - a rollup of a column that is itself a rollup.",
+        EML186: "warning - the rollup answers a type the column does not hold.",
+        EML190: "error - a calculated formula that does not parse.",
+        EML191: "error - the formula reads @column@ that the entity does not declare.",
+        EML192: "error - computed fields that read each other in a circle.",
+        EML193: "warning - the formula answers a type the column does not hold.",
+        EML195: "error - the computed column is also something that needs storage: the key, a foreign key, required, unique, the state field, the identifier, an %%index column, or a column with enum:, default:, mandatory: or readonly:.",
+        EML196: "error - both rollup: and calculated: on one column.",
+        EML197: "error - a %%rule on the entity or a %%report reading its table names the computed column, which the server never sees."
       }
     },
     optimisticLocking: {
@@ -1373,15 +1417,17 @@ var appwithai_language_default = {
         form: "%%field <Entity>.<attr> <key>: <value>",
         status: "compiled",
         consumedBy: [
-          "packages/generator/src/parsers/mermaid.parser.ts (the `enum:`, `help:`, `display:`, `readonly:` and `mandatory:` keys; the other keys are reserved)"
+          "packages/generator/src/parsers/mermaid.parser.ts (the `enum:`, `help:`, `display:`, `readonly:`, `mandatory:`, `rollup:` and `calculated:` keys; the other keys are reserved)"
         ],
-        purpose: "Extended field metadata: enum reference, help text and Compiere field logic (display:, readonly:, mandatory: - see applicationDictionary.fieldLogic), all compiled; ui control, default value, min/max and format are reserved.",
+        purpose: "Extended field metadata: enum reference, help text, Compiere field logic (display:, readonly:, mandatory: - see applicationDictionary.fieldLogic) and computed fields (rollup:, calculated: - see applicationDictionary.computedFields), all compiled; ui control, default value, min/max and format are reserved.",
         examples: [
           "%%field Order.status enum: OrderStatus",
           "%%field Contact.account_id help: The company this person works for. Leave empty for a personal contact.",
           "%%field Opportunity.loss_reason display: @stage@=closed_lost",
           "%%field Opportunity.amount readonly: @stage@=closed_won | @stage@=closed_lost",
           "%%field Contract.renewal_notice_days mandatory: @auto_renew@=Y",
+          "%%field Order.subtotal rollup: sum(OrderLine.line_amount)",
+          "%%field OrderLine.line_amount calculated: round(@quantity@ * @unit_price@, 2)",
           "%%field Product.price min: 0",
           "%%field User.email unique: true"
         ]
@@ -1773,7 +1819,7 @@ var appwithai_language_default = {
       workflows: "%%hook directives in both forms (all 13 hook types), stateDiagram-v2 state machines, and %%workflow kind: saga with its %%step and %%loop directives. All three forms are compiled and seeded; the automation dialect is the same saga machinery authored through the builder.",
       help: "%%field <Entity>.<column> help: and %%entity <Name> help: (or description:). Both are compiled: the parser hangs the text on the attribute and the entity, the dictionary generator writes it to sys_column.description and sys_table.description, and the generated application shows it under the field and beside the table. It has a second consumer: packages/generator/src/manual/index.ts renders manual.html from the same parsed model, where this text is the entire 'what it is for' column — a field with no help prints a dash there. Write help on every entity and every column, and write domain knowledge rather than the name again: EML151, EML152 and EML153 report the three ways a model fails to. See applicationDictionary.helpText. Fully compiled.",
       validated: "%%rule and %%trigger, and the %%entity keys other than help:/description:. No compiler reads these yet, but language/checker.ts enforces their syntax and cross-references, so a malformed one fails validation instead of being silently dropped.",
-      reserved: "The %%field keys other than enum: and help:. Renderer-safe and documented, with no reader. Writing one is legal and inert.",
+      reserved: "The %%field keys other than enum:, help:, display:, readonly:, mandatory:, rollup: and calculated:. Renderer-safe and documented, with no reader. Writing one is legal and inert.",
       access: "%%rbac on CRUD operations. Compiled to sys_operation_access and enforced by the generated EntityAccessGuard. A state transition is not a grantable operation: the state field is system-managed."
     },
     validationRules: [
@@ -1803,7 +1849,7 @@ var appwithai_language_default = {
       "EML001-EML099": "Document level: metadata, emptiness, section structure.",
       "EML100-EML119": "Entities and attributes.",
       "EML120-EML129": "Relationships.",
-      "EML130-EML199": "Directives attached to the ERD: %%enum, %%field, %%entity, %%index, %%category, %%section — including the line-item pair EML149 and EML150, and the form-layout codes EML170-EML177.",
+      "EML130-EML199": "Directives attached to the ERD: %%enum, %%field, %%entity, %%index, %%category, %%section — including the line-item pair EML149 and EML150, the form-layout codes EML170-EML177, and the computed-field codes EML180-EML197 (rollup:, calculated:).",
       "EML200-EML299": "Hooks, guards, triggers, workflows and rules as declared by directives.",
       "EML300-EML399": "Business-rule flowcharts.",
       "EML400-EML449": "Workflow sections: hook, state and saga.",
@@ -6277,6 +6323,447 @@ var SysReferenceSchema = objectType({
   created_at: dateType(),
   updated_at: dateType()
 });
+// common/language/field-logic.ts
+var OPERATOR_ALIASES = {
+  "=": "=",
+  "==": "=",
+  "!": "!",
+  "!=": "!",
+  "^": "!",
+  "<>": "!",
+  ">": ">",
+  "<": "<",
+  ">=": ">=",
+  "<=": "<="
+};
+var OPERATOR_TOKENS = ["!=", "<>", ">=", "<=", "==", "=", "!", "^", ">", "<"];
+var VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+function splitConditions(source) {
+  const parts = [];
+  const joins = [];
+  let current = "";
+  let quote = null;
+  let inVariable = false;
+  for (const ch of source) {
+    if (quote) {
+      current += ch;
+      if (ch === quote)
+        quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      current += ch;
+      continue;
+    }
+    if (ch === "@")
+      inVariable = !inVariable;
+    if (!inVariable && (ch === "&" || ch === "|")) {
+      parts.push(current);
+      joins.push(ch);
+      current = "";
+      continue;
+    }
+    if (!inVariable && (ch === "(" || ch === ")")) {
+      return "Parentheses are not supported: conditions are evaluated left to right.";
+    }
+    current += ch;
+  }
+  if (quote)
+    return "A quoted value is not closed.";
+  if (inVariable)
+    return "A variable is not closed: write it as @column@.";
+  parts.push(current);
+  return { parts, joins };
+}
+function parseOperand(raw) {
+  const text = raw.trim();
+  if (text === "")
+    return { kind: "literal", value: "" };
+  if (text.startsWith("@")) {
+    if (!text.endsWith("@") || text.length < 3)
+      return `"${text}" is not a variable: write @column@.`;
+    const name = text.slice(1, -1).trim();
+    if (!VARIABLE_NAME.test(name))
+      return `"${text}" is not a column name.`;
+    return { kind: "variable", name };
+  }
+  const first = text[0];
+  if (first === "'" || first === '"') {
+    if (text.length < 2 || text[text.length - 1] !== first)
+      return `${text} is not closed.`;
+    return { kind: "literal", value: text.slice(1, -1) };
+  }
+  if (text.includes("@"))
+    return `"${text}" mixes a variable into a value.`;
+  return { kind: "literal", value: text };
+}
+function splitComparison(text) {
+  let quote = null;
+  let inVariable = false;
+  for (let i = 0;i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === quote)
+        quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      continue;
+    }
+    if (ch === "@") {
+      inVariable = !inVariable;
+      continue;
+    }
+    if (inVariable)
+      continue;
+    for (const token of OPERATOR_TOKENS) {
+      if (text.startsWith(token, i)) {
+        return [text.slice(0, i), token, text.slice(i + token.length)];
+      }
+    }
+  }
+  return null;
+}
+function parseLogic(source) {
+  const text = (source ?? "").trim();
+  if (!text)
+    return { ok: false, error: "The expression is empty." };
+  const split = splitConditions(text);
+  if (typeof split === "string")
+    return { ok: false, error: split };
+  const conditions = [];
+  const variables = [];
+  for (const part of split.parts) {
+    const trimmed = part.trim();
+    if (!trimmed)
+      return { ok: false, error: "A condition is missing beside & or |." };
+    const comparison = splitComparison(trimmed);
+    if (!comparison) {
+      return {
+        ok: false,
+        error: `"${trimmed}" has no comparison: write @column@=value, @column@!value, > or <.`
+      };
+    }
+    const [leftRaw, token, rightRaw] = comparison;
+    const left = parseOperand(leftRaw);
+    if (typeof left === "string")
+      return { ok: false, error: left };
+    const right = parseOperand(rightRaw);
+    if (typeof right === "string")
+      return { ok: false, error: right };
+    if (left.kind !== "variable" && right.kind !== "variable") {
+      return { ok: false, error: `"${trimmed}" compares two constants: one side must be @column@.` };
+    }
+    for (const operand of [left, right]) {
+      if (operand.kind === "variable" && !variables.includes(operand.name)) {
+        variables.push(operand.name);
+      }
+    }
+    conditions.push({ left, operator: OPERATOR_ALIASES[token], right });
+  }
+  return { ok: true, logic: { conditions, joins: split.joins, variables } };
+}
+
+// common/language/field-compute.ts
+var ROLLUP_FUNCTIONS = ["sum", "avg", "min", "max", "count"];
+var FORMULA_FUNCTIONS = [
+  "round",
+  "abs",
+  "min",
+  "max",
+  "coalesce",
+  "concat",
+  "days",
+  "if"
+];
+var ROLLUP_PATTERN = /^([A-Za-z]+)\s*\(\s*([A-Za-z_]\w*)(?:\s*\.\s*([A-Za-z_]\w*))?(?:\s+via\s+([A-Za-z_]\w*))?\s*\)\s*(?:where\s+([\s\S]+))?$/i;
+function parseRollup(source) {
+  const text = (source ?? "").trim();
+  if (!text)
+    return { ok: false, error: "The rollup is empty." };
+  const match = ROLLUP_PATTERN.exec(text);
+  if (!match) {
+    return {
+      ok: false,
+      error: "A rollup is <fn>(<Child>.<column>) — sum, avg, min, max or count — optionally " + "followed by `via <link_column>` inside the brackets and `where <logic>` after them."
+    };
+  }
+  const fn = match[1].toLowerCase();
+  if (!ROLLUP_FUNCTIONS.includes(fn)) {
+    return { ok: false, error: `"${match[1]}" is not a rollup: use ${ROLLUP_FUNCTIONS.join(", ")}.` };
+  }
+  const column = match[3];
+  if (!column && fn !== "count") {
+    return { ok: false, error: `${fn}() needs a column: write ${fn}(${match[2]}.<column>).` };
+  }
+  const rollup = { fn, child: match[2] };
+  if (column)
+    rollup.column = column;
+  if (match[4])
+    rollup.via = match[4];
+  const where = match[5] ? match[5].trim() : "";
+  if (where) {
+    const parsed = parseLogic(where);
+    if (!parsed.ok)
+      return { ok: false, error: `The where condition: ${parsed.error}` };
+    rollup.where = where;
+  }
+  return { ok: true, rollup };
+}
+var ARITY = {
+  round: [1, 2],
+  abs: [1, 1],
+  min: [1, Infinity],
+  max: [1, Infinity],
+  coalesce: [1, Infinity],
+  concat: [1, Infinity],
+  days: [2, 2]
+};
+
+class FormulaReader {
+  pos = 0;
+  variables = [];
+  text;
+  constructor(text) {
+    this.text = text;
+  }
+  fail(message) {
+    throw new Error(message);
+  }
+  skip() {
+    while (this.pos < this.text.length && /\s/.test(this.text[this.pos]))
+      this.pos++;
+  }
+  peek() {
+    this.skip();
+    return this.text[this.pos] ?? "";
+  }
+  expect(ch) {
+    if (this.peek() !== ch) {
+      this.fail(this.pos >= this.text.length ? `Expected "${ch}" at the end.` : `Expected "${ch}" at "${this.text.slice(this.pos, this.pos + 12)}".`);
+    }
+    this.pos++;
+  }
+  note(name) {
+    if (!this.variables.includes(name))
+      this.variables.push(name);
+  }
+  expression() {
+    let left = this.term();
+    for (;; ) {
+      const ch = this.peek();
+      if (ch !== "+" && ch !== "-")
+        return left;
+      this.pos++;
+      left = { kind: "binary", op: ch, left, right: this.term() };
+    }
+  }
+  term() {
+    let left = this.unary();
+    for (;; ) {
+      const ch = this.peek();
+      if (ch !== "*" && ch !== "/")
+        return left;
+      this.pos++;
+      left = { kind: "binary", op: ch, left, right: this.unary() };
+    }
+  }
+  unary() {
+    if (this.peek() === "-") {
+      this.pos++;
+      return { kind: "negate", operand: this.unary() };
+    }
+    if (this.peek() === "+") {
+      this.pos++;
+      return this.unary();
+    }
+    return this.primary();
+  }
+  primary() {
+    const ch = this.peek();
+    if (ch === "")
+      this.fail("The formula ends where a value was expected.");
+    if (ch === "(") {
+      this.pos++;
+      const inner = this.expression();
+      this.expect(")");
+      return inner;
+    }
+    if (ch === "@") {
+      const end = this.text.indexOf("@", this.pos + 1);
+      if (end < 0)
+        this.fail("A variable is not closed: write it as @column@.");
+      const name = this.text.slice(this.pos + 1, end).trim();
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+        this.fail(`"@${name}@" is not a column name.`);
+      this.pos = end + 1;
+      this.note(name);
+      return { kind: "variable", name };
+    }
+    if (ch === "'" || ch === '"') {
+      const end = this.text.indexOf(ch, this.pos + 1);
+      if (end < 0)
+        this.fail("A quoted text is not closed.");
+      const value = this.text.slice(this.pos + 1, end);
+      this.pos = end + 1;
+      return { kind: "text", value };
+    }
+    const number = /^(\d+(?:\.\d+)?|\.\d+)/.exec(this.text.slice(this.pos));
+    if (number) {
+      this.pos += number[1].length;
+      return { kind: "number", value: Number(number[1]) };
+    }
+    const word = /^[A-Za-z_]\w*/.exec(this.text.slice(this.pos));
+    if (word) {
+      const fn = word[0].toLowerCase();
+      this.pos += word[0].length;
+      if (this.peek() !== "(") {
+        this.fail(`"${word[0]}" is not a value: write a column as @${word[0]}@, a text as '${word[0]}'.`);
+      }
+      this.pos++;
+      if (fn === "if")
+        return this.conditional();
+      const arity = ARITY[fn];
+      if (!arity)
+        this.fail(`"${word[0]}" is not a function: use ${FORMULA_FUNCTIONS.join(", ")}.`);
+      const args = [];
+      if (this.peek() !== ")") {
+        args.push(this.expression());
+        while (this.peek() === ",") {
+          this.pos++;
+          args.push(this.expression());
+        }
+      }
+      this.expect(")");
+      if (args.length < arity[0] || args.length > arity[1]) {
+        const wanted = arity[0] === arity[1] ? `${arity[0]}` : arity[1] === Infinity ? `at least ${arity[0]}` : `${arity[0]} or ${arity[1]}`;
+        this.fail(`${fn}() takes ${wanted} value${wanted === "1" ? "" : "s"}, not ${args.length}.`);
+      }
+      return { kind: "call", fn, args };
+    }
+    return this.fail(`Unexpected "${ch}" at "${this.text.slice(this.pos, this.pos + 12)}".`);
+  }
+  conditional() {
+    this.skip();
+    const start = this.pos;
+    let quote = null;
+    let inVariable = false;
+    let end = -1;
+    for (let i = start;i < this.text.length; i++) {
+      const c = this.text[i];
+      if (quote) {
+        if (c === quote)
+          quote = null;
+        continue;
+      }
+      if (c === "'" || c === '"')
+        quote = c;
+      else if (c === "@")
+        inVariable = !inVariable;
+      else if (!inVariable && c === ",") {
+        end = i;
+        break;
+      }
+    }
+    if (end < 0)
+      this.fail("if() takes a condition, a value and another value.");
+    const condition = this.text.slice(start, end).trim();
+    const parsed = parseLogic(condition);
+    if (!parsed.ok)
+      this.fail(`The if() condition: ${parsed.error}`);
+    for (const name of parsed.logic.variables)
+      this.note(name);
+    this.pos = end + 1;
+    const then = this.expression();
+    this.expect(",");
+    const otherwise = this.expression();
+    this.expect(")");
+    return { kind: "if", condition, then, otherwise };
+  }
+}
+function parseFormula(source) {
+  const text = (source ?? "").trim();
+  if (!text)
+    return { ok: false, error: "The formula is empty." };
+  const reader = new FormulaReader(text);
+  try {
+    const root = reader.expression();
+    if (reader.peek() !== "") {
+      return { ok: false, error: `Unexpected "${text.slice(reader.pos, reader.pos + 12)}" after the formula.` };
+    }
+    return { ok: true, formula: { root, variables: reader.variables } };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+function formulaVariables(source) {
+  const parsed = parseFormula(source);
+  return parsed.ok ? parsed.formula.variables : [];
+}
+function formulaResultKind(node) {
+  switch (node.kind) {
+    case "number":
+    case "negate":
+    case "binary":
+      return "number";
+    case "text":
+      return "text";
+    case "variable":
+      return "unknown";
+    case "call":
+      if (node.fn === "concat")
+        return "text";
+      if (node.fn === "coalesce" || node.fn === "min" || node.fn === "max") {
+        const kinds = node.args.map(formulaResultKind);
+        return kinds.every((k) => k === kinds[0]) ? kinds[0] : "unknown";
+      }
+      return "number";
+    case "if": {
+      const a = formulaResultKind(node.then);
+      const b = formulaResultKind(node.otherwise);
+      return a === b ? a : "unknown";
+    }
+  }
+}
+function isComputed(field) {
+  return !!field && (field.computed_kind === "rollup" || field.computed_kind === "calculated");
+}
+function computeOrder(fields) {
+  const computed = fields.filter(isComputed);
+  const byName = new Map(computed.map((f) => [f.column_name, f]));
+  const order = computed.filter((f) => f.computed_kind === "rollup").map((f) => f.column_name);
+  const state = new Map;
+  for (const name of order)
+    state.set(name, "done");
+  let cycle = null;
+  const visit = (name, path) => {
+    if (cycle)
+      return;
+    const seen = state.get(name);
+    if (seen === "done")
+      return;
+    if (seen === "visiting") {
+      cycle = path.slice(path.indexOf(name)).concat(name);
+      return;
+    }
+    state.set(name, "visiting");
+    const field = byName.get(name);
+    for (const dep of formulaVariables(field ? field.computed_expression : null)) {
+      if (byName.has(dep))
+        visit(dep, path.concat(name));
+    }
+    state.set(name, "done");
+    order.push(name);
+  };
+  for (const field of computed) {
+    if (field.computed_kind === "calculated")
+      visit(field.column_name, []);
+  }
+  return { order, cycle };
+}
+
 // packages/generator/src/parsers/mermaid.parser.ts
 var TYPE_MAP = getTypeMap();
 var SEMANTIC_TYPES = new Set(["email", "url", "phone", "password", "color"]);
@@ -6321,6 +6808,7 @@ class MermaidParser {
     const declaredEnums = new Map;
     const enumBindings = [];
     const fieldHelpText = [];
+    const fieldComputed = [];
     const fieldLogic = [];
     const entityHelpText = new Map;
     const entityIcons = new Map;
@@ -6349,6 +6837,9 @@ class MermaidParser {
         const logic = this.parseFieldLogicDirective(trimmed);
         if (logic)
           fieldLogic.push(logic);
+        const computed = this.parseFieldComputeDirective(trimmed);
+        if (computed)
+          fieldComputed.push(computed);
         const entityHelp = this.parseEntityHelpDirective(trimmed);
         if (entityHelp)
           entityHelpText.set(entityHelp.entity, entityHelp.help);
@@ -6406,6 +6897,7 @@ class MermaidParser {
     this.attachIcons(entities, entityIcons);
     this.attachIdentifiers(entities, entityIdentifiers);
     this.attachParents(entities, entityParents);
+    this.attachComputed(entities, fieldComputed);
     const enums = this.attachEnums(entities, declaredEnums, enumBindings);
     return { entities, relationships, enums };
   }
@@ -6521,6 +7013,61 @@ class MermaidParser {
       return null;
     const logic = match[4].trim();
     return logic ? { entity: match[1], column: match[2], kind: match[3], logic } : null;
+  }
+  parseFieldComputeDirective(line) {
+    const match = line.match(/^%%field\s+([A-Za-z_]\w*)\.([A-Za-z_]\w*)\s+(rollup|calculated)\s*:\s*(.+)$/);
+    if (!match?.[1] || !match[2] || !match[3] || !match[4])
+      return null;
+    const expression = match[4].trim();
+    return expression ? {
+      entity: match[1],
+      column: match[2],
+      kind: match[3],
+      expression
+    } : null;
+  }
+  attachComputed(entities, computed) {
+    const seen = new Set;
+    for (const { entity: name, column, kind, expression } of computed) {
+      if (seen.has(`${name}.${column}`))
+        continue;
+      const entity = entities.find((candidate) => candidate.name === name);
+      const attribute = entity?.attributes.find((candidate) => candidate.name === column);
+      if (!entity || !attribute || attribute.isForeignKey || column === entity.primaryKey)
+        continue;
+      if (kind === "calculated") {
+        if (!parseFormula(expression).ok)
+          continue;
+      } else {
+        const parsed = parseRollup(expression);
+        if (!parsed.ok)
+          continue;
+        const spec = parsed.rollup;
+        const child = entities.find((candidate) => candidate.name === spec.child);
+        if (!child)
+          continue;
+        const snake = snakeCase(name);
+        const keys = child.attributes.filter((a) => a.isForeignKey && (a.name === `${snake}_id` || a.name.startsWith(`${snake}_`)));
+        const link = spec.via ? child.attributes.find((a) => a.name === spec.via && a.isForeignKey) : child.parentEntity === name && child.parentLinkColumn ? child.attributes.find((a) => a.name === child.parentLinkColumn) : keys.length === 1 ? keys[0] : undefined;
+        if (!link)
+          continue;
+        if (spec.column && !child.attributes.some((a) => a.name === spec.column))
+          continue;
+        attribute.rollup = {
+          fn: spec.fn,
+          childEntity: child.name,
+          linkColumn: link.name,
+          ...spec.column ? { childColumn: spec.column } : {},
+          ...spec.where ? { where: spec.where } : {}
+        };
+      }
+      seen.add(`${name}.${column}`);
+      attribute.computedKind = kind;
+      attribute.computedExpression = expression;
+      attribute.required = false;
+      attribute.unique = false;
+      delete attribute.default;
+    }
   }
   attachFieldLogic(entities, logic) {
     for (const { entity: name, column, kind, logic: expression } of logic) {
@@ -8775,149 +9322,6 @@ function applyFieldEnumRefs(model) {
 // common/language/checker.ts
 init_language();
 
-// common/language/field-logic.ts
-var OPERATOR_ALIASES = {
-  "=": "=",
-  "==": "=",
-  "!": "!",
-  "!=": "!",
-  "^": "!",
-  "<>": "!",
-  ">": ">",
-  "<": "<",
-  ">=": ">=",
-  "<=": "<="
-};
-var OPERATOR_TOKENS = ["!=", "<>", ">=", "<=", "==", "=", "!", "^", ">", "<"];
-var VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-function splitConditions(source) {
-  const parts = [];
-  const joins = [];
-  let current = "";
-  let quote = null;
-  let inVariable = false;
-  for (const ch of source) {
-    if (quote) {
-      current += ch;
-      if (ch === quote)
-        quote = null;
-      continue;
-    }
-    if (ch === "'" || ch === '"') {
-      quote = ch;
-      current += ch;
-      continue;
-    }
-    if (ch === "@")
-      inVariable = !inVariable;
-    if (!inVariable && (ch === "&" || ch === "|")) {
-      parts.push(current);
-      joins.push(ch);
-      current = "";
-      continue;
-    }
-    if (!inVariable && (ch === "(" || ch === ")")) {
-      return "Parentheses are not supported: conditions are evaluated left to right.";
-    }
-    current += ch;
-  }
-  if (quote)
-    return "A quoted value is not closed.";
-  if (inVariable)
-    return "A variable is not closed: write it as @column@.";
-  parts.push(current);
-  return { parts, joins };
-}
-function parseOperand(raw) {
-  const text = raw.trim();
-  if (text === "")
-    return { kind: "literal", value: "" };
-  if (text.startsWith("@")) {
-    if (!text.endsWith("@") || text.length < 3)
-      return `"${text}" is not a variable: write @column@.`;
-    const name = text.slice(1, -1).trim();
-    if (!VARIABLE_NAME.test(name))
-      return `"${text}" is not a column name.`;
-    return { kind: "variable", name };
-  }
-  const first = text[0];
-  if (first === "'" || first === '"') {
-    if (text.length < 2 || text[text.length - 1] !== first)
-      return `${text} is not closed.`;
-    return { kind: "literal", value: text.slice(1, -1) };
-  }
-  if (text.includes("@"))
-    return `"${text}" mixes a variable into a value.`;
-  return { kind: "literal", value: text };
-}
-function splitComparison(text) {
-  let quote = null;
-  let inVariable = false;
-  for (let i = 0;i < text.length; i++) {
-    const ch = text[i];
-    if (quote) {
-      if (ch === quote)
-        quote = null;
-      continue;
-    }
-    if (ch === "'" || ch === '"') {
-      quote = ch;
-      continue;
-    }
-    if (ch === "@") {
-      inVariable = !inVariable;
-      continue;
-    }
-    if (inVariable)
-      continue;
-    for (const token of OPERATOR_TOKENS) {
-      if (text.startsWith(token, i)) {
-        return [text.slice(0, i), token, text.slice(i + token.length)];
-      }
-    }
-  }
-  return null;
-}
-function parseLogic(source) {
-  const text = (source ?? "").trim();
-  if (!text)
-    return { ok: false, error: "The expression is empty." };
-  const split = splitConditions(text);
-  if (typeof split === "string")
-    return { ok: false, error: split };
-  const conditions = [];
-  const variables = [];
-  for (const part of split.parts) {
-    const trimmed = part.trim();
-    if (!trimmed)
-      return { ok: false, error: "A condition is missing beside & or |." };
-    const comparison = splitComparison(trimmed);
-    if (!comparison) {
-      return {
-        ok: false,
-        error: `"${trimmed}" has no comparison: write @column@=value, @column@!value, > or <.`
-      };
-    }
-    const [leftRaw, token, rightRaw] = comparison;
-    const left = parseOperand(leftRaw);
-    if (typeof left === "string")
-      return { ok: false, error: left };
-    const right = parseOperand(rightRaw);
-    if (typeof right === "string")
-      return { ok: false, error: right };
-    if (left.kind !== "variable" && right.kind !== "variable") {
-      return { ok: false, error: `"${trimmed}" compares two constants: one side must be @column@.` };
-    }
-    for (const operand of [left, right]) {
-      if (operand.kind === "variable" && !variables.includes(operand.name)) {
-        variables.push(operand.name);
-      }
-    }
-    conditions.push({ left, operator: OPERATOR_ALIASES[token], right });
-  }
-  return { ok: true, logic: { conditions, joins: split.joins, variables } };
-}
-
 // common/language/move-facts.ts
 var SAGA = /^%%workflow\s+(\w+)\s+entity:\s*(\w+)\s+kind:\s*saga\b.*\btrigger:\s*rule\b/;
 var RULE = /^%%rule\s+(\w+)\s+on\s+(\w+)\b/;
@@ -9216,7 +9620,9 @@ class CheckEngine {
     "format",
     "display",
     "readonly",
-    "mandatory"
+    "mandatory",
+    "rollup",
+    "calculated"
   ]);
   validMetaKeys = new Set(["name", "kind", "version", "entity", "stack", "description"]);
   validWorkflowKinds = new Set(["hook", "state", "saga"]);
@@ -9627,6 +10033,222 @@ class CheckEngine {
       });
     }
   }
+  checkComputedFields() {
+    const declared = [];
+    const otherKeys = new Map;
+    for (const { lineNo, text } of this.src.findAll(/^\s*%%field\b/)) {
+      const m = text.trim().match(/^%%field\s+(\w+)\.(\w+)\s+([A-Za-z_]\w*)\s*:\s*(.+)$/);
+      if (!m)
+        continue;
+      const [entity, column, key, value] = caps(m, 4);
+      if (key === "rollup" || key === "calculated") {
+        declared.push({ entity, column, kind: key, expression: value.trim(), lineNo });
+      } else {
+        const id = `${entity}.${column}`;
+        if (!otherKeys.has(id))
+          otherKeys.set(id, new Set);
+        otherKeys.get(id)?.add(key);
+      }
+    }
+    if (!declared.length)
+      return;
+    const entityByName = new Map(this.model.entities.map((e) => [e.name, e]));
+    const numeric = (a) => !!a && (a.type === "integer" || a.type === "decimal");
+    const dated = (a) => !!a && (a.type === "date" || a.type === "datetime");
+    const computed = new Map;
+    for (const d of declared) {
+      const id = `${d.entity}.${d.column}`;
+      const before = computed.get(id);
+      if (before) {
+        this.error("EML196", `%%field ${id} is computed twice (${before.kind}: and ${d.kind}:).`, {
+          line: d.lineNo,
+          hint: "A column is either a rollup of its child rows or a formula over its own record. Keep one line."
+        });
+        continue;
+      }
+      computed.set(id, d);
+    }
+    const parentOf = new Map;
+    for (const { text } of this.src.findAll(/^\s*%%entity\b/)) {
+      const m = text.trim().match(/^%%entity\s+(\w+)\s+parent\s*:\s*(\w+)\s*$/);
+      if (m)
+        parentOf.set(m[1], m[2]);
+    }
+    for (const d of computed.values()) {
+      const entity = entityByName.get(d.entity);
+      const attr = entity?.attributes.find((a) => a.name === d.column);
+      if (!entity || !attr)
+        continue;
+      const where = `%%field ${d.entity}.${d.column} ${d.kind}:`;
+      if (d.kind === "rollup") {
+        const parsed = parseRollup(d.expression);
+        if (!parsed.ok) {
+          this.error("EML180", `${where} does not parse — ${parsed.error}`, {
+            line: d.lineNo,
+            hint: "Write sum(Child.column), avg(…), min(…), max(…) or count(Child); add `via link_column` inside the brackets when the child has two keys to this entity, and `where @column@=value` after them.",
+            context: d.expression
+          });
+          continue;
+        }
+        const rollup = parsed.rollup;
+        const child = entityByName.get(rollup.child);
+        const snake = d.entity.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2").toLowerCase();
+        const links = child ? child.attributes.filter((a) => a.isForeignKey && (a.name === `${snake}_id` || a.name.startsWith(`${snake}_`))) : [];
+        if (!child || !links.length && !rollup.via && parentOf.get(rollup.child) !== d.entity) {
+          this.error("EML181", child ? `${where} rolls up ${rollup.child}, which has no foreign key to ${d.entity}.` : `${where} rolls up "${rollup.child}", which is not declared.`, {
+            line: d.lineNo,
+            hint: `A rollup reads the child rows of the open ${d.entity}: name an entity with a \`${this.entityToFkName(d.entity)} FK\` column.`
+          });
+          continue;
+        }
+        if (rollup.via) {
+          const via = child.attributes.find((a) => a.name === rollup.via);
+          if (!via || !via.isForeignKey) {
+            this.error("EML183", `${where} links on ${rollup.child}.${rollup.via}, which is not a foreign key of ${rollup.child}.`, {
+              line: d.lineNo,
+              hint: `Name one of ${rollup.child}'s FK columns to ${d.entity}${links.length ? `: ${links.map((l) => l.name).join(", ")}` : ""}.`
+            });
+          }
+        } else if (links.length > 1 && parentOf.get(rollup.child) !== d.entity) {
+          this.error("EML183", `${where} cannot tell which of ${rollup.child}'s keys links it to ${d.entity}: ${links.map((l) => l.name).join(", ")}.`, {
+            line: d.lineNo,
+            hint: `Name it inside the brackets: ${rollup.fn}(${rollup.child}${rollup.column ? `.${rollup.column}` : ""} via ${links[0]?.name}).`
+          });
+        }
+        const childColumns = new Set(child.attributes.map((a) => a.name));
+        if (rollup.column) {
+          const source = child.attributes.find((a) => a.name === rollup.column);
+          if (!source) {
+            this.error("EML182", `${where} aggregates ${rollup.child}.${rollup.column}, which ${rollup.child} does not declare.`, {
+              line: d.lineNo,
+              hint: `Columns of ${rollup.child}: ${[...childColumns].join(", ")}.`
+            });
+          } else if ((rollup.fn === "sum" || rollup.fn === "avg") && !numeric(source)) {
+            this.error("EML182", `${where} takes ${rollup.fn}() of ${rollup.child}.${rollup.column}, which is ${source.rawType}, not a number.`, {
+              line: d.lineNo,
+              hint: "sum and avg add numbers. count() counts any column; min and max also order dates."
+            });
+          } else if ((rollup.fn === "min" || rollup.fn === "max") && !numeric(source) && !dated(source)) {
+            this.error("EML182", `${where} takes ${rollup.fn}() of ${rollup.child}.${rollup.column}, which is ${source.rawType}: min and max order numbers and dates.`, {
+              line: d.lineNo
+            });
+          } else if (computed.get(`${rollup.child}.${rollup.column}`)?.kind === "rollup") {
+            this.error("EML185", `${where} rolls up ${rollup.child}.${rollup.column}, which is itself a rollup.`, {
+              line: d.lineNo,
+              hint: "A rollup reads the child rows the screen already lists; their own rollups are not loaded with them. A calculated child column is fine."
+            });
+          }
+        }
+        if (rollup.where) {
+          const logic = parseLogic(rollup.where);
+          const unknown = logic.ok ? logic.logic.variables.filter((v) => !childColumns.has(v)) : [];
+          if (!logic.ok || unknown.length) {
+            this.error("EML184", `${where} where: ${logic.ok ? `reads @${unknown[0]}@, which ${rollup.child} does not declare` : `does not parse — ${logic.error}`}.`, {
+              line: d.lineNo,
+              hint: `The condition is field logic read against each ${rollup.child} row: @column@=value, joined by & and |.`
+            });
+          }
+        }
+        const result = rollup.fn === "count" || rollup.fn === "sum" || rollup.fn === "avg" ? "number" : "any";
+        if (result === "number" && !numeric(attr) || result === "any" && !numeric(attr) && !dated(attr)) {
+          this.warn("EML186", `${where} answers a ${result === "number" ? "number" : "number or date"}, but ${d.entity}.${d.column} is ${attr.rawType}.`, {
+            line: d.lineNo,
+            hint: "Declare the column as the type the rollup answers (decimal for sum and avg, integer for count), so the screen formats it as one."
+          });
+        }
+      } else {
+        const parsed = parseFormula(d.expression);
+        if (!parsed.ok) {
+          this.error("EML190", `${where} does not parse — ${parsed.error}`, {
+            line: d.lineNo,
+            hint: "Write a formula over @column@ values: + - * / and brackets, numbers, 'text', and round, abs, min, max, coalesce, concat, days, if(<logic>, a, b).",
+            context: d.expression
+          });
+          continue;
+        }
+        const columns = new Set(entity.attributes.map((a) => a.name));
+        for (const variable of parsed.formula.variables) {
+          if (!columns.has(variable)) {
+            this.error("EML191", `${where} reads @${variable}@, which ${d.entity} does not declare.`, {
+              line: d.lineNo,
+              hint: `A calculated field reads its own record: ${[...columns].join(", ")}.`
+            });
+          }
+        }
+        const kind = formulaResultKind(parsed.formula.root);
+        const textColumn = attr.type === "string" || attr.type === "text";
+        if (kind === "number" && !numeric(attr) || kind === "text" && !textColumn) {
+          this.warn("EML193", `${where} answers ${kind === "number" ? "a number" : "text"}, but ${d.entity}.${d.column} is ${attr.rawType}.`, {
+            line: d.lineNo,
+            hint: "Declare the column as the type the formula answers, so the screen formats it as one."
+          });
+        }
+      }
+      const reasons = [];
+      if (attr.isPrimaryKey || entity.primaryKey === d.column)
+        reasons.push("it is the primary key");
+      if (attr.isForeignKey)
+        reasons.push("it is a foreign key");
+      if (attr.required)
+        reasons.push("it is required");
+      if (attr.unique)
+        reasons.push("it is unique");
+      if (this.stateFields().get(d.entity) === d.column)
+        reasons.push("it is the state field");
+      if (this.model.indexes.some((i) => i.entity === d.entity && i.columns.includes(d.column)))
+        reasons.push("an %%index names it");
+      for (const { text } of this.src.findAll(/^\s*%%entity\b/)) {
+        const m = text.trim().match(/^%%entity\s+(\w+)\s+identifier\s*:\s*(.+)$/);
+        if (m && m[1] === d.entity && m[2].split(",").map((c) => c.trim()).includes(d.column)) {
+          reasons.push("it is the record's identifier");
+        }
+      }
+      for (const key of otherKeys.get(`${d.entity}.${d.column}`) ?? []) {
+        if (["enum", "default", "mandatory", "readonly", "min", "max"].includes(key))
+          reasons.push(`it has ${key}:`);
+      }
+      if (reasons.length) {
+        this.error("EML195", `${where} makes ${d.column} a column with no storage, but ${reasons.join(", ")}.`, {
+          line: d.lineNo,
+          hint: "A computed field is drawn by the screen and never stored or written. Remove what needs a stored value, or compute a different column."
+        });
+      }
+      const pattern = new RegExp(`\\b${d.column}\\b`);
+      for (const rule of this.model.rules) {
+        if (rule.entity === d.entity && pattern.test(rule.raw ?? rule.nodes.map((n) => n.label).join(`
+`))) {
+          this.error("EML197", `%%rule ${rule.name} on ${d.entity} reads ${d.column}, a computed field the server never sees.`, {
+            line: d.lineNo,
+            hint: "Rules run in the API, where a computed field has no value. Test the stored columns it is computed from."
+          });
+        }
+      }
+      for (const report of this.model.reports) {
+        if (new RegExp(`\\b(bus_)?${entity.tableName}\\b`).test(report.sql) && pattern.test(report.sql)) {
+          this.error("EML197", `%%report ${report.name} reads ${d.column}, a computed field with no database column.`, {
+            line: d.lineNo,
+            hint: "A report runs SQL against the database, where the column does not exist. Aggregate the stored columns in the query instead."
+          });
+        }
+      }
+    }
+    const byEntity = new Map;
+    for (const d of computed.values()) {
+      if (!byEntity.has(d.entity))
+        byEntity.set(d.entity, []);
+      byEntity.get(d.entity)?.push(d);
+    }
+    for (const [entityName, list] of byEntity) {
+      const { cycle } = computeOrder(list.map((d) => ({ column_name: d.column, computed_kind: d.kind, computed_expression: d.expression })));
+      if (cycle) {
+        const first = list.find((d) => d.column === cycle[0]);
+        this.error("EML192", `Calculated fields of ${entityName} read each other in a circle: ${cycle.join(" → ")}.`, {
+          line: first?.lineNo,
+          hint: "A formula can read another computed field only if that one does not, in the end, read it back."
+        });
+      }
+    }
+  }
   checkFieldDirectives() {
     const entityNames = new Set(this.model.entities.map((e) => e.name));
     const enumNames = new Set(this.model.enums.map((e) => e.name));
@@ -9695,6 +10317,7 @@ class CheckEngine {
       }
     }
     this.checkFieldLogicTargets(entityAttrMap);
+    this.checkComputedFields();
     const boundFields = new Set(this.src.findAll(/^\s*%%field\s+\w+\.\w+\s+enum\s*:/).map(({ text }) => {
       const m = text.trim().match(/^%%field\s+(\w+)\.(\w+)/);
       return m ? `${m[1]}.${m[2]}` : "";
@@ -12388,6 +13011,9 @@ ALTER TABLE sys_field ADD COLUMN IF NOT EXISTS read_only_logic TEXT;
 ALTER TABLE sys_field ADD COLUMN IF NOT EXISTS mandatory_logic TEXT;
 ALTER TABLE sys_column ADD COLUMN IF NOT EXISTS read_only_logic TEXT;
 ALTER TABLE sys_column ADD COLUMN IF NOT EXISTS mandatory_logic TEXT;
+-- Computed fields (rollup, calculated): a definition with no storage; the form draws it.
+ALTER TABLE sys_column ADD COLUMN IF NOT EXISTS computed_kind VARCHAR(12);
+ALTER TABLE sys_column ADD COLUMN IF NOT EXISTS computed_expression TEXT;
 
 CREATE TABLE IF NOT EXISTS sys_category (
   sys_category_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -14469,6 +15095,526 @@ export function test(source, scope = {}) {
 }
 
 export { FUNCTIONS };
+`,
+  "server/lib/field-compute.js": `/**
+ * Computed fields — a Rollup and a Calculated field — for the browser application.
+ *
+ * The JavaScript twin of common/language/field-compute.ts, which is the one reading
+ * of both: a rollup (\`sum(OrderLine.line_amount) where @status@!cancelled\`) and a
+ * formula (\`round(@quantity@ * @unit_price@, 2)\`). This runtime is plain JavaScript
+ * with no build step, so it carries its own copy, built from the TypeScript with
+ * \`bun build common/language/field-compute.ts --format esm --no-bundle\` under this
+ * header (the import below then names \`./field-logic.js\`). \`field-compute.test.ts\`
+ * runs the same cases through both and fails if they disagree. Change the
+ * TypeScript first, then rebuild this.
+ *
+ * Imported by the server (bus.routes.js drops computed values from a write and
+ * refuses to filter by one) and by the form (ui/views/entity-form.js draws them
+ * as the record is edited).
+ */
+
+import { contextValue, evaluateLogic, parseLogic } from "./field-logic.js";
+export const ROLLUP_FUNCTIONS = ["sum", "avg", "min", "max", "count"];
+export const FORMULA_FUNCTIONS = [
+  "round",
+  "abs",
+  "min",
+  "max",
+  "coalesce",
+  "concat",
+  "days",
+  "if"
+];
+const ROLLUP_PATTERN = /^([A-Za-z]+)\\s*\\(\\s*([A-Za-z_]\\w*)(?:\\s*\\.\\s*([A-Za-z_]\\w*))?(?:\\s+via\\s+([A-Za-z_]\\w*))?\\s*\\)\\s*(?:where\\s+([\\s\\S]+))?$/i;
+export function parseRollup(source) {
+  const text = (source ?? "").trim();
+  if (!text)
+    return { ok: false, error: "The rollup is empty." };
+  const match = ROLLUP_PATTERN.exec(text);
+  if (!match) {
+    return {
+      ok: false,
+      error: "A rollup is <fn>(<Child>.<column>) — sum, avg, min, max or count — optionally " + "followed by \`via <link_column>\` inside the brackets and \`where <logic>\` after them."
+    };
+  }
+  const fn = match[1].toLowerCase();
+  if (!ROLLUP_FUNCTIONS.includes(fn)) {
+    return { ok: false, error: \`"\${match[1]}" is not a rollup: use \${ROLLUP_FUNCTIONS.join(", ")}.\` };
+  }
+  const column = match[3];
+  if (!column && fn !== "count") {
+    return { ok: false, error: \`\${fn}() needs a column: write \${fn}(\${match[2]}.<column>).\` };
+  }
+  const rollup = { fn, child: match[2] };
+  if (column)
+    rollup.column = column;
+  if (match[4])
+    rollup.via = match[4];
+  const where = match[5] ? match[5].trim() : "";
+  if (where) {
+    const parsed = parseLogic(where);
+    if (!parsed.ok)
+      return { ok: false, error: \`The where condition: \${parsed.error}\` };
+    rollup.where = where;
+  }
+  return { ok: true, rollup };
+}
+export function numericValue(value) {
+  if (value === null || value === undefined)
+    return null;
+  if (typeof value === "number")
+    return Number.isFinite(value) ? value : null;
+  if (typeof value === "boolean")
+    return null;
+  const text = String(value).trim();
+  if (text === "")
+    return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+}
+function clean(value) {
+  return Number(value.toFixed(10));
+}
+function dateTime(value) {
+  if (value instanceof Date)
+    return Number.isNaN(value.getTime()) ? null : value.getTime();
+  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}/.test(value))
+    return null;
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? null : time;
+}
+export function aggregate(rollup, rows) {
+  const counted = (rows ?? []).filter((row) => !rollup.where || evaluateLogic(rollup.where, row));
+  if (!rollup.column)
+    return rollup.fn === "count" ? counted.length : null;
+  const column = rollup.column;
+  const present = counted.map((row) => row[column]).filter((value) => value !== null && value !== undefined && String(value).trim() !== "");
+  if (rollup.fn === "count")
+    return present.length;
+  const numbers = present.map(numericValue).filter((n) => n !== null);
+  if (rollup.fn === "sum")
+    return clean(numbers.reduce((total, n) => total + n, 0));
+  if (rollup.fn === "avg") {
+    return numbers.length ? clean(numbers.reduce((total, n) => total + n, 0) / numbers.length) : null;
+  }
+  if (numbers.length && numbers.length === present.length) {
+    return rollup.fn === "min" ? Math.min(...numbers) : Math.max(...numbers);
+  }
+  let best = null;
+  let bestTime = null;
+  for (const value of present) {
+    const time = dateTime(value);
+    if (time === null)
+      continue;
+    if (bestTime === null || (rollup.fn === "min" ? time < bestTime : time > bestTime)) {
+      bestTime = time;
+      best = value;
+    }
+  }
+  if (best === null)
+    return null;
+  return best instanceof Date ? best.toISOString() : String(best);
+}
+const ARITY = {
+  round: [1, 2],
+  abs: [1, 1],
+  min: [1, 1 / 0],
+  max: [1, 1 / 0],
+  coalesce: [1, 1 / 0],
+  concat: [1, 1 / 0],
+  days: [2, 2]
+};
+
+class FormulaReader {
+  pos = 0;
+  variables = [];
+  text;
+  constructor(text) {
+    this.text = text;
+  }
+  fail(message) {
+    throw new Error(message);
+  }
+  skip() {
+    while (this.pos < this.text.length && /\\s/.test(this.text[this.pos]))
+      this.pos++;
+  }
+  peek() {
+    this.skip();
+    return this.text[this.pos] ?? "";
+  }
+  expect(ch) {
+    if (this.peek() !== ch) {
+      this.fail(this.pos >= this.text.length ? \`Expected "\${ch}" at the end.\` : \`Expected "\${ch}" at "\${this.text.slice(this.pos, this.pos + 12)}".\`);
+    }
+    this.pos++;
+  }
+  note(name) {
+    if (!this.variables.includes(name))
+      this.variables.push(name);
+  }
+  expression() {
+    let left = this.term();
+    for (;; ) {
+      const ch = this.peek();
+      if (ch !== "+" && ch !== "-")
+        return left;
+      this.pos++;
+      left = { kind: "binary", op: ch, left, right: this.term() };
+    }
+  }
+  term() {
+    let left = this.unary();
+    for (;; ) {
+      const ch = this.peek();
+      if (ch !== "*" && ch !== "/")
+        return left;
+      this.pos++;
+      left = { kind: "binary", op: ch, left, right: this.unary() };
+    }
+  }
+  unary() {
+    if (this.peek() === "-") {
+      this.pos++;
+      return { kind: "negate", operand: this.unary() };
+    }
+    if (this.peek() === "+") {
+      this.pos++;
+      return this.unary();
+    }
+    return this.primary();
+  }
+  primary() {
+    const ch = this.peek();
+    if (ch === "")
+      this.fail("The formula ends where a value was expected.");
+    if (ch === "(") {
+      this.pos++;
+      const inner = this.expression();
+      this.expect(")");
+      return inner;
+    }
+    if (ch === "@") {
+      const end = this.text.indexOf("@", this.pos + 1);
+      if (end < 0)
+        this.fail("A variable is not closed: write it as @column@.");
+      const name = this.text.slice(this.pos + 1, end).trim();
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+        this.fail(\`"@\${name}@" is not a column name.\`);
+      this.pos = end + 1;
+      this.note(name);
+      return { kind: "variable", name };
+    }
+    if (ch === "'" || ch === '"') {
+      const end = this.text.indexOf(ch, this.pos + 1);
+      if (end < 0)
+        this.fail("A quoted text is not closed.");
+      const value = this.text.slice(this.pos + 1, end);
+      this.pos = end + 1;
+      return { kind: "text", value };
+    }
+    const number = /^(\\d+(?:\\.\\d+)?|\\.\\d+)/.exec(this.text.slice(this.pos));
+    if (number) {
+      this.pos += number[1].length;
+      return { kind: "number", value: Number(number[1]) };
+    }
+    const word = /^[A-Za-z_]\\w*/.exec(this.text.slice(this.pos));
+    if (word) {
+      const fn = word[0].toLowerCase();
+      this.pos += word[0].length;
+      if (this.peek() !== "(") {
+        this.fail(\`"\${word[0]}" is not a value: write a column as @\${word[0]}@, a text as '\${word[0]}'.\`);
+      }
+      this.pos++;
+      if (fn === "if")
+        return this.conditional();
+      const arity = ARITY[fn];
+      if (!arity)
+        this.fail(\`"\${word[0]}" is not a function: use \${FORMULA_FUNCTIONS.join(", ")}.\`);
+      const args = [];
+      if (this.peek() !== ")") {
+        args.push(this.expression());
+        while (this.peek() === ",") {
+          this.pos++;
+          args.push(this.expression());
+        }
+      }
+      this.expect(")");
+      if (args.length < arity[0] || args.length > arity[1]) {
+        const wanted = arity[0] === arity[1] ? \`\${arity[0]}\` : arity[1] === 1 / 0 ? \`at least \${arity[0]}\` : \`\${arity[0]} or \${arity[1]}\`;
+        this.fail(\`\${fn}() takes \${wanted} value\${wanted === "1" ? "" : "s"}, not \${args.length}.\`);
+      }
+      return { kind: "call", fn, args };
+    }
+    return this.fail(\`Unexpected "\${ch}" at "\${this.text.slice(this.pos, this.pos + 12)}".\`);
+  }
+  conditional() {
+    this.skip();
+    const start = this.pos;
+    let quote = null;
+    let inVariable = false;
+    let end = -1;
+    for (let i = start;i < this.text.length; i++) {
+      const c = this.text[i];
+      if (quote) {
+        if (c === quote)
+          quote = null;
+        continue;
+      }
+      if (c === "'" || c === '"')
+        quote = c;
+      else if (c === "@")
+        inVariable = !inVariable;
+      else if (!inVariable && c === ",") {
+        end = i;
+        break;
+      }
+    }
+    if (end < 0)
+      this.fail("if() takes a condition, a value and another value.");
+    const condition = this.text.slice(start, end).trim();
+    const parsed = parseLogic(condition);
+    if (!parsed.ok)
+      this.fail(\`The if() condition: \${parsed.error}\`);
+    for (const name of parsed.logic.variables)
+      this.note(name);
+    this.pos = end + 1;
+    const then = this.expression();
+    this.expect(",");
+    const otherwise = this.expression();
+    this.expect(")");
+    return { kind: "if", condition, then, otherwise };
+  }
+}
+export function parseFormula(source) {
+  const text = (source ?? "").trim();
+  if (!text)
+    return { ok: false, error: "The formula is empty." };
+  const reader = new FormulaReader(text);
+  try {
+    const root = reader.expression();
+    if (reader.peek() !== "") {
+      return { ok: false, error: \`Unexpected "\${text.slice(reader.pos, reader.pos + 12)}" after the formula.\` };
+    }
+    return { ok: true, formula: { root, variables: reader.variables } };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+export function formulaVariables(source) {
+  const parsed = parseFormula(source);
+  return parsed.ok ? parsed.formula.variables : [];
+}
+export function formulaResultKind(node) {
+  switch (node.kind) {
+    case "number":
+    case "negate":
+    case "binary":
+      return "number";
+    case "text":
+      return "text";
+    case "variable":
+      return "unknown";
+    case "call":
+      if (node.fn === "concat")
+        return "text";
+      if (node.fn === "coalesce" || node.fn === "min" || node.fn === "max") {
+        const kinds = node.args.map(formulaResultKind);
+        return kinds.every((k) => k === kinds[0]) ? kinds[0] : "unknown";
+      }
+      return "number";
+    case "if": {
+      const a = formulaResultKind(node.then);
+      const b = formulaResultKind(node.otherwise);
+      return a === b ? a : "unknown";
+    }
+  }
+}
+function operand(value) {
+  if (value === null || value === undefined)
+    return null;
+  if (typeof value === "number")
+    return Number.isFinite(value) ? value : null;
+  if (typeof value === "boolean")
+    return value ? "Y" : "N";
+  if (value instanceof Date)
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  const text = typeof value === "string" ? value : contextValue(value);
+  if (text.trim() === "")
+    return null;
+  const number = numericValue(text);
+  return number !== null && /^\\s*[-+]?(\\d+\\.?\\d*|\\.\\d+)([eE][-+]?\\d+)?\\s*$/.test(text) ? number : text;
+}
+function evaluateNode(node, record) {
+  switch (node.kind) {
+    case "number":
+      return node.value;
+    case "text":
+      return node.value;
+    case "variable":
+      return operand(record[node.name]);
+    case "negate": {
+      const value = evaluateNode(node.operand, record);
+      return typeof value === "number" ? -value : null;
+    }
+    case "binary": {
+      const left = evaluateNode(node.left, record);
+      const right = evaluateNode(node.right, record);
+      if (typeof left !== "number" || typeof right !== "number")
+        return null;
+      if (node.op === "+")
+        return left + right;
+      if (node.op === "-")
+        return left - right;
+      if (node.op === "*")
+        return left * right;
+      return right === 0 ? null : left / right;
+    }
+    case "if":
+      return evaluateLogic(node.condition, record) ? evaluateNode(node.then, record) : evaluateNode(node.otherwise, record);
+    case "call": {
+      const values = node.args.map((arg) => evaluateNode(arg, record));
+      switch (node.fn) {
+        case "round": {
+          const value = values[0];
+          const places = values.length > 1 ? values[1] : 0;
+          if (typeof value !== "number" || typeof places !== "number")
+            return null;
+          const factor = Math.pow(10, Math.max(0, Math.min(10, Math.trunc(places))));
+          return Math.round(value * factor + (value >= 0 ? 0.000000001 : -0.000000001)) / factor;
+        }
+        case "abs":
+          return typeof values[0] === "number" ? Math.abs(values[0]) : null;
+        case "min":
+        case "max": {
+          const numbers = values.filter((v) => typeof v === "number");
+          if (!numbers.length)
+            return null;
+          return node.fn === "min" ? Math.min(...numbers) : Math.max(...numbers);
+        }
+        case "coalesce":
+          return values.find((v) => v !== null) ?? null;
+        case "concat":
+          return values.map((v) => v === null ? "" : String(v)).join("");
+        case "days": {
+          const a = dateTime(values[0]);
+          const b = dateTime(values[1]);
+          if (a === null || b === null)
+            return null;
+          return Math.round((a - b) / 86400000);
+        }
+      }
+      return null;
+    }
+  }
+}
+export function evaluateFormula(source, record) {
+  const parsed = parseFormula(source);
+  if (!parsed.ok)
+    return null;
+  const value = evaluateNode(parsed.formula.root, record);
+  return typeof value === "number" ? Number.isFinite(value) ? clean(value) : null : value;
+}
+export function isComputed(field) {
+  return !!field && (field.computed_kind === "rollup" || field.computed_kind === "calculated");
+}
+export function computedExpressionError(kind, expression) {
+  if (kind === "rollup") {
+    const parsed = parseRollup(expression);
+    return parsed.ok ? null : parsed.error;
+  }
+  if (kind === "calculated") {
+    const parsed = parseFormula(expression);
+    return parsed.ok ? null : parsed.error;
+  }
+  return \`"\${kind}" is not a computed kind: use rollup or calculated.\`;
+}
+export function computeOrder(fields) {
+  const computed = fields.filter(isComputed);
+  const byName = new Map(computed.map((f) => [f.column_name, f]));
+  const order = computed.filter((f) => f.computed_kind === "rollup").map((f) => f.column_name);
+  const state = new Map;
+  for (const name of order)
+    state.set(name, "done");
+  let cycle = null;
+  const visit = (name, path) => {
+    if (cycle)
+      return;
+    const seen = state.get(name);
+    if (seen === "done")
+      return;
+    if (seen === "visiting") {
+      cycle = path.slice(path.indexOf(name)).concat(name);
+      return;
+    }
+    state.set(name, "visiting");
+    const field = byName.get(name);
+    for (const dep of formulaVariables(field ? field.computed_expression : null)) {
+      if (byName.has(dep))
+        visit(dep, path.concat(name));
+    }
+    state.set(name, "done");
+    order.push(name);
+  };
+  for (const field of computed) {
+    if (field.computed_kind === "calculated")
+      visit(field.column_name, []);
+  }
+  return { order, cycle };
+}
+export function readsRollup(fields, column) {
+  const byName = new Map(fields.filter(isComputed).map((f) => [f.column_name, f]));
+  const seen = new Set;
+  const visit = (name) => {
+    if (seen.has(name))
+      return false;
+    seen.add(name);
+    const field = byName.get(name);
+    if (!field)
+      return false;
+    if (field.computed_kind === "rollup")
+      return true;
+    return formulaVariables(field.computed_expression).some(visit);
+  };
+  return visit(column);
+}
+export function computeValues(fields, record, rowsByField) {
+  const values = {};
+  const { order, cycle } = computeOrder(fields);
+  const byName = new Map(fields.filter(isComputed).map((f) => [f.column_name, f]));
+  const context = { ...record };
+  for (const name of order) {
+    const field = byName.get(name);
+    if (!field)
+      continue;
+    let value = null;
+    if (field.computed_kind === "rollup") {
+      const parsed = parseRollup(field.computed_expression);
+      const rows = rowsByField ? rowsByField[name] : undefined;
+      value = parsed.ok && rows ? aggregate(parsed.rollup, rows) : null;
+    } else if (!cycle || !cycle.includes(name)) {
+      value = evaluateFormula(field.computed_expression, context);
+    }
+    values[name] = value;
+    context[name] = value;
+  }
+  for (const field of fields) {
+    if (isComputed(field) && !(field.column_name in values))
+      values[field.column_name] = null;
+  }
+  return values;
+}
+export function stripComputed(fields, payload) {
+  const computed = new Set(fields.filter(isComputed).map((f) => f.column_name));
+  if (!computed.size)
+    return payload;
+  const result = {};
+  for (const key of Object.keys(payload)) {
+    if (!computed.has(key))
+      result[key] = payload[key];
+  }
+  return result;
+}
 `,
   "server/lib/field-logic.js": `/**
  * Field logic — Compiere's Display Logic, Read Only Logic and Mandatory Logic,
@@ -16648,8 +17794,8 @@ async function seedDictionary(db, model, tick = () => {}) {
       \`INSERT INTO sys_column (sys_table_id, column_name, name, description, sys_reference_id,
                                is_mandatory, is_updateable, is_key, is_parent, is_identifier,
                                is_selection_column, field_length, default_value, ref_table_name, seq_no,
-                               read_only_logic, mandatory_logic)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                               read_only_logic, mandatory_logic, computed_kind, computed_expression)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        ON CONFLICT (sys_table_id, column_name) DO NOTHING\`,
       [
         tableId,
@@ -16669,6 +17815,8 @@ async function seedDictionary(db, model, tick = () => {}) {
         column.seqNo ?? 0,
         column.readOnlyLogic ?? null,
         column.mandatoryLogic ?? null,
+        column.computedKind ?? null,
+        column.computedExpression ?? null,
       ]
     );
     tick();
@@ -17518,6 +18666,7 @@ import { Router } from "../lib/router.js";
 import { badRequest, errorResponse, json, notFound, readJson } from "../lib/http.js";
 import { ident } from "../lib/db.js";
 import { checkOperationAccess, requireUser } from "../lib/guards.js";
+import { parseRollup, readsRollup } from "../lib/field-compute.js";
 import { STATE_FIELD_REFUSAL_CODE, stateFieldFor, stateMachineFor } from "../lib/workflows.js";
 import { recordFailedSaga, runTriggeredSagas, SagaFailure } from "../lib/sagas.js";
 import { runHooks } from "../lib/hooks.js";
@@ -17565,7 +18714,74 @@ export function resolveEntity(model, segment) {
 function entityOr404(model, segment) {
   const entity = resolveEntity(model, segment);
   if (!entity) throw notFound(\`No entity "\${segment}" in this model\`);
-  return entity;
+  return storedView(entity);
+}
+
+/*
+ * The entity with only the columns it stores. A computed field (rollup,
+ * calculated — lib/field-compute.js) is in the model's attribute list because the
+ * model declares it, and it has no column: every route below reads and writes
+ * \`attributes\`, so it sees only real ones — a write carrying a computed value
+ * drops it, and \`computedColumns\` is what a filter or a sort is refused on.
+ */
+const STORED_VIEWS = new WeakMap();
+function storedView(entity) {
+  if (!entity.attributes.some((attribute) => attribute.computedKind)) return entity;
+  let view = STORED_VIEWS.get(entity);
+  if (!view) {
+    view = {
+      ...entity,
+      attributes: entity.attributes.filter((attribute) => !attribute.computedKind),
+      computedColumns: entity.attributes
+        .filter((attribute) => attribute.computedKind)
+        .map((attribute) => attribute.columnName),
+    };
+    STORED_VIEWS.set(entity, view);
+  }
+  return view;
+}
+
+function refuseComputed(entity, column) {
+  if (!entity.computedColumns?.includes(column)) return;
+  throw badRequest(
+    \`\${column} is a computed field: drawn on the screen, never stored, so a list cannot be filtered or sorted by it.\`,
+    { code: "COMPUTED_FIELD_NOT_QUERYABLE", columns: [column] }
+  );
+}
+
+/*
+ * Which child rows a rollup reads: the child's table, the column aggregated and
+ * the child column holding this record's id (the one \`via\` names, else the
+ * child's parent link, else its one reference named after this table). Resolved
+ * from the dictionary row, so an administrator's edit applies on the next read.
+ */
+function resolveRollup(model, entity, expression) {
+  const parsed = parseRollup(expression);
+  if (!parsed.ok) return null;
+  const spec = parsed.rollup;
+  const child = (model?.entities ?? []).find((candidate) => candidate.name === spec.child);
+  if (!child) return null;
+  if (spec.column && !child.attributes.some((a) => a.columnName === spec.column)) return null;
+  const parentSnake = entity.tableName.replace(/^bus_/, "");
+  const named = (a) =>
+    a.isForeignKey && (a.columnName === \`\${parentSnake}_id\` || a.columnName.startsWith(\`\${parentSnake}_\`));
+  const keys = child.attributes.filter(named);
+  const link = spec.via
+    ? child.attributes.find((a) => a.columnName === spec.via)?.columnName
+    : child.parentEntity === entity.name && child.parentLinkColumn
+      ? child.parentLinkColumn
+      : keys.length === 1
+        ? keys[0].columnName
+        : null;
+  if (!link) return null;
+  return {
+    fn: spec.fn,
+    child_table: child.tableName,
+    child_route: child.routeName,
+    child_column: spec.column ?? null,
+    link_column: link,
+    where: spec.where ?? null,
+  };
 }
 
 /** Metadata for one entity, assembled from the dictionary rows. */
@@ -17588,6 +18804,7 @@ async function entityMetadata(db, entity, model) {
             f.display_logic,
             COALESCE(f.read_only_logic, c.read_only_logic) AS read_only_logic,
             COALESCE(f.mandatory_logic, c.mandatory_logic) AS mandatory_logic,
+            c.computed_kind, c.computed_expression,
             g.name AS group_name, g.description AS group_description,
             g.columns AS group_columns, g.is_collapsed_by_default AS group_collapsed,
             g.seq_no AS group_seq_no
@@ -17607,7 +18824,7 @@ async function entityMetadata(db, entity, model) {
       ])
     : null;
 
-  return {
+  const metadata = {
     table: {
       sys_table_id: table.sys_table_id,
       table_name: table.table_name,
@@ -17618,6 +18835,10 @@ async function entityMetadata(db, entity, model) {
     entity: { name: entity.name, route: entity.routeName },
     columns: columns.map((column) => {
       const isState = state?.field === column.column_name;
+      const computedKind =
+        column.computed_kind === "rollup" || column.computed_kind === "calculated"
+          ? column.computed_kind
+          : null;
       return {
       sys_field_id: column.sys_field_id,
       name: column.name || column.column_name,
@@ -17628,11 +18849,14 @@ async function entityMetadata(db, entity, model) {
       description: column.description ?? null,
       sys_reference_id: column.sys_reference_id,
       is_mandatory: isState ? false : (column.is_mandatory ?? false),
-      is_updateable: isState ? false : column.is_updateable !== false,
-      is_insertable: isState ? false : column.is_insertable !== false,
-      is_read_only: isState ? true : (column.is_read_only ?? false),
+      is_updateable: isState || computedKind ? false : column.is_updateable !== false,
+      is_insertable: isState || computedKind ? false : column.is_insertable !== false,
+      is_read_only: isState || computedKind ? true : (column.is_read_only ?? false),
       is_displayed: isState ? false : column.is_displayed !== false,
-      is_displayed_grid: isState ? true : column.is_displayed_grid !== false,
+      /* A rollup needs the record's child rows, which a list does not load. */
+      is_displayed_grid: isState
+        ? true
+        : column.is_displayed_grid !== false && computedKind !== "rollup",
       is_state_field: isState,
       is_key: column.is_key ?? false,
       /* The column tying a detail row to its master, from
@@ -17660,10 +18884,23 @@ async function entityMetadata(db, entity, model) {
       display_logic: isState ? null : (column.display_logic ?? null),
       read_only_logic: isState ? null : (column.read_only_logic ?? null),
       mandatory_logic: isState ? null : (column.mandatory_logic ?? null),
+      /* A computed field: the form draws it (lib/field-compute.js), nothing stores it. */
+      computed_kind: computedKind,
+      computed_expression: computedKind ? (column.computed_expression ?? null) : null,
+      rollup:
+        computedKind === "rollup" ? resolveRollup(model, entity, column.computed_expression) : null,
       };
     }),
     window: window ? { sys_window_id: window.sys_window_id, name: window.name } : undefined,
   };
+  /* A formula that reads a rollup needs the record's child rows, which a list
+     does not load: on the form only, like the rollup itself. */
+  for (const column of metadata.columns) {
+    if (column.computed_kind === "calculated" && readsRollup(metadata.columns, column.column_name)) {
+      column.is_displayed_grid = false;
+    }
+  }
+  return metadata;
 }
 
 /**
@@ -17907,6 +19144,7 @@ export function busRoutes(model) {
     // parses: one stack's model must not search differently from the other's.
     for (const [key, value] of query.entries()) {
       if (["page", "limit", "search", "sort", "order"].includes(key)) continue;
+      refuseComputed(entity, key.startsWith("filter.") ? key.slice("filter.".length) : key);
 
       if (key.startsWith("filter.")) {
         const condition = filterCondition(entity, key.slice("filter.".length), value, parameters);
@@ -17934,6 +19172,7 @@ export function busRoutes(model) {
     }
 
     const where = \`WHERE \${conditions.join(" AND ")}\`;
+    if (sort) refuseComputed(entity, sort);
     const sortColumn = entity.attributes.find((attribute) => attribute.columnName === sort)
       ? sort
       : "created_at";
@@ -20998,6 +22237,9 @@ details.group > summary.group__name { cursor: pointer; }
 .chip--number { background: #f5f3ff; color: #7c3aed; border-color: transparent; }
 .chip--date { background: #fff7ed; color: #c2410c; border-color: transparent; }
 .chip--list { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
+/* A computed field (rollup, calculated): drawn, never typed into. */
+.chip--computed { background: #ecfdf5; color: #047857; border-color: transparent; }
+.field__computed { display: block; background: transparent; border-style: dashed; font-variant-numeric: tabular-nums; }
 .chip--lookup { background: #fdf4ff; color: #a21caf; border-color: transparent; }
 .chip--bool { background: var(--success-soft); color: var(--success); border-color: transparent; }
 @media (prefers-color-scheme: dark) {
@@ -24652,10 +25894,57 @@ function purgeSection(project, navigate) {
  * permit. Offering a button the server will refuse is worse than offering none.
  */
 
-import { el, helpToast, mount, spinner, toast, displayValue } from "../dom.js";
+import { el, helpToast, mount, spinner, toast, displayValue, formatNumeric } from "../dom.js";
 import { api } from "../api.js";
 import { setActions, childEntitiesOf } from "../main.js";
 import { fieldLogicState } from "../../server/lib/field-logic.js";
+import { computeValues, isComputed } from "../../server/lib/field-compute.js";
+
+/** Rows a rollup reads in one page; more are read page by page. */
+const ROLLUP_PAGE = 100;
+
+/**
+ * For each rollup field of a record, its child rows — with the child's own
+ * calculated columns computed on each, so \`sum(OrderItem.line_total)\` over a
+ * calculated \`line_total\` adds what each line would show. A list that cannot be
+ * read gives null, and the rollup draws "—" rather than a partial total.
+ */
+async function loadRollupRows(fields, id) {
+  const rows = {};
+  const childFields = new Map();
+  for (const field of fields) {
+    const rollup = field.computed_kind === "rollup" ? field.rollup : null;
+    if (!rollup) continue;
+    try {
+      const all = [];
+      for (let page = 1; ; page++) {
+        const result = await api.get(
+          \`/bus/\${rollup.child_route}?\${encodeURIComponent(rollup.link_column)}=\${encodeURIComponent(id)}&limit=\${ROLLUP_PAGE}&page=\${page}\`
+        );
+        all.push(...(result.data ?? []));
+        if (all.length >= (result.total ?? 0) || !(result.data ?? []).length) break;
+      }
+      if (!childFields.has(rollup.child_route)) {
+        const form = await api.get(\`/bus/\${rollup.child_route}/fields/form\`).catch(() => []);
+        childFields.set(rollup.child_route, form.filter(isComputed));
+      }
+      const own = childFields.get(rollup.child_route);
+      rows[field.column_name] = own.length
+        ? all.map((row) => ({ ...row, ...computeValues(own, row) }))
+        : all;
+    } catch {
+      rows[field.column_name] = null;
+    }
+  }
+  return rows;
+}
+
+/** A computed value as the form shows it: numbers grouped, dates as dates, "—" for none. */
+function computedText(value, field) {
+  if (value == null || value === "") return "—";
+  if (typeof value === "number") return formatNumeric(String(value));
+  return displayValue(value, field);
+}
 
 const referenceCache = new Map();
 const lookupCache = new Map();
@@ -24766,11 +26055,16 @@ export async function recordPanel(root, { entity, id, onClose, onSaved, navigate
   // saved since; "Overwrite" moves it to the version that conflict reported.
   let openedVersion = record.version;
   const inputs = new Map();
+  /* Computed fields (rollup, calculated) are \`<output>\`s, never inputs: they are
+     not in \`inputs\`, so \`submit\` — which sends every input — cannot send one. */
+  const outputs = new Map();
   const violationBox = el("div.violations", { hidden: true });
 
   const controls = await Promise.all(
-    editable.map((field) => control(field, record, entity, inputs))
+    editable.map((field) => control(field, record, entity, inputs, outputs))
   );
+  /* A rollup reads the record's child rows; a new record has none yet. */
+  const rollupRows = isNew ? {} : await loadRollupRows(editable, id);
 
   /*
    * Field logic — Compiere's Display, Read Only and Mandatory Logic.
@@ -24792,7 +26086,15 @@ export async function recordPanel(root, { entity, id, onClose, onSaved, navigate
     return values;
   };
   const applyLogic = () => {
-    const values = currentValues();
+    const typed = currentValues();
+    /* Rollups and formulas first, so field logic can read a computed value. */
+    const computed = outputs.size ? computeValues(editable, typed, rollupRows) : {};
+    for (const [column, output] of outputs) {
+      const field = editable.find((item) => item.column_name === column);
+      output.value = computedText(computed[column], field);
+      output.textContent = output.value;
+    }
+    const values = { ...typed, ...computed };
     let required = 0;
     for (const [field, node] of controls) {
       const state = fieldLogicState(field, values);
@@ -25220,6 +26522,11 @@ async function renderDetails(slot, entity, id, navigate) {
         api.get(\`/bus/\${child.routeName}?\${child.parentLinkColumn}=\${encodeURIComponent(id)}&limit=100\`),
       ]);
       const columns = fields.filter((field) => field.column_name !== child.parentLinkColumn);
+      /* A line's calculated columns, computed per row as the list does. */
+      const calculated = fields.filter((field) => field.computed_kind === "calculated");
+      if (calculated.length) {
+        page.data = page.data.map((row) => ({ ...row, ...computeValues(calculated, row) }));
+      }
 
       sections.push(
         el(
@@ -25401,8 +26708,34 @@ async function sidePanels(entity, id, record, onSaved, form, reload) {
   return panels;
 }
 
-async function control(field, record, entity, inputs) {
+async function control(field, record, entity, inputs, outputs) {
   const attribute = entity.attributes.find((item) => item.columnName === field.column_name) || {};
+  if (isComputed(field)) {
+    const rollup = field.computed_kind === "rollup";
+    const output = el("output.field__input.field__computed", {
+      id: \`field-\${field.column_name}\`,
+      name: field.column_name,
+      "data-testid": \`computed-field-\${field.column_name}\`,
+      "aria-live": "polite",
+    });
+    outputs?.set(field.column_name, output);
+    return [
+      field,
+      el(
+        "div.field.field--computed",
+        el(
+          "div.field__head",
+          el("label.field__label", { for: output.id }, field.name),
+          el(
+            \`span.chip.chip--computed\`,
+            { title: \`\${rollup ? "Rollup" : "Calculated"}: \${field.computed_expression ?? ""}\` },
+            rollup ? "Σ Rollup" : "ƒx Calculated"
+          )
+        ),
+        output
+      ),
+    ];
+  }
   const value = record[field.column_name];
   const id = \`field-\${field.column_name}\`;
   const [chipLabel, chipKind] = typeChip(attribute, field);
@@ -25727,6 +27060,7 @@ import { CSV_EXPORT_LIMIT, csvFileName, downloadCsv, toCsv } from "../csv.js";
 import { api, queryString } from "../api.js";
 import { setActions, setHelp } from "../main.js";
 import { recordPanel } from "./entity-form.js";
+import { computeValues, isComputed } from "../../server/lib/field-compute.js";
 
 const gridCache = new Map();
 
@@ -25899,6 +27233,12 @@ export async function entityListView(root, { entity, recordId, navigate }) {
           })}\`
         ),
       ]);
+      /* A calculated column is a formula over the row's own fields, computed
+         here for each row of the page — never stored, never fetched. */
+      const calculated = fields.filter((field) => field.computed_kind === "calculated");
+      if (calculated.length) {
+        page.data = page.data.map((row) => ({ ...row, ...computeValues(calculated, row) }));
+      }
       loaded = { fields, page };
       paint();
     } catch (error) {
@@ -26056,7 +27396,11 @@ export async function entityListView(root, { entity, recordId, navigate }) {
               el(
                 "tr",
                 columns.map((column) =>
-                  el(
+                  /* The server sorts this list and has no column for a computed
+                     field, so its heading offers no sort. */
+                  isComputed(column)
+                    ? el("th", { title: \`\${column.name} is computed on screen, so the list cannot be sorted by it\` }, column.name)
+                    : el(
                     "th",
                     {
                       class: state.sort === column.column_name ? "is-sorted" : "",
@@ -28982,7 +30326,7 @@ function reportActions(panel, report, { user, entities, reload }) {
 }
 `
 });
-var RUNTIME_BYTES = 678974;
+var RUNTIME_BYTES = 705434;
 
 // packages/core/src/types/bus-entity.types.ts
 function attributeTypeToReferenceId(type) {
@@ -29417,6 +30761,9 @@ var DictionaryGenerationConfigSchema = objectType({
   defaultAccessLevel: enumType(["S", "C", "O", "CO", "A"])
 });
 // packages/core/src/types/entity.types.ts
+function isComputedAttribute(attribute) {
+  return attribute?.computedKind === "rollup" || attribute?.computedKind === "calculated";
+}
 var EntityAttributeSchema = objectType({
   name: stringType(),
   type: enumType(["string", "integer", "decimal", "boolean", "date", "datetime", "text", "json"]),
@@ -29493,7 +30840,7 @@ class DictionaryGenerator {
           is_key: attr.name === entity.primaryKey,
           is_parent: false,
           is_mandatory: attr.required,
-          is_updateable: attr.name !== entity.primaryKey,
+          is_updateable: attr.name !== entity.primaryKey && !attr.computedKind,
           is_identifier: identifiers.has(attr.name),
           is_selection_column: ["name", "email", "title", "description", "status"].includes(attr.name) || attr.unique === true,
           is_translated: false,
@@ -29504,6 +30851,8 @@ class DictionaryGenerator {
           callout: undefined,
           read_only_logic: attr.readOnlyLogic,
           mandatory_logic: attr.mandatoryLogic,
+          computed_kind: attr.computedKind,
+          computed_expression: attr.computedExpression,
           format_pattern: undefined,
           entity_type: this.config.defaultEntityType,
           is_active: true,
@@ -29564,7 +30913,11 @@ class DictionaryGenerator {
         _columnRef: columnEntries[idx]?._tempId ?? "",
         display_logic: busAttrs[idx]?.displayLogic,
         read_only_logic: busAttrs[idx]?.readOnlyLogic,
-        mandatory_logic: busAttrs[idx]?.mandatoryLogic
+        mandatory_logic: busAttrs[idx]?.mandatoryLogic,
+        ...busAttrs[idx]?.computedKind ? {
+          is_read_only: true,
+          ...busAttrs[idx]?.computedKind === "rollup" ? { is_displayed_grid: false } : {}
+        } : {}
       }));
       const layout = formLayoutFor(entity);
       if (layout) {
@@ -29864,7 +31217,7 @@ var AUDIT_COLUMNS = new Set([
   "version"
 ]);
 function businessColumns(e) {
-  return e.attributes.filter((a) => a.name !== e.primaryKey && !AUDIT_COLUMNS.has(a.name));
+  return e.attributes.filter((a) => a.name !== e.primaryKey && !AUDIT_COLUMNS.has(a.name) && !isComputedAttribute(a));
 }
 function displayColumn(e) {
   const cols = businessColumns(e).filter((a) => !a.isForeignKey);
@@ -30526,7 +31879,7 @@ function buildSchema(entities, relationships) {
   ];
   for (const entity of entities) {
     const table = tableNameFor(entity);
-    const columns = entity.attributes.filter((attribute) => !MANAGED_COLUMN_NAMES2.has(snake2(attribute.name))).map((attribute) => {
+    const columns = entity.attributes.filter((attribute) => !MANAGED_COLUMN_NAMES2.has(snake2(attribute.name))).filter((attribute) => !isComputedAttribute(attribute)).map((attribute) => {
       const nullability = attribute.required ? " NOT NULL" : "";
       const unique = attribute.unique ? " UNIQUE" : "";
       return `  ${snake2(attribute.name)} ${sqlType(attribute)}${nullability}${unique},`;
@@ -30654,7 +32007,8 @@ function buildModelBundle(parsed, project) {
         enumRef: attribute.enumRef,
         enumValues: attribute.enumValues,
         referenceId: referenceIdFor(attribute, attribute.name === entity.primaryKey),
-        seqNo: (index + 1) * 10
+        seqNo: (index + 1) * 10,
+        ...isComputedAttribute(attribute) ? { computedKind: attribute.computedKind } : {}
       }))
     };
   });
@@ -30769,7 +32123,8 @@ function buildModelBundle(parsed, project) {
         refTableName: refTableFor(entities, tableByTemp.get(column._tableRef) ?? "", column.column_name),
         seqNo: column.seq_no,
         readOnlyLogic: column.read_only_logic,
-        mandatoryLogic: column.mandatory_logic
+        mandatoryLogic: column.mandatory_logic,
+        ...column.computed_kind ? { computedKind: column.computed_kind, computedExpression: column.computed_expression } : {}
       })),
       fieldGroups: dictionary.sysFieldGroups.filter((group) => group._tabRef).map((group) => ({
         tableName: tableByTemp.get(dictionary.sysTabs.find((tab) => tab._tempId === group._tabRef)?._tableRef ?? "") ?? "",
@@ -30882,9 +32237,29 @@ var REFERENCE_NAMES = {
   [ReferenceType.PHONE]: "Telephone"
 };
 function controlFor(attribute, referenceId) {
+  if (attribute.computedKind)
+    return "Computed (read only)";
   if (attribute.enumValues?.length)
     return "Choice";
   return REFERENCE_NAMES[referenceId] ?? "Text";
+}
+var ROLLUP_WORDS = {
+  sum: "total",
+  avg: "average",
+  min: "smallest",
+  max: "largest",
+  count: "number"
+};
+function computedSentence(attribute) {
+  if (attribute.computedKind === "rollup" && attribute.rollup) {
+    const { fn, childEntity, childColumn, where } = attribute.rollup;
+    const of = childColumn ? `${title2(childColumn)} over its ` : "";
+    return `Computed on screen, not stored: the ${ROLLUP_WORDS[fn] ?? fn} of ${of}` + `${title2(childEntity)} rows${where ? ` where ${where}` : ""}.`;
+  }
+  if (attribute.computedKind === "calculated" && attribute.computedExpression) {
+    return `Computed on screen, not stored: = ${attribute.computedExpression}`;
+  }
+  return null;
 }
 function referenceTarget(column, declared) {
   const name = column.toLowerCase();
@@ -30923,6 +32298,9 @@ function fieldRows(entity, declared) {
       if (target)
         detail.push(`Points at <b>${escapeHtml(title2(target))}</b>`);
     }
+    const computed = computedSentence(attribute);
+    if (computed)
+      detail.push(escapeHtml(computed));
     return `        <tr>
           <td><code>${escapeHtml(attribute.name)}</code></td>
           <td>${escapeHtml(control)}</td>
@@ -33681,7 +35059,7 @@ function buildSampleData(parsed, options) {
     name: entity.name,
     table: tableNameFor(entity),
     primaryKey: entity.primaryKey || "id",
-    columns: entity.attributes.map((attribute) => ({
+    columns: entity.attributes.filter((attribute) => !isComputedAttribute(attribute)).map((attribute) => ({
       name: attribute.name,
       columnName: attribute.name,
       type: attribute.type,

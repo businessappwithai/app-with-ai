@@ -47,7 +47,7 @@
  *   column is added — the other columns' streams do not shift under it.
  */
 
-import { ReferenceType } from "@appwithai/core/types";
+import { isComputedAttribute, ReferenceType } from "@appwithai/core/types";
 import { base, en, Faker } from "@faker-js/faker";
 import type { ParsedModel } from "../../pipeline/generate-application";
 import { referenceIdFor, tableNameFor } from "./model-bundle";
@@ -516,7 +516,8 @@ export function buildSampleData(parsed: ParsedModel, options: SampleDataOptions)
     name: entity.name,
     table: tableNameFor(entity),
     primaryKey: entity.primaryKey || "id",
-    columns: entity.attributes.map((attribute) => ({
+    /* A computed column has no storage: nothing to sample. */
+    columns: entity.attributes.filter((attribute) => !isComputedAttribute(attribute)).map((attribute) => ({
       name: attribute.name,
       columnName: attribute.name,
       type: attribute.type,

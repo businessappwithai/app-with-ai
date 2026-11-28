@@ -601,6 +601,8 @@ export async function seed(db: Kysely<any>): Promise<void> {
     displayLogic: string | null;
     readOnlyLogic: string | null;
     mandatoryLogic: string | null;
+    /** `rollup` | `calculated` — no storage; the browser draws the value. */
+    computedKind: string | null;
     /** `%%section` placement — absent on an entity that declares no sections. */
     layout?: {
       group: string;
@@ -628,6 +630,7 @@ export async function seed(db: Kysely<any>): Promise<void> {
     displayLogic: {{#if displayLogic}}{{tsString displayLogic}}{{else}}null{{/if}},
     readOnlyLogic: {{#if readOnlyLogic}}{{tsString readOnlyLogic}}{{else}}null{{/if}},
     mandatoryLogic: {{#if mandatoryLogic}}{{tsString mandatoryLogic}}{{else}}null{{/if}},
+    computedKind: {{#if computedKind}}{{tsString computedKind}}{{else}}null{{/if}},
     {{#if layout}}
     layout: {
       group: {{tsString layout.group}},
@@ -653,7 +656,7 @@ export async function seed(db: Kysely<any>): Promise<void> {
     is_key: {{#if (eq name ../primaryKey)}}true{{else}}false{{/if}},
     is_parent: false,
     is_mandatory: {{#if (or (eq columnName 'created_at') (eq columnName 'updated_at') (eq columnName 'deleted_at'))}}false{{else}}{{required}}{{/if}},
-    is_updateable: {{#if (or (eq name ../primaryKey) (eq columnName 'created_at') (eq columnName 'updated_at') (eq columnName 'deleted_at'))}}false{{else}}true{{/if}},
+    is_updateable: {{#if (or computedKind (eq name ../primaryKey) (eq columnName 'created_at') (eq columnName 'updated_at') (eq columnName 'deleted_at'))}}false{{else}}true{{/if}},
     {{!-- Which columns make up the display value is decided once, in
           identifierColumnNames, and carried on the attribute. Deciding it here
           meant a table with both `name` and `code` marked both, and the record
@@ -662,6 +665,9 @@ export async function seed(db: Kysely<any>): Promise<void> {
     {{!-- Compiere's column logic, inherited by every window over this table. --}}
     read_only_logic: {{#if readOnlyLogic}}{{tsString readOnlyLogic}}{{else}}null{{/if}},
     mandatory_logic: {{#if mandatoryLogic}}{{tsString mandatoryLogic}}{{else}}null{{/if}},
+    {{!-- `%%field <E>.<c> rollup: | calculated:` — a column with no storage. --}}
+    computed_kind: {{#if computedKind}}{{tsString computedKind}}{{else}}null{{/if}},
+    computed_expression: {{#if computedExpression}}{{tsString computedExpression}}{{else}}null{{/if}},
     is_selection_column: {{#if (or (eq name 'name') unique)}}true{{else}}false{{/if}},
     is_translated: false,
     is_encrypted: false,
@@ -890,8 +896,9 @@ export async function seed(db: Kysely<any>): Promise<void> {
       seq_no: col.layout?.seqNo ?? (i + 1) * 10,
       seq_no_grid: (i + 1) * 10,
       is_displayed: !col.isKey,
-      is_displayed_grid: !col.isKey && !GRID_NOISE.has(col.name),
-      is_read_only: ['created_at', 'updated_at', 'deleted_at'].includes(col.name),
+      // A rollup needs the record's child rows, which a list does not load.
+      is_displayed_grid: !col.isKey && !GRID_NOISE.has(col.name) && col.computedKind !== 'rollup',
+      is_read_only: ['created_at', 'updated_at', 'deleted_at'].includes(col.name) || col.computedKind !== null,
       is_encrypted: false,
       is_same_line: col.layout?.sameLine ?? false,
       column_span: col.layout?.columnSpan ?? null,

@@ -44,6 +44,7 @@ export const ERROR_CATEGORIES: Record<
 export const ERROR_CATALOGUE = {
   VALIDATION_FAILED: { category: "validation", status: 400, message: "The request data is not valid." },
   FIELD_LOGIC_VIOLATION: { category: "validation", status: 400, message: "A field is required, hidden or read-only under the record's current values." },
+  COMPUTED_FIELD_NOT_QUERYABLE: { category: "validation", status: 400, message: "A computed field is drawn on the screen and never stored, so a list cannot be filtered or sorted by it." },
   UNAUTHENTICATED: { category: "authentication", status: 401, message: "Sign in to continue." },
   FORBIDDEN: { category: "authorization", status: 403, message: "You do not have permission to do this." },
   ENTITY_ACCESS_DENIED: { category: "authorization", status: 403, message: "You do not have access to this kind of record." },

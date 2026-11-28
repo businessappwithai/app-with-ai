@@ -18,6 +18,7 @@ import { CSV_EXPORT_LIMIT, csvFileName, downloadCsv, toCsv } from "../csv.js";
 import { api, queryString } from "../api.js";
 import { setActions, setHelp } from "../main.js";
 import { recordPanel } from "./entity-form.js";
+import { computeValues, isComputed } from "../../server/lib/field-compute.js";
 
 const gridCache = new Map();
 
@@ -190,6 +191,12 @@ export async function entityListView(root, { entity, recordId, navigate }) {
           })}`
         ),
       ]);
+      /* A calculated column is a formula over the row's own fields, computed
+         here for each row of the page — never stored, never fetched. */
+      const calculated = fields.filter((field) => field.computed_kind === "calculated");
+      if (calculated.length) {
+        page.data = page.data.map((row) => ({ ...row, ...computeValues(calculated, row) }));
+      }
       loaded = { fields, page };
       paint();
     } catch (error) {
@@ -347,7 +354,11 @@ export async function entityListView(root, { entity, recordId, navigate }) {
               el(
                 "tr",
                 columns.map((column) =>
-                  el(
+                  /* The server sorts this list and has no column for a computed
+                     field, so its heading offers no sort. */
+                  isComputed(column)
+                    ? el("th", { title: `${column.name} is computed on screen, so the list cannot be sorted by it` }, column.name)
+                    : el(
                     "th",
                     {
                       class: state.sort === column.column_name ? "is-sorted" : "",

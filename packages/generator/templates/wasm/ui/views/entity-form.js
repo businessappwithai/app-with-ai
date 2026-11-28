@@ -25,10 +25,57 @@
  * permit. Offering a button the server will refuse is worse than offering none.
  */
 
-import { el, helpToast, mount, spinner, toast, displayValue } from "../dom.js";
+import { el, helpToast, mount, spinner, toast, displayValue, formatNumeric } from "../dom.js";
 import { api } from "../api.js";
 import { setActions, childEntitiesOf } from "../main.js";
 import { fieldLogicState } from "../../server/lib/field-logic.js";
+import { computeValues, isComputed } from "../../server/lib/field-compute.js";
+
+/** Rows a rollup reads in one page; more are read page by page. */
+const ROLLUP_PAGE = 100;
+
+/**
+ * For each rollup field of a record, its child rows — with the child's own
+ * calculated columns computed on each, so `sum(OrderItem.line_total)` over a
+ * calculated `line_total` adds what each line would show. A list that cannot be
+ * read gives null, and the rollup draws "—" rather than a partial total.
+ */
+async function loadRollupRows(fields, id) {
+  const rows = {};
+  const childFields = new Map();
+  for (const field of fields) {
+    const rollup = field.computed_kind === "rollup" ? field.rollup : null;
+    if (!rollup) continue;
+    try {
+      const all = [];
+      for (let page = 1; ; page++) {
+        const result = await api.get(
+          `/bus/${rollup.child_route}?${encodeURIComponent(rollup.link_column)}=${encodeURIComponent(id)}&limit=${ROLLUP_PAGE}&page=${page}`
+        );
+        all.push(...(result.data ?? []));
+        if (all.length >= (result.total ?? 0) || !(result.data ?? []).length) break;
+      }
+      if (!childFields.has(rollup.child_route)) {
+        const form = await api.get(`/bus/${rollup.child_route}/fields/form`).catch(() => []);
+        childFields.set(rollup.child_route, form.filter(isComputed));
+      }
+      const own = childFields.get(rollup.child_route);
+      rows[field.column_name] = own.length
+        ? all.map((row) => ({ ...row, ...computeValues(own, row) }))
+        : all;
+    } catch {
+      rows[field.column_name] = null;
+    }
+  }
+  return rows;
+}
+
+/** A computed value as the form shows it: numbers grouped, dates as dates, "—" for none. */
+function computedText(value, field) {
+  if (value == null || value === "") return "—";
+  if (typeof value === "number") return formatNumeric(String(value));
+  return displayValue(value, field);
+}
 
 const referenceCache = new Map();
 const lookupCache = new Map();
@@ -139,11 +186,16 @@ export async function recordPanel(root, { entity, id, onClose, onSaved, navigate
   // saved since; "Overwrite" moves it to the version that conflict reported.
   let openedVersion = record.version;
   const inputs = new Map();
+  /* Computed fields (rollup, calculated) are `<output>`s, never inputs: they are
+     not in `inputs`, so `submit` — which sends every input — cannot send one. */
+  const outputs = new Map();
   const violationBox = el("div.violations", { hidden: true });
 
   const controls = await Promise.all(
-    editable.map((field) => control(field, record, entity, inputs))
+    editable.map((field) => control(field, record, entity, inputs, outputs))
   );
+  /* A rollup reads the record's child rows; a new record has none yet. */
+  const rollupRows = isNew ? {} : await loadRollupRows(editable, id);
 
   /*
    * Field logic — Compiere's Display, Read Only and Mandatory Logic.
@@ -165,7 +217,15 @@ export async function recordPanel(root, { entity, id, onClose, onSaved, navigate
     return values;
   };
   const applyLogic = () => {
-    const values = currentValues();
+    const typed = currentValues();
+    /* Rollups and formulas first, so field logic can read a computed value. */
+    const computed = outputs.size ? computeValues(editable, typed, rollupRows) : {};
+    for (const [column, output] of outputs) {
+      const field = editable.find((item) => item.column_name === column);
+      output.value = computedText(computed[column], field);
+      output.textContent = output.value;
+    }
+    const values = { ...typed, ...computed };
     let required = 0;
     for (const [field, node] of controls) {
       const state = fieldLogicState(field, values);
@@ -593,6 +653,11 @@ async function renderDetails(slot, entity, id, navigate) {
         api.get(`/bus/${child.routeName}?${child.parentLinkColumn}=${encodeURIComponent(id)}&limit=100`),
       ]);
       const columns = fields.filter((field) => field.column_name !== child.parentLinkColumn);
+      /* A line's calculated columns, computed per row as the list does. */
+      const calculated = fields.filter((field) => field.computed_kind === "calculated");
+      if (calculated.length) {
+        page.data = page.data.map((row) => ({ ...row, ...computeValues(calculated, row) }));
+      }
 
       sections.push(
         el(
@@ -774,8 +839,34 @@ async function sidePanels(entity, id, record, onSaved, form, reload) {
   return panels;
 }
 
-async function control(field, record, entity, inputs) {
+async function control(field, record, entity, inputs, outputs) {
   const attribute = entity.attributes.find((item) => item.columnName === field.column_name) || {};
+  if (isComputed(field)) {
+    const rollup = field.computed_kind === "rollup";
+    const output = el("output.field__input.field__computed", {
+      id: `field-${field.column_name}`,
+      name: field.column_name,
+      "data-testid": `computed-field-${field.column_name}`,
+      "aria-live": "polite",
+    });
+    outputs?.set(field.column_name, output);
+    return [
+      field,
+      el(
+        "div.field.field--computed",
+        el(
+          "div.field__head",
+          el("label.field__label", { for: output.id }, field.name),
+          el(
+            `span.chip.chip--computed`,
+            { title: `${rollup ? "Rollup" : "Calculated"}: ${field.computed_expression ?? ""}` },
+            rollup ? "Σ Rollup" : "ƒx Calculated"
+          )
+        ),
+        output
+      ),
+    ];
+  }
   const value = record[field.column_name];
   const id = `field-${field.column_name}`;
   const [chipLabel, chipKind] = typeChip(attribute, field);

@@ -127,8 +127,37 @@ const REFERENCE_NAMES: Record<number, string> = {
  * type into. `string` tells them neither.
  */
 export function controlFor(attribute: EntityAttribute, referenceId: number): string {
+  if (attribute.computedKind) return "Computed (read only)";
   if (attribute.enumValues?.length) return "Choice";
   return REFERENCE_NAMES[referenceId] ?? "Text";
+}
+
+const ROLLUP_WORDS: Record<string, string> = {
+  sum: "total",
+  avg: "average",
+  min: "smallest",
+  max: "largest",
+  count: "number",
+};
+
+/**
+ * What a computed field is, in a sentence: where its value comes from and that
+ * nothing stores it. Shared by the manual and the assistant's skills, so the
+ * two describe the field the same way.
+ */
+export function computedSentence(attribute: EntityAttribute): string | null {
+  if (attribute.computedKind === "rollup" && attribute.rollup) {
+    const { fn, childEntity, childColumn, where } = attribute.rollup;
+    const of = childColumn ? `${title(childColumn)} over its ` : "";
+    return (
+      `Computed on screen, not stored: the ${ROLLUP_WORDS[fn] ?? fn} of ${of}` +
+      `${title(childEntity)} rows${where ? ` where ${where}` : ""}.`
+    );
+  }
+  if (attribute.computedKind === "calculated" && attribute.computedExpression) {
+    return `Computed on screen, not stored: = ${attribute.computedExpression}`;
+  }
+  return null;
 }
 
 /** `owner_id` -> `Owner`; the parent a lookup points at. */
@@ -190,6 +219,8 @@ function fieldRows(entity: Entity, declared: Map<string, string>): string {
         const target = referenceTarget(attribute.name, declared);
         if (target) detail.push(`Points at <b>${escapeHtml(title(target))}</b>`);
       }
+      const computed = computedSentence(attribute);
+      if (computed) detail.push(escapeHtml(computed));
 
       return `        <tr>
           <td><code>${escapeHtml(attribute.name)}</code></td>
