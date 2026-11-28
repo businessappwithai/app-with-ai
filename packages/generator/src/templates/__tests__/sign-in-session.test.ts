@@ -1,10 +1,12 @@
 /**
  * Signing in lands on the dashboard, and a failed session read does not sign anyone out.
  *
- * The sign-in page awaits `refreshSession()` and then navigates to /dashboard.
- * The user used to be applied inside `startTransition`, so the dashboard's guard
- * ran first, saw nobody signed in, and sent a person who had just signed in back
- * to the sign-in page — every request on the way answered 200. And on a fresh
+ * The sign-in page used to await `refreshSession()` and then navigate to
+ * /dashboard. The router renders the new route in a transition, and the layout's
+ * guard read the context from before the user was committed — it saw nobody
+ * signed in and sent a person who had just signed in back to the sign-in page,
+ * with every request on the way answering 200. The page now navigates once the
+ * context says the person is signed in. And on a fresh
  * page load a rate-limited session read (429) was taken as "no session" and did
  * the same. Found driving a generated application in Chromium
  * (scripts/e2e-generated-app); nothing on the API side could show either.
@@ -28,11 +30,14 @@ describe("the session after signing in", () => {
     expect(context).toContain("await refreshSession(false);");
   });
 
-  it("the sign-in page puts the user in place before it navigates", () => {
-    const refresh = login.indexOf("await refreshSession();");
-    const go = login.indexOf("navigate({ to: '/dashboard' })");
-    expect(refresh).toBeGreaterThan(0);
-    expect(go).toBeGreaterThan(refresh);
+  it("the sign-in page goes to the dashboard only once the context says signed in", () => {
+    // Navigating straight after `await refreshSession()` still lost the race: the
+    // router renders the new route in a transition, and its guard read the context
+    // from before the user was committed. The move now waits for isAuthenticated.
+    expect(login).toContain("if (signedIn && isAuthenticated) void navigate({ to: '/dashboard' });");
+    const handler = login.slice(login.indexOf("await refreshSession();"));
+    expect(handler.slice(0, 80)).toContain("setSignedIn(true);");
+    expect(handler.slice(0, 200)).not.toContain("navigate(");
   });
 
   it("tries a failed read again before deciding nobody is signed in", () => {

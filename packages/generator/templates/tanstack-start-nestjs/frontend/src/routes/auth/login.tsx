@@ -53,8 +53,23 @@ export const Route = createFileRoute('/auth/login')({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { refreshSession } = useAuth();
+  const { refreshSession, isAuthenticated } = useAuth();
   const [isPending, setIsPending] = useState(false);
+  // Set once the sign-in answered; the move to the dashboard waits for the
+  // session to be in the context (the effect below), not for this handler.
+  const [signedIn, setSignedIn] = useState(false);
+
+  /*
+   * Go to the dashboard once the context says the person is signed in. Calling
+   * navigate straight after `await refreshSession()` lost a race: the router
+   * renders the new route in a transition, and the layout's guard read the
+   * context from before the user was committed — saw nobody signed in and sent
+   * a person who had just signed in back here, with every request answering
+   * 200. Waiting for `isAuthenticated` makes the order React's, not ours.
+   */
+  useEffect(() => {
+    if (signedIn && isAuthenticated) void navigate({ to: '/dashboard' });
+  }, [signedIn, isAuthenticated, navigate]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -105,7 +120,7 @@ function LoginPage() {
       // optimizer mid-load in development, which races with auth loading and
       // leaves the dashboard stuck on the spinner until the user presses Ctrl+R.
       await refreshSession();
-      void navigate({ to: '/dashboard' });
+      setSignedIn(true);
     } catch (err: any) {
       const errorMessage = err?.message || 'An unexpected error occurred';
       setError(errorMessage);
