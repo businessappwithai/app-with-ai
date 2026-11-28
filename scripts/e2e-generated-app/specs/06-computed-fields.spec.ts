@@ -134,7 +134,7 @@ test("live: a formula recomputes while typing, and the parent's rollup follows t
   const errors = watchErrors(page);
   await page.goto(`${routeOf(child)}/${line.id}`);
   await page.getByRole("button", { name: /^Edit$/ }).first().click();
-  const box = page.locator(`[name="${input.name}"]`).first();
+  const box = page.locator(`input[name="${input.name}"], textarea[name="${input.name}"], select[name="${input.name}"]`).first();
   await expect(box).toBeEditable();
   const typed = Number(line[input.name] ?? 0) + 3;
   await box.fill(String(typed));

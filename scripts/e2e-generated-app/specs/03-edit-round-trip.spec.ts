@@ -41,7 +41,7 @@ for (const entity of topLevel) {
     await expect(edit).toBeVisible();
     await edit.click();
 
-    const input = page.locator(`[name="${column.name}"]`).first();
+    const input = page.locator(`input[name="${column.name}"], textarea[name="${column.name}"], select[name="${column.name}"]`).first();
     await expect(input, `${column.name} is an input in edit mode`).toBeEditable();
     const typed = `E2E ${column.name} ${Date.now().toString(36)}`;
     await input.fill(typed);
